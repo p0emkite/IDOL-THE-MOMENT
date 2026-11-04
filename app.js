@@ -29,7 +29,15 @@ brandCardBack.addEventListener('load', () => {
       mesh.material[5].map = backTexture;
       mesh.material[5].needsUpdate = true;
     }
-    old.dispose();
+    // The card briefly rising out of the opened pack must use this exact
+    // official back asset too, even when the PNG loads after WebGL startup.
+    if (openingCard) {
+      for (const face of [4,5]) {
+        openingCard.material[face].map = backTexture;
+        openingCard.material[face].needsUpdate = true;
+      }
+    }
+    old?.dispose();
   }
   if (!state.three && state.phase === 'reveal') renderFallbackCards();
 });
@@ -329,22 +337,22 @@ function makePackTexture(){
   const prismatic=g.createLinearGradient(90,170,890,1430);
   [['#ffffff00',0],['#b9f7ff66',.24],['#eac4ff12',.42],['#ffc9e36b',.67],['#ffffff00',1]].forEach(([v,t])=>prismatic.addColorStop(t,v));
   g.fillStyle=prismatic;g.fillRect(0,0,w,h);
-  for(let i=-15;i<36;i++){
+  for(let i=-5;i<15;i++){
     const gradient=g.createLinearGradient(i*45,0,i*45+360,h);
     gradient.addColorStop(0,'#ffffff00');
-    gradient.addColorStop(.38,i%4===0?'#ffdcff3f':'#ffffff0c');
-    gradient.addColorStop(.7,i%4===0?'#ffbcff2d':'#ffffff05');
+    gradient.addColorStop(.38,i%4===0?'#ffdcff19':'#ffffff06');
+    gradient.addColorStop(.7,i%4===0?'#ffbcff14':'#ffffff03');
     gradient.addColorStop(1,'#ffffff00');
-    g.strokeStyle=gradient;g.lineWidth=i%5===0?19:5;
+    g.strokeStyle=gradient;g.lineWidth=i%5===0?13:3;
     g.beginPath();g.moveTo(i*59,-30);g.lineTo(i*59+460,h+40);g.stroke();
   }
   // High-angle reflective folds that follow the flexible plastic pouch.
-  for(let i=0;i<17;i++){
-    const t=i/16,x=80+t*880;
-    g.strokeStyle=i%3===0?'#ffffff43':'#edb9f11a';
-    g.lineWidth=2+(i%4)*2;
+  for(let i=0;i<7;i++){
+    const t=i/6,x=80+t*880;
+    g.strokeStyle=i%3===0?'#ffffff16':'#edb9f10a';
+    g.lineWidth=1+(i%3);
     g.beginPath();g.moveTo(x,-20);
-    g.bezierCurveTo(x-34,350,x+55,890,x-17,1600);g.stroke();
+    g.bezierCurveTo(x-9,350,x+15,890,x-5,1600);g.stroke();
   }
   g.lineWidth=60;g.shadowBlur=22;g.shadowColor='#ffe5ff58';
   for(const [x1,y1,c1,c2] of [
@@ -399,11 +407,11 @@ function makePackTexture(){
   g.shadowBlur=0;
   // Printed foil sparkle detail. No color glyphs or emoji are used in the texture.
   g.save();g.globalCompositeOperation='screen';
-  for(let i=0;i<88;i++){
+  for(let i=0;i<23;i++){
     const x=((i*191)%860)+84,y=((i*277)%1195)+172;
     const rad=i%11===0?11:i%5===0?5:2;
     g.strokeStyle=i%3===0?'#fffdff':'#ffe1ff';
-    g.globalAlpha=i%9===0?.8:.28;
+    g.globalAlpha=i%9===0?.55:.16;
     g.lineWidth=1.4;
     g.beginPath();g.moveTo(x-rad,y);g.lineTo(x+rad,y);g.moveTo(x,y-rad);g.lineTo(x,y+rad);g.stroke();
   }
@@ -425,11 +433,10 @@ function makeSculptedFoilGeometry(){
     const x=p.getX(i),y=p.getY(i),z=p.getZ(i);
     const edge=Math.pow(Math.abs(x)/1.275,3);
     const top=Math.pow(Math.abs(y)/1.915,5);
-    const crease=Math.sin(y*11.5+x*6.8)*.024+Math.sin(y*21-x*8.5)*.012;
-    const diagonal=Math.sin(x*4.1+y*3.4)*.017;
-    const deformation=(crease+diagonal)*(.3+.7*edge)+top*.014*Math.sin(x*14);
+    const crease=Math.sin(y*2.6+x*1.1)*.0042;
+    const deformation=crease*(.12+.88*edge)+top*.003*Math.sin(x*5.2);
     if(Math.abs(z)>.09){
-      p.setXYZ(i,x+(edge*.015*Math.sin(y*13+x*5)),y,z+(z>0?1:-.5)*deformation);
+      p.setXYZ(i,x+edge*.0015*Math.sin(y*4),y,z+(z>0?1:-.5)*deformation);
     }
   }
   p.needsUpdate=true;geo.computeVertexNormals();return geo;
@@ -905,8 +912,12 @@ async function init3D(){
       const mod=await import('./premium-stage.js');
       concertStage=mod.createConcertStage({THREE,scene,renderer,oldBeams:stageLights});
       concertStage.reset();
-      // Backend login can finish before the WebGL module loads.
-      if(introShown&&!state.entryRequired)showConcertIntro(true);
+      // Never restart a completed or active intro when WebGL finishes loading.
+      // The previous forced replay looked like two camera revolutions.
+      if(introShown&&!state.entryRequired&&!$('concertIntro').hidden&&!introCameraActive){
+        introCameraActive=true;
+        introCameraStart=performance.now();
+      }
     }catch(err){console.warn('Concert stage enhancement unavailable',err)}
     resizeScene();
     if(state.phase==='reveal'&&state.cards.length&&!document.body.classList.contains('itm-concert'))addCards();
