@@ -1,0 +1,57 @@
+name: ITM visual QA
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/itm-visual-qa.yml'
+      - 'premium-stage.js'
+      - 'premium-ui.css'
+      - 'audio-manager.js'
+      - 'app.js'
+      - 'index.html'
+      - 'tests/itm-browser-check.mjs'
+permissions:
+  contents: write
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install headless Chromium
+        run: |
+          npm install --no-save playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Serve ITM
+        run: |
+          python3 -m http.server 8765 --bind 127.0.0.1 >/tmp/itm-serve.log 2>&1 &
+          sleep 2
+      - name: Capture desktop and mobile screens
+        id: capture
+        continue-on-error: true
+        run: node tests/itm-browser-check.mjs
+      - name: Upload results as artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: itm-visual-qa
+          path: qa/
+          retention-days: 7
+      - name: Publish visual QA shots to separate branch
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ ! -f qa/desktop-lobby.png ]; then exit 0; fi
+          git config user.name "ITM Visual QA"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B qa-screenshots
+          git add -f qa/*.png qa/visual-qa-result.json
+          git commit -m "chore(qa): latest rendered ITM reference screenshots" || true
+          git push origin HEAD:refs/heads/qa-screenshots --force
+      - name: Report browser issues
+        if: steps.capture.outcome == 'failure'
+        run: echo "::warning::ITM browser check found an error. Inspect visual QA artifact."
