@@ -261,3 +261,21 @@ body.itm-concert .pack-reveal-stage .concert-crowd{
  body.itm-concert .arena-foreground span{height:calc(var(--height) * .68);opacity:.6}
  body.itm-concert .pack-reveal-stage .concert-crowd{height:7%;opacity:.25}
 }
+
+/* Arena ingress replaces theatrical curtains: logo lights up in a dark venue
+   and fades directly into the camera flythrough among audience lightsticks. */
+body.itm-concert .concert-intro{background:radial-gradient(ellipse at 50% 55%,#1d102e,#050308 75%)}
+body.itm-concert .concert-curtain{display:none!important}
+body.itm-concert .concert-intro.opening{animation:itmArenaIngress 1.12s ease-in forwards!important}
+body.itm-concert .concert-intro.opening .concert-intro-brand{
+  animation:itmArenaBrand 1s ease-in forwards
+}
+@keyframes itmArenaIngress{
+  0%{opacity:1}
+  32%{opacity:.87}
+  100%{opacity:0}
+}
+@keyframes itmArenaBrand{
+  0%{opacity:1;transform:scale(1)}
+  100%{opacity:0;transform:scale(1.1);filter:blur(16px)}
+}
