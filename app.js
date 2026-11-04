@@ -529,8 +529,21 @@ async function restoreRecovery(){
   }catch(err){setAccountMessage('불러오기 실패: '+(err?.message||String(err)))}
   finally{state.accountBusy=false;updateLogin()}
 }
-async function init3D(){try{THREE=await import('https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js');initScene();$('canvasFallback').hidden=true;if(state.phase==='reveal'&&state.cards.length)addCards()}catch(err){console.warn('3D unavailable: ',err);$('threeCanvas').style.display='none';$('canvasFallback').hidden=false;resetFallback()}}
-function accountClose(){closeModal('accountOverlay');state.issuedRecovery=null;$('issuedCode').textContent='';$('issuedCodeBox').hidden=true;}
+async function init3D(){
+  try{
+    THREE=await import('https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js');
+    initScene();$('canvasFallback').hidden=true;syncCanvasPointerEvents();
+    if(state.phase==='reveal'&&state.cards.length)addCards();
+  }catch(err){
+    console.warn('3D unavailable: ',err);
+    $('threeCanvas').style.display='none';$('canvasFallback').hidden=false;resetFallback();
+  }
+}
+function accountClose(){
+  if(state.entryRequired&&!isNamedAccount())return;
+  closeModal('accountOverlay');state.issuedRecovery=null;
+  $('issuedCode').textContent='';$('issuedCodeBox').hidden=true;
+}
 function bind(){
   $('audioToggle').onclick=toggleAudio;
   $('drawOne').onclick=()=>openPack(1);$('drawFive').onclick=()=>openPack(5);
@@ -540,17 +553,25 @@ function bind(){
   $('collectionOpen').onclick=()=>{renderCollection();openModal('collectionOverlay')};
   $('collectionClose').onclick=()=>closeModal('collectionOverlay');
   $('oddsOpen').onclick=()=>openModal('oddsOverlay');$('oddsClose').onclick=()=>closeModal('oddsOverlay');
-  $('loginButton').onclick=accountOpen;$('accountClose').onclick=accountClose;
+  $('loginButton').onclick=()=>accountOpen(false);$('accountClose').onclick=accountClose;
+  $('accountTabLogin').onclick=()=>setAccountMode('login');
+  $('accountTabSignup').onclick=()=>setAccountMode('signup');
+  $('accountForm').onsubmit=submitAccount;
+  $('guestPlay').onclick=chooseGuest;
+  $('accountLogout').onclick=logoutAccount;
   $('issueRecoveryCode').onclick=issueRecovery;$('copyRecoveryCode').onclick=copyRecovery;
   $('restoreRecoveryCode').onclick=restoreRecovery;$('accountRetry').onclick=initBackend;
   ['collectionOverlay','oddsOverlay','accountOverlay'].forEach(id=>$(id).addEventListener('click',e=>{
     if(e.target===$(id)){if(id==='accountOverlay')accountClose();else closeModal(id)}
   }));
   document.addEventListener('keydown',e=>{
-    if(e.key==='Escape'){if(!$('packRevealStage').hidden){reset();return}closeModal('collectionOverlay');closeModal('oddsOverlay');accountClose()}
+    if(e.key==='Escape'){
+      if(!$('packRevealStage').hidden){reset();return}
+      closeModal('collectionOverlay');closeModal('oddsOverlay');accountClose();
+    }
     if(e.key==='Enter'&&document.activeElement===$('recoveryCodeInput'))restoreRecovery();
   });
   $('oddsRows').innerHTML=TIERS.map(t=>`<div class="odds-row"><strong style="color:${t.color}">${t.label}</strong><span>${t.chance}%</span></div>`).join('');
-  showControls(['drawOne','drawFive']);updateCounts();updateLogin();
+  showControls(['drawOne','drawFive']);updateCounts();updateLogin();syncCanvasPointerEvents();
 }
 bind();init3D();initBackend();
