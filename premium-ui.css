@@ -1,0 +1,115 @@
+/* ITM PREMIUM ARENA — live WebGL stage layout and audio console. */
+body.itm-concert .arena-foreground,
+body.itm-concert .concert-crowd{
+  display:none!important;
+}
+/* Both crowd and glowsticks are now genuine 3D actors on the arena floor;
+   hiding the legacy CSS silhouettes avoids a sudden pop at the intro ending. */
+body.itm-concert .scene-wrap{
+  background:radial-gradient(ellipse at 49% 56%,#28132e 0%,#080610 82%)!important;
+}
+body.itm-concert .scene-wrap:after{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(180deg,#0903101a 0%,transparent 17%,transparent 74%,#09040e2f 100%);
+  z-index:2;
+}
+body.itm-concert .topbar{
+  background:linear-gradient(180deg,#07030fce,#08040f16)!important;
+  z-index:51;
+}
+body.itm-concert .top-actions{z-index:53}
+body.itm-concert .brand-logo{filter:drop-shadow(0 0 10px #c386ffb0);}
+body.itm-concert .control-zone{
+  bottom:clamp(30px,4.4vh,52px);
+  z-index:38!important;
+}
+body.itm-concert .draw-actions .btn{
+  height:68px;max-width:272px;
+  box-shadow:0 13px 30px #04020bbb;
+  backdrop-filter:blur(12px);
+}
+body.itm-concert .draw-actions .btn.secondary{
+  background:linear-gradient(145deg,#33223fdf,#10091fe0)!important;
+  border:1px solid #eac0fd88;
+}
+body.itm-concert .draw-actions .btn.primary{
+  background:linear-gradient(115deg,#f988d0 0%,#f9b6e8 26%,#c19df7 52%,#ffd9a6 85%,#ffefca 100%)!important;
+  box-shadow:0 0 15px #f59bdf9b,0 0 26px #ad78fd5f,0 14px 30px #05000cbb!important;
+}
+body.itm-concert .control-zone:before{
+  content:"";position:absolute;left:50%;bottom:-12px;width:100%;height:70px;
+  transform:translateX(-50%);border-radius:50%;
+  pointer-events:none;
+  background:radial-gradient(ellipse,#f18eff19,transparent 70%);
+}
+/* Sound settings popover, fully responsive and keyboard accessible. */
+.sound-panel[hidden]{display:none!important}
+.sound-panel{
+  position:fixed;z-index:220;right:clamp(16px,3vw,48px);top:72px;
+  width:min(345px,calc(100vw - 28px));
+  padding:21px;display:grid;gap:17px;
+  border:1px solid #ecc1f376;border-radius:20px;
+  color:#fff;
+  background:linear-gradient(145deg,#281331f4,#130b21f5 78%);
+  box-shadow:0 14px 70px #000b,inset 0 1px 0 #ffffff3d;
+  backdrop-filter:blur(20px);
+}
+.sound-panel .sound-title{
+  font-size:12px;letter-spacing:.24em;font-weight:800;color:#f5d6f9;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.sound-panel .sound-desc{font-size:11px;color:#caafd9;line-height:1.6;}
+.sound-panel .sound-control{
+  display:grid;grid-template-columns:1fr auto;gap:8px;
+  align-items:center;font-size:13px;font-weight:700;
+}
+.sound-panel .sound-range{
+  display:flex;align-items:center;gap:9px;grid-column:1/-1;
+}
+.sound-panel input[type="range"]{
+  width:100%;min-width:0;height:6px;accent-color:#ed9cdd;cursor:pointer;
+}
+.sound-panel .sound-value{
+  font-size:12px;color:#e6c1f6;min-width:40px;text-align:right;
+  font-variant-numeric:tabular-nums;
+}
+.sound-panel .sound-toggle{
+  accent-color:#fca9e0;transform:scale(1.18);
+  cursor:pointer;
+}
+.sound-panel .sound-switch{
+  display:flex;align-items:center;justify-content:space-between;
+  border-radius:12px;border:1px solid #ffffff27;background:#ffffff0d;
+  padding:12px 14px;font-weight:800;font-size:12px;
+}
+.sound-panel .track-panel{
+  padding:12px;border-radius:12px;border:1px solid #f6c9f42b;
+  background:#0a041597;
+}
+.sound-panel .track-name{
+  font-size:12px;color:#ffe8fd;font-weight:700;min-height:21px;
+}
+.sound-panel .track-controls{display:flex;gap:7px;margin-top:10px}
+.sound-panel button.sound-mini,
+.sound-panel .music-upload{
+  min-width:0;flex:1;
+  display:flex;justify-content:center;align-items:center;
+  border:1px solid #f4c1f54e;border-radius:10px;
+  padding:9px 7px;font-size:12px;font-weight:700;
+  background:linear-gradient(130deg,#5b376a,#362044);
+  color:#fff;cursor:pointer;
+}
+.sound-panel button.sound-mini:hover,.sound-panel .music-upload:hover{
+  background:#74437b;
+}
+.sound-panel .music-upload{cursor:pointer;margin-top:10px}
+.sound-panel .music-upload input{position:absolute;width:1px;height:1px;opacity:0}
+.sound-panel #musicFileHint{font-size:10px;color:#c7afcb;margin-top:8px;line-height:1.5;}
+.sound-panel button:focus-visible,.sound-panel input:focus-visible{
+  outline:2px solid #ffcff7;outline-offset:2px;
+}
+@media(max-width:780px){
+  .sound-panel{top:65px;right:12px;padding:17px;gap:14px}
+  body.itm-concert .control-zone{bottom:max(20px,env(safe-area-inset-bottom,0px))}
+  body.itm-concert .draw-actions .btn{height:56px;font-size:14px}
+}
