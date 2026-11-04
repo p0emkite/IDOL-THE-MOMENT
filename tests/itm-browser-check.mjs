@@ -13,10 +13,13 @@ async function check(name,device){
   page.on('pageerror',err=>report.consoleErrors.push(name+': '+err.message));
   page.on('console',msg=>{if(msg.type()==='error')report.consoleErrors.push(name+': '+msg.text())});
   await page.goto(root,{waitUntil:'domcontentloaded',timeout:30000});
-  await page.waitForTimeout(2400);
-  const guest=page.locator('#guestPlay');
-  if(await guest.isVisible())await guest.click();
-  await page.waitForTimeout(4800);
+  // Supabase session bootstrap can outlast DOMContentLoaded.
+  // Never capture an authentication overlay as if it were the game lobby.
+  const overlay=page.locator('#accountOverlay.active');
+  await overlay.waitFor({state:'visible',timeout:35000});
+  await page.locator('#guestPlay').click({timeout:15000});
+  await overlay.waitFor({state:'hidden',timeout:15000});
+  await page.waitForTimeout(4500);
   const stats=await page.evaluate(()=>{
     const scene=document.getElementById('threeCanvas'),fallback=document.getElementById('canvasFallback');
     const r=scene.getBoundingClientRect();
