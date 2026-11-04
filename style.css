@@ -39,3 +39,16 @@
 .brand-logo[hidden],.brand-fallback[hidden],.fallback-pack-inner img[hidden],.fallback-pack-inner b[hidden]{display:none}
 .fallback-pack-inner img[hidden]+b{display:block}
 @media(max-width:780px){.brand-logo{width:81px;height:55px}}
+
+/* Full-viewport pack-opening stage: no boxed-in reveal on desktop or mobile. */
+body.pack-cinematic{overflow:hidden}
+body.pack-cinematic::after{content:"";position:fixed;inset:0;background:radial-gradient(ellipse at 50% 45%,#562178bb,#120820ee 56%,#07040af8);pointer-events:none;z-index:39}
+body.pack-cinematic .scene-wrap{position:fixed!important;inset:0!important;width:100vw!important;height:100dvh!important;margin:0!important;z-index:40!important;overflow:hidden!important;background:radial-gradient(ellipse at center,#51216e8c 0%,#14091e 48%,#07030b 100%)}
+body.pack-cinematic .scene-wrap canvas{inset:0!important;width:100%!important;height:100%!important}
+body.pack-cinematic .scene-heading{top:7%;right:7%;font-size:clamp(10px,1vw,15px);color:#f3d5ff}
+body.pack-cinematic .center-hint{bottom:9%;font-size:clamp(10px,1.2vw,16px);color:#fff;letter-spacing:3px;text-shadow:0 0 22px #ff7ddf}
+body.pack-cinematic .scene-floor-label{display:none}
+body.pack-cinematic .aura-ring{z-index:0;inset:12%;filter:blur(35px);animation:itmOpeningPulse 1.1s ease-in-out infinite alternate}
+body.pack-cinematic .streak{inset:0}
+@keyframes itmOpeningPulse{from{opacity:.25;transform:scale(.75)}to{opacity:.9;transform:scale(1.25)}}
+@media(prefers-reduced-motion:reduce){body.pack-cinematic .aura-ring{animation:none}}
