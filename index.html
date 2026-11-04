@@ -9,17 +9,18 @@
   <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="./style.css" />
   <link rel="stylesheet" href="./pack-opening.css" />
+  <link rel="stylesheet" href="./concert-ui.css" />
   <script src="./config.js"></script>
   <script type="module" src="./app.js"></script>
 </head>
-<body>
+<body class="itm-concert">
   <div class="noise" aria-hidden="true"></div>
   <div class="ambient ambient-one" aria-hidden="true"></div>
   <div class="ambient ambient-two" aria-hidden="true"></div>
   <div class="app-shell">
     <header class="topbar">
       <a class="brand" href="#" aria-label="ITM home">
-        <img class="brand-logo" src="./assets/itm-logo.png" alt="ITM 공식 로고" onerror="this.hidden=true;this.nextElementSibling.hidden=false" /><span class="brand-fallback" hidden>✳ ITM</span>
+        <img class="brand-logo" src="./assets/itm-logo.png" alt="ITM 공식 로고" onerror="this.hidden=true;this.nextElementSibling.hidden=false" /><span class="brand-fallback" hidden>✦ ITM</span>
         <span class="brand-divider"></span><span class="brand-sub">IDOL : THE MOMENT</span>
       </a>
       <div class="top-actions">
@@ -61,8 +62,8 @@
       <section class="control-zone">
         <div class="control-left"><span class="section-number">02 / MAKE IT YOURS</span><div class="control-heading" id="controlHeading">어떤 순간을 열어볼까?</div></div>
         <div class="draw-actions" id="drawActions">
-          <button id="drawOne" class="btn secondary"><span class="btn-count">01</span><span>1 CARD PACK · RANDOM</span><span>↗</span></button>
-          <button id="drawFive" class="btn primary"><span class="btn-count">05</span><span>5 CARD PACK · ALL TIERS</span><span>✦</span></button>
+          <button id="drawOne" class="btn secondary">1회 뽑기</button>
+          <button id="drawFive" class="btn primary">5회 뽑기 ✦</button>
           <button id="revealNext" class="btn secondary" hidden>다음 카드 공개 <span id="revealCounter"></span> →</button>
           <button id="revealAll" class="btn primary" hidden>모두 공개 ✦</button>
           <button id="nextPack" class="btn primary" hidden>다음 팩 열기 ↗</button>
@@ -83,7 +84,7 @@
   <div class="overlay" id="accountOverlay" aria-hidden="true">
     <div class="account-modal" role="dialog" aria-modal="true" aria-labelledby="accountTitle">
       <div class="modal-top">
-        <div><div class="eyebrow">ONE COLLECTION. EVERY DEVICE.</div><h2 id="accountTitle">ITM ID <span class="pink">✳</span></h2></div>
+        <div><div class="eyebrow">ONE COLLECTION. EVERY DEVICE.</div><h2 id="accountTitle">ITM ID <span class="pink">✦</span></h2></div>
         <button class="close" id="accountClose" aria-label="ITM ID 닫기">×</button>
       </div>
       <div class="account-body">
@@ -143,6 +144,8 @@
   </div>
   <div class="overlay" id="oddsOverlay" aria-hidden="true"><div class="odds-modal"><button class="close" id="oddsClose">×</button><h2>PACK ODDS</h2><p>1장 팩의 테스트 확률입니다. 5장 팩은 각 등급 1장씩 확정으로 등장합니다.</p><div id="oddsRows"></div></div></div>
   <section class="pack-reveal-stage" id="packRevealStage" role="dialog" aria-modal="true" aria-label="ITM 카드팩 개봉" aria-hidden="true" hidden>
+    <div class="concert-led-wall" id="concertRevealLED" aria-hidden="true"></div>
+    <div class="concert-crowd" id="concertCrowd" aria-hidden="true"></div>
     <div class="stage-top">
       <div class="stage-brand"><img src="./assets/itm-logo.png" alt="ITM" /><div><strong>IDOL : THE MOMENT</strong><span>DEBUT COLLECTION · TEST OPENING</span></div></div>
       <span class="stage-progress" id="stageProgress">0 / 5 REVEALED</span>
@@ -164,6 +167,27 @@
     </div>
     <div class="stage-burst" id="stageBurst" aria-hidden="true"></div>
     <div class="stage-rarity-banner" id="stageRarityBanner" aria-hidden="true"></div>
+  </section>
+  <section class="rarity-splash" id="raritySplash" role="dialog" aria-modal="true" aria-label="고등급 카드 획득" hidden>
+    <div class="splash-blur" id="splashBlur" aria-hidden="true"></div>
+    <img class="splash-art" id="splashArt" alt="획득한 최고 등급 카드 전체 아트" />
+    <div class="splash-radiance" aria-hidden="true"></div>
+    <div class="splash-prisms" aria-hidden="true"></div>
+    <div class="splash-fireworks" id="splashFireworks" aria-hidden="true"></div>
+    <div class="splash-copy">
+      <span class="splash-grade" id="splashGrade">UR</span>
+      <span class="splash-series" id="splashSeries">DEBUT COLLECTION</span>
+      <span class="splash-name" id="splashName">VEGA</span>
+      <div class="splash-caption" id="splashCaption">THE MOMENT IS YOURS</div>
+      <div class="splash-demo">현재는 테스트 카드 아트입니다 · 정식 이미지 추후 적용</div>
+    </div>
+    <button type="button" class="splash-close" id="splashClose" aria-label="획득 연출 닫기">×</button>
+  </section>
+  <section class="concert-intro" id="concertIntro" aria-label="ITM 콘서트 진입 연출" hidden>
+    <div class="concert-curtain left" aria-hidden="true"></div>
+    <div class="concert-curtain right" aria-hidden="true"></div>
+    <div class="concert-intro-brand"><img src="./assets/itm-logo.png" alt="ITM" /><span>IDOL : THE MOMENT</span></div>
+    <button type="button" class="intro-skip" id="concertIntroSkip">SKIP ›</button>
   </section>
   <button class="odds-link" id="oddsOpen">ⓘ 등급별 확률</button>
 </body>
