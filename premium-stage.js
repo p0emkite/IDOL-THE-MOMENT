@@ -252,8 +252,6 @@ export function createConcertStage({THREE,scene,renderer,oldBeams=[]}) {
   fireGeom.setAttribute('color',new THREE.BufferAttribute(colors,3));
   const fireMaterial=new THREE.PointsMaterial({size:.07,transparent:true,opacity:0,depthWrite:false,
     blending:THREE.AdditiveBlending,vertexColors:true});
-  const fireworks=mesh(fireGeom,fireMaterial); // Mesh wrapper fixed immediately below
-  venue.remove(fireworks);
   const particles=new THREE.Points(fireGeom,fireMaterial);particles.visible=false;particles.frustumCulled=false;venue.add(particles);
   let boomAt=-1;
 
