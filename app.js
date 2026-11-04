@@ -355,6 +355,13 @@ function frame(now){
   
 if(dust){dust.rotation.y+=delta*.015;dust.rotation.z+=delta*.01}stageLights.forEach((cone,i)=>cone.rotation.z=Math.sin(t*.4+i)*.23);concertStage?.update(t,delta);
   const n=cardMeshes.length;cardMeshes.forEach((mesh,i)=>{const revealed=state.revealed.has(i);const mobile=window.innerWidth<780;const spread=n===1?0:(mobile?1.18:1.47);const targetX=(i-(n-1)/2)*spread;const targetY=.14+Math.sin(t*1.3+i)*.055;mesh.position.x+=(targetX-mesh.position.x)*Math.min(1,delta*4.2);mesh.position.y+=(targetY-mesh.position.y)*Math.min(1,delta*4.2);mesh.position.z+=(0-mesh.position.z)*Math.min(1,delta*3);const targetR=revealed?Math.PI*2:Math.PI;mesh.rotation.y+=(targetR-mesh.rotation.y)*Math.min(1,delta*(revealed?3.2:4.8));mesh.rotation.z=((i-(n-1)/2)*(mobile?-.035:-.043))+Math.sin(t*.7+i)*.012;const targetScale=(revealed&&['SSR','UR'].includes(state.cards[i].rarity))?1.07:1;mesh.scale.lerp(new THREE.Vector3(targetScale,targetScale,targetScale),Math.min(1,delta*3))});
+  if(introCameraActive&&concertStage?.introPose){
+    const progress=clamp((performance.now()-introCameraStart)/7100,0,1);
+    const pose=concertStage.introPose(progress);
+    camera.position.copy(pose.pos);
+    camera.lookAt(pose.look);
+    if(Math.abs(camera.fov-pose.fov)>.02){camera.fov=pose.fov;camera.updateProjectionMatrix()}
+  }
   renderer.render(scene,camera)}
 function addCards(){cardMeshes.forEach(mesh=>{scene.remove(mesh);mesh.geometry.dispose();mesh.material.forEach(m=>{if(m.map && m.map!==backTexture)m.map.dispose();m.dispose()})});cardMeshes=[];
   const n=state.cards.length;state.cards.forEach((c,i)=>{const front=texture(makeCardArt(c));const edge=new THREE.MeshPhysicalMaterial({map:texture(makeTierEdgeTexture(c.rarity)),metalness:.5,roughness:.24,clearcoat:.9});const card=new THREE.Mesh(new THREE.BoxGeometry(1.56,2.3,.04),[edge,edge,edge,edge,new THREE.MeshBasicMaterial({map:front}),new THREE.MeshBasicMaterial({map:backTexture})]);card.position.set((i-(n-1)/2)*.25,-4,-i*.07);card.rotation.y=Math.PI;card.userData.index=i;cardMeshes.push(card);scene.add(card)})}
@@ -736,9 +743,11 @@ async function init3D(){
       const mod=await import('./concert-stage.js');
       concertStage=mod.createConcertStage({THREE,scene,renderer,oldBeams:stageLights});
       concertStage.reset();
+      // Backend login can finish before the WebGL module loads.
+      if(introShown&&!state.entryRequired)showConcertIntro(true);
     }catch(err){console.warn('Concert stage enhancement unavailable',err)}
     resizeScene();
-    if(state.phase==='reveal'&&state.cards.length)addCards();
+    if(state.phase==='reveal'&&state.cards.length&&!document.body.classList.contains('itm-concert'))addCards();
   }catch(err){
     console.warn('3D unavailable: ',err);
     $('threeCanvas').style.display='none';$('canvasFallback').hidden=false;resetFallback();
