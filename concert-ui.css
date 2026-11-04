@@ -270,3 +270,14 @@ body.itm-concert .stage-card-button:is(.rarity-sr,.rarity-ssr,.rarity-ur).is-rev
  .splash-prisms,.splash-fireworks i,.rarity-splash .splash-art,
  .concert-crowd span,body.itm-concert .btn.primary:before{animation:none!important}
 }
+
+/* Prevent legacy cinematic dimmer from covering the new full-screen WebGL stage. */
+body.itm-concert.pack-cinematic::after{display:none!important}
+body.itm-concert.pack-cinematic .scene-wrap{z-index:1!important}
+body.itm-concert .draw-actions .btn[hidden]{display:none!important}
+/* The static fullscreen overlay handles all cards during reveal; the WebGL canvas stays non-interactive. */
+body.itm-concert .stage-burst{opacity:0;filter:brightness(.63)}
+body.itm-concert .stage-rarity-banner{text-shadow:0 0 16px var(--stage-glow)}
+body.itm-concert .stage-card-button:is(.rarity-sr,.rarity-ssr,.rarity-ur).is-revealed{
+  filter:drop-shadow(0 0 7px #b7a2ef54)
+}
