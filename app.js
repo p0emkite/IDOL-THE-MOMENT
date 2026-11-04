@@ -338,76 +338,143 @@ function renderFallbackCards(){const f=$('canvasFallback');f.innerHTML='';f.styl
 function openModal(id){$(id).classList.add('active');$(id).setAttribute('aria-hidden','false')}
 function closeModal(id){$(id).classList.remove('active');$(id).setAttribute('aria-hidden','true')}
 function renderCollection(){const ids=Object.entries(visibleInventory()).filter(([id,q])=>Number(q)>0&&byId.has(id));const unique=ids.length;$('collectionSummary').textContent=`DISCOVERED ${unique} / ${POOL.length}   •   OWNED ${ids.reduce((sum,[,q])=>sum+Number(q),0)} CARDS`;const grid=$('collectionGrid');grid.replaceChildren();if(!ids.length){const p=document.createElement('p');p.className='collection-empty';p.textContent='아직 수집한 카드가 없어. 첫 번째 팩을 열어봐 ✦';grid.append(p)}ids.sort((a,b)=>POOL.findIndex(c=>c.id===a[0])-POOL.findIndex(c=>c.id===b[0])).forEach(([id,qty])=>{let card=byId.get(id),box=document.createElement('div');box.className='col-item';let img=document.createElement('img');img.src=makeCardArt(card).toDataURL();img.alt=`${card.group} ${card.name}`;let q=document.createElement('span');q.className='qty';q.textContent='×'+qty;let title=document.createElement('strong');title.textContent=card.group+' · '+card.name;let sub=document.createElement('small');sub.style.color=tone(card.rarity);sub.textContent=card.rarity;box.append(img,q,title,sub);grid.append(box)})}
+
 async function syncRemote(){
   if(!state.supabase||!state.playerId)return false;
-  const {data,error}=await state.supabase.from('user_inventory').select('card_id,quantity');
+  const {data,error}=await state.supabase.from('itm_demo_inventory').select('card_id,quantity');
   if(error){toast('도감 동기화 오류: '+error.message);return false}
-  state.inventory=Object.fromEntries((data||[]).map(r=>[r.card_id,r.quantity]));
+  state.remoteDemoInventory=Object.fromEntries((data||[]).map(r=>[r.card_id,r.quantity]));
   updateCounts();
   if($('collectionOverlay').classList.contains('active'))renderCollection();
   return true;
 }
 function updateLogin(){
-  const btn=$('loginButton');
-  btn.textContent=state.playerId?'✦ ITM ID':state.supabase?'◌ 연결 확인':'◌ DEMO MODE';
-  btn.title=state.playerId?'복구 코드와 다른 기기 연결':'ITM ID 연결 상태';
-  $('accountStatus').textContent=state.playerId?'게스트 도감이 서버에 연결되었어!':state.authError?'서버 계정 연결이 필요해':'서버 연결 중…';
-  $('accountPlayerId').textContent=state.playerId?'PLAYER ID · '+state.playerId.slice(0,8).toUpperCase()+(state.hasRecovery?' · 복구 코드 발급됨':' · 복구 코드 미발급'):
-    (state.authError||'계정 상태를 확인하고 있어요.');
-  $('accountRetry').hidden=!!state.playerId;
-  $('issueRecoveryCode').disabled=!state.playerId||state.accountBusy;
-  $('restoreRecoveryCode').disabled=!state.playerId||state.accountBusy;
-  $('collectionFooter').textContent=state.playerId?'클라우드에 저장된 도감이야. 다른 기기에서는 ITM ID 복구 코드로 연결할 수 있어.':'이 화면의 도감은 로컬 데모일 수 있어. ITM ID 연결 후 서버에 저장돼.';
-  const bar=$('accountStatus').closest('.identity-bar');
-  bar.dataset.connected=String(!!state.playerId);
+  const signed=isNamedAccount();
+  $('loginButton').textContent=signed?'✦ '+state.accountName.toUpperCase():'✦ ITM ID';
+  $('accountEntry').hidden=signed;
+  $('accountProfile').hidden=!signed;
+  $('accountClose').hidden=state.entryRequired&&!signed;
+  $('accountStatus').textContent=signed?'로그인됨 · '+state.accountName:'계정 연결 필요';
+  $('accountPlayerId').textContent=signed?'ITM PLAYER · '+state.playerId.slice(0,8).toUpperCase():'';
+  $('accountRetry').hidden=true;
+  $('issueRecoveryCode').disabled=!signed||state.accountBusy;
+  $('restoreRecoveryCode').disabled=!signed||state.accountBusy;
+  $('accountSubmit').disabled=state.accountBusy;
+  $('accountSubmit').textContent=state.accountBusy?'확인 중…':state.accountMode==='signup'?'ITM ID 만들기 →':'내 도감 불러오기 →';
+  $('collectionFooter').textContent=signed?'클라우드에 저장된 도감이야. 같은 ITM ID로 어디서나 불러올 수 있어.':'게스트 도감은 이 브라우저에만 저장돼. 데이터 삭제·시크릿 모드 종료 시 사라질 수 있어.';
 }
-function setAccountMessage(message){$('accountMessage').textContent=message;}
-function accountOpen(){updateLogin();openModal('accountOverlay')}
-async function connectGuest(){
-  if(!state.supabase||state.connecting)return;
-  state.connecting=true;
-  state.authError=null;updateLogin();
-  try{
-    const {data:sessionData,error:sessionError}=await state.supabase.auth.getSession();
-    if(sessionError)throw sessionError;
-    let user=sessionData?.session?.user;
-    if(!user){
-      const {data,error}=await state.supabase.auth.signInAnonymously();
-      if(error)throw error;
-      user=data.user;
-    }
-    if(!user)throw new Error('게스트 계정 생성에 실패했어.');
-    state.user=user;
-    const {data:playerId,error:playerError}=await state.supabase.rpc('ensure_guest_player');
-    if(playerError)throw playerError;
-    state.playerId=playerId;
-    await syncRemote();
-    const {data:backup,error:backupError}=await state.supabase.rpc('has_recovery_code');
-    if(!backupError)state.hasRecovery=!!backup;
-    state.authError=null;
-    updateLogin();
-    setAccountMessage('게스트 도감 연결 완료! 복구 코드를 발급해 두면 새 휴대폰·PC에서도 같은 도감을 사용할 수 있어.');
-  }catch(err){
-    state.authError=(err?.message||String(err));
-    state.playerId=null;
-    updateLogin();
-    setAccountMessage('계정 연결 실패: '+state.authError+' · Supabase에서 Anonymous Sign-Ins가 켜져 있는지도 확인해 줘.');
-    console.warn('Anonymous authentication failed',err);
-  }finally{state.connecting=false;}
+function setAccountMessage(message){$('accountMessage').textContent=message}
+function setAccountMode(mode){
+  state.accountMode=mode==='signup'?'signup':'login';
+  const signup=state.accountMode==='signup';
+  $('accountTabLogin').classList.toggle('selected',!signup);
+  $('accountTabSignup').classList.toggle('selected',signup);
+  $('accountTabLogin').setAttribute('aria-pressed',String(!signup));
+  $('accountTabSignup').setAttribute('aria-pressed',String(signup));
+  $('accountPassword').autocomplete=signup?'new-password':'current-password';
+  $('accountPasswordNote').hidden=!signup;
+  updateLogin();
+}
+function accountOpen(required=false){
+  state.entryRequired=!!required;
+  setAccountMode('login');updateLogin();
+  if(required)setAccountMessage('로그인, 회원가입 또는 게스트 플레이 중 하나를 선택해 줘.');
+  openModal('accountOverlay');
+}
+function chooseGuest(){
+  state.entryRequired=false;saveEntryChoice('guest');
+  closeModal('accountOverlay');
+  updateCounts();updateLogin();
+  toast('게스트 모드 · 수집 기록은 이 브라우저에만 저장돼.');
+}
+async function activateNamedUser(user){
+  if(!user||!accountNameOf(user))throw Error('ITM 계정 정보를 확인할 수 없어.');
+  state.user=user;state.accountName=accountNameOf(user);state.playerId=null;
+  const {data:playerId,error}=await state.supabase.rpc('ensure_guest_player');
+  if(error)throw error;
+  state.playerId=playerId;
+  const {data:backup,error:backupError}=await state.supabase.rpc('has_recovery_code');
+  state.hasRecovery=!backupError&&!!backup;
+  await syncRemote();updateLogin();
 }
 async function initBackend(){
-  if(!CONFIG.supabaseUrl||!CONFIG.supabasePublishableKey){state.authError='Supabase 설정이 필요해.';state.backendReady=true;updateLogin();return}
+  if(!CONFIG.supabaseUrl||!CONFIG.supabasePublishableKey){
+    state.authError='Supabase 설정을 확인해 줘.';state.backendReady=true;
+    updateLogin();if(!guestChosen())accountOpen(true);return;
+  }
   try{
     if(!state.supabase){
       const mod=await import('https://esm.sh/@supabase/supabase-js@2.57.0');
       state.supabase=mod.createClient(CONFIG.supabaseUrl,CONFIG.supabasePublishableKey);
     }
-    await connectGuest();
-    state.backendReady=true;
+    const {data,error}=await state.supabase.auth.getSession();
+    if(error)throw error;
+    const user=data?.session?.user;
+    if(user&&accountNameOf(user)&&!user.is_anonymous){
+      await activateNamedUser(user);
+      saveEntryChoice('account');
+    }else{
+      state.accountName=null;state.playerId=null;state.user=null;
+      updateCounts();updateLogin();
+      if(!guestChosen())accountOpen(true);
+    }
   }catch(err){
-    state.authError='Supabase 스크립트 연결 실패: '+(err?.message||String(err));
-    state.backendReady=true;updateLogin();console.error(err);
-  }
+    state.authError=err?.message||String(err);
+    state.accountName=null;state.playerId=null;state.user=null;
+    updateCounts();updateLogin();
+    if(!guestChosen())accountOpen(true);
+    setAccountMessage('서버 연결에 문제가 있어. 게스트 플레이는 가능해. '+state.authError);
+  }finally{state.backendReady=true}
+}
+async function submitAccount(event){
+  event?.preventDefault();
+  if(state.accountBusy)return;
+  if(!state.supabase)return setAccountMessage('서버 연결을 확인한 뒤 다시 시도해 줘.');
+  const name=$('accountUsername').value.trim().toLowerCase(),password=$('accountPassword').value;
+  if(!ACCOUNT_PATTERN.test(name))return setAccountMessage('아이디는 영문 소문자로 시작하는 4~20자의 영문·숫자·밑줄만 사용할 수 있어.');
+  if(!password)return setAccountMessage('비밀번호를 입력해 줘.');
+  const signup=state.accountMode==='signup';
+  if(signup&&(password.length<10||password.length>72||!/[A-Za-z]/.test(password)||!/[0-9]/.test(password)))
+    return setAccountMessage('회원가입 비밀번호는 영문과 숫자를 포함한 10~72자여야 해.');
+  state.accountBusy=true;updateLogin();
+  try{
+    if(signup){
+      const res=await fetch(CONFIG.supabaseUrl+'/functions/v1/itm-register',{
+        method:'POST',headers:{'content-type':'application/json','apikey':CONFIG.supabasePublishableKey},
+        body:JSON.stringify({username:name,password})
+      });
+      const payload=await res.json().catch(()=>({}));
+      if(!res.ok)throw Error(payload.error||'계정 생성에 실패했어.');
+    }
+    const {data,error}=await state.supabase.auth.signInWithPassword({email:accountEmail(name),password});
+    if(error)throw error;
+    if(!data?.user)throw Error('로그인 응답을 확인할 수 없어.');
+    await activateNamedUser(data.user);
+    let imported=false;
+    if(signup&&Object.keys(state.demoInventory).length){
+      const {data:ok,error:importError}=await state.supabase.rpc('itm_import_guest_demo',{p_items:state.demoInventory});
+      if(importError)setAccountMessage('계정은 생성됐지만 게스트 카드 이전은 실패했어. 로컬 기록은 남아 있어.');
+      else{imported=!!ok;await syncRemote();}
+    }
+    $('accountPassword').value='';
+    state.entryRequired=false;saveEntryChoice('account');updateLogin();
+    closeModal('accountOverlay');
+    toast(signup?(imported?'회원가입 완료! 게스트 도감도 이전했어.':'ITM 계정 생성 완료!'):'로그인 성공! 클라우드 도감을 불러왔어.');
+  }catch(err){
+    setAccountMessage('계정 처리 실패: '+(err?.message||String(err)));
+    console.warn('ITM account flow failed',err?.message||String(err));
+  }finally{state.accountBusy=false;updateLogin()}
+}
+async function logoutAccount(){
+  if(state.accountBusy)return;
+  state.accountBusy=true;
+  try{if(state.supabase){const {error}=await state.supabase.auth.signOut();if(error)throw error}}
+  catch(err){state.accountBusy=false;return setAccountMessage('로그아웃 실패: '+(err?.message||String(err)))}
+  state.accountBusy=false;state.user=null;state.accountName=null;state.playerId=null;
+  state.remoteDemoInventory={};state.hasRecovery=false;state.issuedRecovery=null;
+  try{localStorage.removeItem(ENTRY_KEY)}catch{}
+  updateCounts();accountOpen(true);
+  toast('로그아웃했어. 계정 도감은 서버에 보관돼.');
 }
 async function issueRecovery(){
   if(state.accountBusy)return;
