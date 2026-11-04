@@ -258,6 +258,8 @@ export function createConcertStage({THREE,scene,renderer,oldBeams=[]}){
         if(rank==='UR'){
           const hue=(ix*.0065+Math.sin(iy*.12+t*.43)*.12+t*.045)%1;
           color='hsla('+Math.round(hue*360)+',100%,85%,'+strength.toFixed(2)+')';
+        }else if(rank==='WHITE'){
+          color='rgba(248,243,255,'+strength.toFixed(2)+')';
         }else if(rank==='SSR'){
           color='rgba(255,232,175,'+strength.toFixed(2)+')';
         }else if(rank==='SR'){
@@ -393,6 +395,6 @@ export function createConcertStage({THREE,scene,renderer,oldBeams=[]}){
     openingSequence=null;openingDark=false;
     if(rank==='WHITE')setRarity('DEFAULT');
   }
-  function reset(){setRarity('DEFAULT');fireStart=-1;fire.visible=false}
+  function reset(){openingSequence=null;openingDark=false;openingFire=false;setRarity('DEFAULT');fireStart=-1;fire.visible=false}
   return {setRarity,reset,update,burst,introPose,beginOpening,endOpening};
 }
