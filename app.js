@@ -124,7 +124,7 @@ function closeRaritySplash(){
   $('raritySplash').hidden=true;
 }
 function showRaritySplash(card){
-  if(!card||!['SSR','UR'].includes(card.rarity))return;
+  if(!card||card.rarity!=='UR')return;
   const splash=$('raritySplash');
   splash.className='rarity-splash rarity-'+card.rarity.toLowerCase();
   splash.hidden=false;
@@ -152,7 +152,7 @@ function showRaritySplash(card){
   $('splashClose').focus({preventScroll:true});
 }
 function queueRaritySplash(card){
-  if(!card||!['SSR','UR'].includes(card.rarity))return;
+  if(!card||card.rarity!=='UR')return;
   clearTimeout(splashTimer);
   splashTimer=setTimeout(()=>{
     if(state.phase==='reveal')showRaritySplash(card);
@@ -351,7 +351,11 @@ function updateCounts(){let total=Object.values(visibleInventory()).reduce((a,n)
 // Immersive reveal UI: real interactive, keyboard-accessible flip cards.
 function renderRevealStage(){
   const stage=$('packRevealStage'),rail=$('stageCardRail');
-  rail.replaceChildren();rail.classList.toggle('one-card',state.cards.length===1);
+  rail.replaceChildren();
+  rail.classList.toggle('one-card',state.cards.length===1);
+  const track=document.createElement('div');
+  track.id='stageCardTrack';track.className='stage-card-track';
+  rail.appendChild(track);
   state.cards.forEach((card,i)=>{
     const button=document.createElement('button');
     button.type='button';button.className='stage-card-button rarity-'+card.rarity.toLowerCase();
@@ -373,7 +377,7 @@ function renderRevealStage(){
     button.addEventListener('click',()=>revealIndex(i));
     button.addEventListener('pointerenter',()=>{if(state.revealed.has(i))hoverRaritySound(card)});
     button.addEventListener('focus',()=>{if(state.revealed.has(i))hoverRaritySound(card)});
-    rail.append(button);
+    track.append(button);
   });
   fillConcertCrowd();
   setConcertRarity('DEFAULT');
@@ -448,7 +452,7 @@ async function openPack(count){
 function revealIndex(i,silent=false){
   if(state.phase!=='reveal'||state.revealed.has(i)||i<0||i>=state.cards.length)return;
   state.revealed.add(i);
-  const card=state.cards[i],button=$('stageCardRail').children[i],tier=TIERS.find(t=>t.key===card.rarity);
+  const card=state.cards[i],button=$('stageCardTrack')?.children[i],tier=TIERS.find(t=>t.key===card.rarity);
   if(button){
     button.classList.add('is-revealed');
     button.setAttribute('aria-label',card.rarity+' '+card.name+' 공개됨');
