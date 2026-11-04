@@ -1,0 +1,150 @@
+
+/* ITM Arena V3 — layered over prior game CSS.
+   Structural changes are isolated to concert presentation only. */
+
+/* During camera ingress, stage-only audience silhouettes must not float in space. */
+body.itm-intro-active .arena-foreground{
+ opacity:0!important;visibility:hidden!important;
+}
+body.itm-concert .arena-foreground{
+ transition:opacity 1.2s ease,visibility 1.2s;
+ opacity:1;
+}
+body.itm-intro-active .control-zone{opacity:0;pointer-events:none;}
+body.itm-concert .control-zone{transition:opacity .9s ease;}
+body.itm-concert.pack-revealing .control-zone,
+body.itm-concert.pack-revealing .topbar{
+ display:none!important;
+}
+
+/* Only the real reveal controls; no legacy "next" or "reveal all" showing underneath. */
+body.itm-concert.pack-revealing #drawActions,
+body.itm-concert.pack-revealing #revealNext,
+body.itm-concert.pack-revealing #revealAll,
+body.itm-concert.pack-revealing #nextPack,
+body.itm-concert #stageRevealNext{
+ display:none!important;
+}
+body.itm-concert #stageRevealAll:not([hidden]){
+ display:inline-flex!important;align-items:center;justify-content:center;
+ min-width:245px;min-height:57px;
+ border-radius:99px;
+ background:linear-gradient(113deg,#fa74ce 5%,#ffb2e7 47%,#ffd29b 100%)!important;
+ color:#2a0e32;border:1px solid #fff1c5!important;
+ box-shadow:0 0 18px #ff8cd2bb,0 0 29px #c78aff79,0 9px 26px #06020bc7;
+ font-weight:950;font-size:17px;letter-spacing:.01em;
+ animation:itmCallToAction 3.7s ease-in-out infinite;
+}
+body.itm-concert #stageFinish:not([hidden]){display:inline-flex!important;align-items:center;justify-content:center;}
+@keyframes itmCallToAction {
+ 0%,100%{box-shadow:0 0 16px #ff91d9a8,0 0 27px #bd8cff70,0 9px 26px #06020bc7}
+ 50%{box-shadow:0 0 27px #ff96d5d9,0 0 42px #d2a6ff8e,0 9px 26px #06020bc7}
+}
+
+/* Gold warns that SR+ has arrived, but does not reveal which of SR/SSR/UR. */
+body.itm-concert .stage-card-button:is(.rarity-sr,.rarity-ssr,.rarity-ur):not(.is-revealed) .stage-card-back{
+ border:3px solid #ffdf73!important;
+ box-shadow:0 0 0 1px #fff3ae,0 0 12px 3px #ffca45ea,0 0 31px 5px #ffbe446e,0 14px 32px #05020fdd!important;
+ animation:itmGoldOutline 2.6s ease-in-out infinite;
+}
+body.itm-concert .stage-card-button:is(.rarity-sr,.rarity-ssr,.rarity-ur):not(.is-revealed) .stage-card-back:before{
+ content:"";position:absolute;inset:0;pointer-events:none;z-index:4;
+ border-radius:8px;
+ background:linear-gradient(120deg,transparent 18%,#fff6c67a 48%,transparent 58%) -160% 0 / 240% 100% no-repeat;
+ animation:itmGoldGlint 3.8s ease-in-out infinite;
+}
+@keyframes itmGoldOutline{
+ 0%,100%{filter:brightness(1)}
+ 50%{filter:brightness(1.21)}
+}
+@keyframes itmGoldGlint{
+ 0%,58%{background-position:-150% 0}
+ 90%,100%{background-position:160% 0}
+}
+
+/* Premium UR reveal: an all-black transition and refracted prism entrance. */
+.ur-screen-transition[hidden]{display:none!important}
+.ur-screen-transition{
+ position:fixed;inset:0;z-index:180;pointer-events:none;
+ background:#000;opacity:0;
+}
+.ur-screen-transition.playing{animation:itmURBlackout 2.05s cubic-bezier(.36,0,.28,1) both;}
+@keyframes itmURBlackout{
+ 0%{opacity:0}
+ 28%,55%{opacity:1}
+ 100%{opacity:0}
+}
+
+/* Reset older UR full-screen entrance, use nested wrapper to support independent breathing. */
+body.itm-concert .rarity-splash{z-index:160;cursor:pointer;overflow:hidden}
+body.itm-concert .rarity-splash .splash-art-frame{
+ position:absolute;inset:0;overflow:hidden;
+ animation:itmURRevealIn 1.25s cubic-bezier(.13,.69,.19,1) both;
+}
+@keyframes itmURRevealIn{
+ 0%{opacity:0;transform:scale(1.105);filter:blur(17px)}
+ 55%{opacity:.78;filter:blur(3px)}
+ 100%{opacity:1;transform:scale(1);filter:none}
+}
+body.itm-concert .rarity-splash .splash-art{
+ position:absolute!important;inset:-2%!important;
+ width:104%!important;height:104%!important;
+ max-width:none!important;object-fit:cover!important;object-position:60% center!important;
+ animation:itmURBreathing 8.7s 1.2s ease-in-out infinite alternate!important;
+ transform-origin:64% 46%;
+ filter:brightness(1.01) saturate(1.12)!important;
+ pointer-events:none;
+}
+@keyframes itmURBreathing{
+ 0%{transform:scale(1)}
+ 100%{transform:scale(1.036)}
+}
+body.itm-concert .rarity-splash .splash-prisms{
+ opacity:.66;
+ background:linear-gradient(110deg,transparent 22%,#a2e8ff21 33%,transparent 43%,#ff98dd20 58%,transparent 68%,#ffe5a32e 80%,transparent 95%);
+ background-size:190% 190%;
+ animation:itmPrismSweep 7.5s linear infinite
+}
+body.itm-concert .rarity-splash .splash-grade{
+ text-shadow:none!important;
+ filter:drop-shadow(0 0 4px #fff4d3) drop-shadow(0 0 11px #ffe0e280)!important;
+ background:linear-gradient(112deg,#fcfdff 0%,#a8dfff 15%,#d4a4ff 33%,#ffb0df 50%,#ffeb9c 68%,#eafff5 85%,#fff 100%) 0 0 / 230% 100%;
+ -webkit-background-clip:text;background-clip:text;
+ -webkit-text-fill-color:transparent;
+ animation:itmURShinyText 6.4s linear infinite;
+}
+body.itm-concert .rarity-splash .splash-name{
+ color:#ffecb9;
+ text-shadow:none!important;
+ background:linear-gradient(115deg,#fff8e2 0%,#ffe6a2 21%,#f0c76d 42%,#fffef0 49%,#c89742 66%,#ffe7ae 83%,#fff9e9 100%) 0 0 / 220% 100%;
+ -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+ filter:drop-shadow(0 2px 7px #a6612688);
+ animation:itmURShinyText 8s linear infinite reverse;
+}
+@keyframes itmURShinyText{to{background-position:200% 0}}
+body.itm-concert .rarity-splash .splash-close{z-index:9;cursor:pointer}
+body.itm-concert .rarity-splash .splash-fireworks{pointer-events:none}
+body.itm-concert .stage-rarity-banner.rarity-ur{display:none!important}
+body.itm-concert .stage-burst.rarity-ur{display:none!important}
+
+/* The grandstand backdrop shouldn't look like a gigantic dark rectangle. */
+body.itm-concert .scene-wrap canvas{background:transparent}
+body.itm-concert .stage-main{background:transparent}
+body.itm-concert .stage-top{
+ background:linear-gradient(180deg,#090311bd,transparent)!important;
+}
+@media(max-width:760px){
+ body.itm-concert #stageRevealAll:not([hidden]){min-width:min(260px,75vw);min-height:50px}
+ body.itm-concert .rarity-splash .splash-art{object-position:63% center!important}
+ body.itm-concert .rarity-splash .splash-art-frame{inset:0}
+ .ur-screen-transition.playing{animation-duration:1.9s}
+}
+@media(prefers-reduced-motion:reduce){
+ body.itm-concert .stage-card-button:not(.is-revealed) .stage-card-back,
+ body.itm-concert .stage-card-button:not(.is-revealed) .stage-card-back:before,
+ body.itm-concert .rarity-splash .splash-art,
+ body.itm-concert .rarity-splash .splash-grade,
+ body.itm-concert .rarity-splash .splash-name,
+ body.itm-concert #stageRevealAll:not([hidden]){animation:none!important}
+ .ur-screen-transition.playing{animation-duration:.2s!important}
+}
