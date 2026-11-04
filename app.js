@@ -323,10 +323,10 @@ function frame(now){
   if(pack){
     const elapsed=opening?Math.max(0,t-openingAt):0,progress=opening?clamp(elapsed/(PACK_OPEN_DURATION/1000),0,1):0;
     const tear=opening?clamp((elapsed-1.3)/1.2,0,1):0,split=EASE(tear);
-    pack.position.y=Math.sin(t*1.2)*.14+(opening?Math.min(1,elapsed/1.1)*.45:0);
-    pack.rotation.y=-.28+Math.sin(t*.7)*.24+(opening?Math.sin(t*36)*.14:0);
-    pack.rotation.z=opening?Math.sin(t*(18+progress*38))*(.025+progress*.15):Math.sin(t*.5)*.025;
-    pack.scale.setScalar(opening?1+EASE(progress)*.65:1);
+    pack.position.y=Math.sin(t*1.2)*.09+(opening?Math.min(1,elapsed/1.1)*.21:0);
+    pack.rotation.y=-.18+Math.sin(t*.7)*.13+(opening?Math.sin(t*9)*.045:0);
+    pack.rotation.z=opening?Math.sin(t*13)*(.008+progress*.038):Math.sin(t*.5)*.012;
+    pack.scale.setScalar(opening?1+EASE(progress)*.13:1);
     pack.visible=(ready||opening)&&tear<=.001;
     packRim.visible=pack.visible;
     packRim.position.copy(pack.position);packRim.rotation.copy(pack.rotation);packRim.scale.copy(pack.scale);
@@ -419,9 +419,13 @@ async function openPack(count){
     toast('카드팩 개봉 실패: '+(err?.message||String(err)));return;
   }
   state.cards=rolled;state.revealed=new Set();
+  // Reveal the pull's strongest rarity through the LED wall during the foil opening.
+  const tierOrder={N:0,R:1,SR:2,SSR:3,UR:4};
+  state.pullHighlight=rolled.reduce((best,c)=>tierOrder[c.rarity]>tierOrder[best]?c.rarity:best,'N');
   firstPackSound();
   setConcertRarity('DEFAULT');
   state.phase='opening';syncCanvasPointerEvents();openingAt=performance.now()*.001;
+  concertStage?.setRarity(state.pullHighlight);
   document.body.classList.add('pack-cinematic');requestAnimationFrame(resizeScene);
   showControls([]);$('controlHeading').textContent='봉인을 해제하고 있어요…';
   $('sceneHeading').textContent='02 — BREAK THE SEAL';
