@@ -10,7 +10,7 @@ function respond(body: Record<string, unknown>, status: number, origin: string) 
     headers.set("access-control-allow-methods", "POST, OPTIONS");
     headers.set("access-control-allow-headers", "apikey, authorization, content-type");
   }
-  return new Response(JSON.stringify(body), { status, headers });
+  return new Response(status === 204 ? null : JSON.stringify(body), { status, headers });
 }
 const USERNAME = /^[a-z][a-z0-9_]{3,19}$/;
 const emailFor = (name: string) => "itm." + name + "@accounts.itm.example";
