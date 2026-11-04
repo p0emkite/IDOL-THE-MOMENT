@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#090612" />
+  <meta name="description" content="IDOL : THE MOMENT — 3D idol photocard collection game." />
+  <title>ITM — IDOL : THE MOMENT</title>
+  <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="./style.css" />
+  <script src="./config.js"></script>
+  <script type="module" src="./app.js"></script>
+</head>
+<body>
+  <div class="noise" aria-hidden="true"></div>
+  <div class="ambient ambient-one" aria-hidden="true"></div>
+  <div class="ambient ambient-two" aria-hidden="true"></div>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="#" aria-label="ITM home">
+        <span class="brand-symbol">✳</span><span>ITM<span class="brand-dot">.</span></span>
+        <span class="brand-divider"></span><span class="brand-sub">IDOL : THE MOMENT</span>
+      </a>
+      <div class="top-actions">
+        <span class="live-tag"><i></i> LIVE EXPERIENCE</span>
+        <button class="nav-button" id="audioToggle" aria-pressed="false">♪ SOUND OFF</button>
+        <button class="nav-button" id="collectionOpen">▦ MY COLLECTION <span id="collectionCount">0</span></button>
+        <button class="account-button" id="loginButton">✦ ITM ID</button>
+      </div>
+    </header>
+    <main class="main">
+      <div class="eyebrow top-eyebrow"><span class="dash"></span> THE FIRST SHOWCASE <span class="line"></span> VOL. 001</div>
+      <section class="hero">
+        <div class="hero-copy">
+          <div class="section-number">01 / ENTER THE SHOW</div>
+          <div class="hero-title"><span class="title-small">THIS IS YOUR</span><span class="title-big">MOMENT<span class="shine">.</span></span></div>
+          <p class="hero-description">좋아하는 순간을, 손끝에서 다시 만나다.<br />스포트라이트 아래 펼쳐지는 나만의 포토카드 스테이지.</p>
+          <div class="set-meta"><span class="tiny-star">✦</span><span>DEBUT COLLECTION</span><span class="meta-sep">/</span><span>STAGE 001</span></div>
+        </div>
+        <div class="scene-wrap" id="sceneWrap" aria-label="3차원 카드팩 개봉 무대">
+          <canvas id="threeCanvas"></canvas>
+          <div class="canvas-fallback" id="canvasFallback">
+            <div class="fallback-pack"><div class="fallback-pack-inner">✦<br/><b>ITM</b><small>DEBUT COLLECTION</small></div></div>
+            <p>3D 모듈 연결 전 프리뷰 · 인터넷 연결 후 WebGL 연출이 실행됩니다.</p>
+          </div>
+          <div class="aura-ring"></div>
+          <div class="scene-heading" id="sceneHeading">01 — THE SEALED MOMENT</div>
+          <div class="center-hint" id="centerHint"><span>✧</span> THE SHOW IS ABOUT TO BEGIN</div>
+          <div class="scene-floor-label">ITM EXCLUSIVE • 3D PACK OPENING EXPERIENCE</div>
+          <div class="streak" id="flash" aria-hidden="true"></div>
+        </div>
+        <aside class="side-panel">
+          <div class="side-caption">YOUR NEXT OBSESSION</div>
+          <div class="side-rule"></div>
+          <p class="side-body">JUST ONE MORE<br /><strong>PACK.</strong></p>
+          <p class="side-note">Every card has a story.<br/>Every reveal has a moment.</p>
+          <div class="rarity-bands"><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="rarity-label">FIVE LEVELS OF MAGIC</div>
+        </aside>
+      </section>
+      <section class="control-zone">
+        <div class="control-left"><span class="section-number">02 / MAKE IT YOURS</span><div class="control-heading" id="controlHeading">어떤 순간을 열어볼까?</div></div>
+        <div class="draw-actions" id="drawActions">
+          <button id="drawOne" class="btn secondary"><span class="btn-count">01</span><span>1 CARD PACK</span><span>↗</span></button>
+          <button id="drawFive" class="btn primary"><span class="btn-count">05</span><span>5 CARD PACK</span><span>✦</span></button>
+          <button id="revealNext" class="btn secondary" hidden>다음 카드 공개 <span id="revealCounter"></span> →</button>
+          <button id="revealAll" class="btn primary" hidden>모두 공개 ✦</button>
+          <button id="nextPack" class="btn primary" hidden>다음 팩 열기 ↗</button>
+        </div>
+      </section>
+      <section class="bottom-info">
+        <div><b>FREE FANMADE CONCEPT</b><span>금전 결제와 실제 상품은 없습니다.</span></div>
+        <div><b>ORIGINAL PLACEHOLDER ART</b><span>샘플 아트와 가상 아이돌로 구현한 데모입니다.</span></div>
+        <div><b>PERFORMANCE READY</b><span>실시간 3D · 수집 기록 · 모바일 지원</span></div>
+      </section>
+    </main>
+    <footer class="footer"><span>© THE MOMENT LAB — INDEPENDENT DEMO</span><span>NOT AFFILIATED WITH ANY ARTIST OR AGENCY</span></footer>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <div class="overlay" id="collectionOverlay" aria-hidden="true">
+    <div class="modal">
+      <div class="modal-top"><div><div class="eyebrow">THE MEMORY ARCHIVE</div><h2>MY COLLECTION <span class="pink">✦</span></h2><p>빛나는 순간을 하나씩 기록해봐.</p></div><button class="close" id="collectionClose" aria-label="도감 닫기">×</button></div>
+      <div class="collection-summary" id="collectionSummary"></div>
+      <div class="collection-grid" id="collectionGrid"></div>
+      <div class="collection-footer" id="collectionFooter">서버 연결 시 계정별로 자동 저장됩니다. 다른 기기에서는 ITM 복구 코드로 같은 도감을 불러올 수 있어요.</div>
+    </div>
+  </div>
+  <div class="overlay" id="accountOverlay" aria-hidden="true">
+    <div class="account-modal" role="dialog" aria-modal="true" aria-labelledby="accountTitle">
+      <div class="modal-top">
+        <div><div class="eyebrow">ONE COLLECTION. EVERY DEVICE.</div><h2 id="accountTitle">ITM ID <span class="pink">✳</span></h2><p>별도 구글 로그인 없이, 나만의 도감을 안전하게 보관해.</p></div>
+        <button class="close" id="accountClose" aria-label="ITM ID 닫기">×</button>
+      </div>
+      <div class="account-body">
+        <div class="identity-bar"><span class="identity-dot"></span><div><strong id="accountStatus">게스트 계정 연결 중…</strong><small id="accountPlayerId">게임 서버와 연결하고 있어요.</small></div><button class="account-retry" id="accountRetry" hidden>다시 연결</button></div>
+        <div class="account-columns">
+          <section class="account-section">
+            <div class="account-number">01 / BACK UP</div><h3>내 도감 복구 코드 발급</h3>
+            <p>처음 사용하는 기기에서도 지금까지 모은 카드를 불러오려면 이 코드를 따로 보관해 줘.</p>
+            <button class="account-action" id="issueRecoveryCode">✦ 새 복구 코드 발급</button>
+            <div class="code-box" id="issuedCodeBox" hidden>
+              <span>단 한 번 표시되는 코드</span><code id="issuedCode"></code>
+              <button class="code-copy" id="copyRecoveryCode">복구 코드 복사</button>
+            </div>
+            <small class="account-warning">코드는 비밀번호와 같아. 타인에게 알려주지 말고 안전한 곳에 저장해 줘. 새 코드를 발급하면 이전 코드는 무효화돼.</small>
+          </section>
+          <section class="account-section">
+            <div class="account-number">02 / RESTORE</div><h3>다른 기기의 도감 불러오기</h3>
+            <p>이전에 저장해 둔 복구 코드를 입력하면 현재 기기에서도 같은 도감을 사용할 수 있어.</p>
+            <label for="recoveryCodeInput">ITM RECOVERY CODE</label>
+            <input id="recoveryCodeInput" type="text" placeholder="IT-XXXX-XXXX-XXXX-..." autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="60" />
+            <button class="account-action secondary" id="restoreRecoveryCode">기존 도감 연결하기 →</button>
+            <small class="account-warning">다른 도감을 연결해도 현재 기기의 기존 수집 기록은 별도로 남아 있어. 자동 합쳐지지는 않아.</small>
+          </section>
+        </div>
+        <div class="account-message" id="accountMessage" role="status" aria-live="polite">복구 코드 발급은 선택 사항이지만, 발급하지 않으면 브라우저 데이터 삭제 시 도감을 복원하기 어려울 수 있어.</div>
+      </div>
+    </div>
+  </div>
+  <div class="overlay" id="oddsOverlay" aria-hidden="true"><div class="odds-modal"><button class="close" id="oddsClose">×</button><h2>PACK ODDS</h2><p>기획 단계의 데모 확률입니다.</p><div id="oddsRows"></div></div></div>
+  <button class="odds-link" id="oddsOpen">ⓘ 등급별 확률</button>
+</body>
+</html>
