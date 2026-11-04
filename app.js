@@ -509,7 +509,7 @@ if(dust){dust.rotation.y+=delta*.015;dust.rotation.z+=delta*.01}stageLights.forE
 function addCards(){cardMeshes.forEach(mesh=>{scene.remove(mesh);mesh.geometry.dispose();mesh.material.forEach(m=>{if(m.map && m.map!==backTexture)m.map.dispose();m.dispose()})});cardMeshes=[];
   const n=state.cards.length;state.cards.forEach((c,i)=>{const front=texture(makeCardArt(c));const edge=new THREE.MeshPhysicalMaterial({map:texture(makeTierEdgeTexture(c.rarity)),metalness:.5,roughness:.24,clearcoat:.9});const card=new THREE.Mesh(new THREE.BoxGeometry(1.56,2.3,.04),[edge,edge,edge,edge,new THREE.MeshBasicMaterial({map:front}),new THREE.MeshBasicMaterial({map:backTexture})]);card.position.set((i-(n-1)/2)*.25,-4,-i*.07);card.rotation.y=Math.PI;card.userData.index=i;cardMeshes.push(card);scene.add(card)})}
 function clearCards(){cardMeshes.forEach(mesh=>{scene.remove(mesh);mesh.geometry.dispose();mesh.material.forEach(m=>{if(m.map&&m.map!==backTexture)m.map.dispose();m.dispose()})});cardMeshes=[]}
-function showControls(which){['drawOne','drawFive','revealNext','revealAll','nextPack'].forEach(id=>$(id).hidden=!which.includes(id))}
+function showControls(which){['drawOne','drawFive'].forEach(id=>$(id).hidden=!which.includes(id))}
 function updateCounts(){let total=Object.values(visibleInventory()).reduce((a,n)=>a+Number(n||0),0);$('collectionCount').textContent=total}
 // Immersive reveal UI: real interactive, keyboard-accessible flip cards.
 function renderRevealStage(){
@@ -553,7 +553,6 @@ function renderRevealStage(){
 function updateStageProgress(){
   const total=state.cards.length,done=state.revealed.size;
   $('stageProgress').textContent=done+' / '+total+' REVEALED';
-  $('stageRevealNext').hidden=done===total;
   $('stageRevealAll').hidden=done===total;
   $('stageFinish').hidden=done!==total;
 }
@@ -609,9 +608,8 @@ async function openPack(count){
     $('controlHeading').textContent='한 장씩 뒤집어 카드의 등급을 확인해 봐.';
     $('sceneHeading').textContent='03 — YOUR CARDS AWAIT';
     $('centerHint').innerHTML='<span>✧</span> TAP A CARD TO REVEAL';
-    showControls(['revealNext','revealAll']);
-    $('revealCounter').textContent='0 / '+state.cards.length;
-    $('drawOne').disabled=$('drawFive').disabled=false;
+    showControls([]);
+      $('drawOne').disabled=$('drawFive').disabled=false;
     renderRevealStage();
   },PACK_OPEN_DURATION);
 }
@@ -639,7 +637,6 @@ function revealIndex(i,silent=false){
     queueRaritySplash(card);
   }
   $('stageHint').textContent=(tier?.label||card.rarity)+' · '+card.group+' '+card.name+' 발견!';
-  $('revealCounter').textContent=state.revealed.size+' / '+state.cards.length;
   updateStageProgress();
   if(!state.three)renderFallbackCards();
   if(state.revealed.size===state.cards.length){
@@ -647,7 +644,7 @@ function revealIndex(i,silent=false){
     $('sceneHeading').textContent='04 — A MOMENT TO REMEMBER';
     $('centerHint').innerHTML='<span>✦</span> COLLECTION UPDATED';
     $('stageHint').textContent='모든 카드가 공개됐어! ✦ 테스트 도감에서 다시 볼 수 있어.';
-    showControls(['nextPack']);
+    showControls([]);
   }
 }
 function revealNext(){const i=state.cards.findIndex((_,j)=>!state.revealed.has(j));if(i>=0)revealIndex(i)}
@@ -904,8 +901,7 @@ function accountClose(){
 function bind(){
   $('audioToggle').onclick=toggleAudio;
   $('drawOne').onclick=()=>openPack(1);$('drawFive').onclick=()=>openPack(5);
-  $('revealNext').onclick=revealNext;$('revealAll').onclick=revealAll;$('nextPack').onclick=reset;
-  $('stageRevealNext').onclick=revealNext;$('stageRevealAll').onclick=revealAll;
+  $('stageRevealAll').onclick=revealAll;
   $('stageFinish').onclick=reset;$('stageClose').onclick=reset;
   $('splashClose').onclick=(event)=>{event.stopPropagation();closeRaritySplash()};
   $('raritySplash').addEventListener('click',()=>{if(!$('raritySplash').hidden)closeRaritySplash()});
