@@ -50,7 +50,7 @@ const TIERS = [
   {key:'UR',label:'UR · Ultra Rare',chance:1,color:'#FF75D2',
    gradient:['#54ECFF','#4F9BFF','#9974FF','#F46BE6','#FF83A1','#FFE26A','#71FFC4','#54ECFF']},
 ];
-const PACK_OPEN_DURATION = 2650;
+const PACK_OPEN_DURATION = 4650;
 function readDemoInventory(){try{return JSON.parse(localStorage.getItem('itm-test-pack-inventory-v1')||'{}')||{}}catch{return {}}}
 function writeDemoInventory(){try{localStorage.setItem('itm-test-pack-inventory-v1',JSON.stringify(state.demoInventory))}catch{}}
 
@@ -64,7 +64,7 @@ const visibleInventory=()=>isNamedAccount()?state.remoteDemoInventory:state.demo
 function saveEntryChoice(value){try{localStorage.setItem(ENTRY_KEY,value)}catch{}}
 function guestChosen(){try{return localStorage.getItem(ENTRY_KEY)==='guest'}catch{return false}}
 function syncCanvasPointerEvents(){const canvas=$('threeCanvas');if(canvas)canvas.classList.toggle('itm-canvas-interactive',state.phase==='reveal');}
-let scene,renderer,camera,pack,packRim,packParts,packTop,packBottom,packSeam,cardMeshes=[],dust,halos,stageLights=[],THREE,clock,lastTime=0,openingAt=0,audioContext=null;
+let scene,renderer,camera,pack,packRim,packParts,packTop,packBottom,packSeam,openingCard,cardMeshes=[],dust,halos,stageLights=[],THREE,clock,lastTime=0,openingAt=0,audioContext=null;
 
 let concertStage=null,hoverChimeAt=0,splashTimer=null,audioPreferenceSet=false,introShown=false,introTimers=[],introCameraActive=false,introCameraStart=0;
 const RARITY_CLASSES=['rarity-n','rarity-r','rarity-sr','rarity-ssr','rarity-ur'];
@@ -423,6 +423,13 @@ function initScene(){
   packSeam=new THREE.Mesh(new THREE.PlaneGeometry(2.64,.07),new THREE.MeshBasicMaterial({color:0xffe6ff,transparent:true,opacity:.9,depthWrite:false,blending:THREE.AdditiveBlending}));
   packSeam.position.set(0,3.83/2-cutHeight,.15);
   packParts.add(packTop,packBottom,packSeam);packParts.visible=false;scene.add(packParts);
+  openingCard=new THREE.Mesh(
+    new THREE.BoxGeometry(1.76,2.52,.055),
+    [new THREE.MeshPhysicalMaterial({color:0xe0c6fc,metalness:.68,roughness:.2}),new THREE.MeshPhysicalMaterial({color:0xe0c6fc,metalness:.68,roughness:.2}),
+     new THREE.MeshPhysicalMaterial({color:0xe0c6fc,metalness:.68,roughness:.2}),new THREE.MeshPhysicalMaterial({color:0xe0c6fc,metalness:.68,roughness:.2}),
+     new THREE.MeshBasicMaterial({map:backTexture}),new THREE.MeshBasicMaterial({map:backTexture})]
+  );
+  openingCard.visible=false;openingCard.position.set(0,-.65,.30);scene.add(openingCard);
   packRim=new THREE.Mesh(new THREE.BoxGeometry(2.62,3.9,.2),new THREE.MeshBasicMaterial({color:0xcc73ff,transparent:true,opacity:.16,wireframe:true,depthWrite:false}));scene.add(packRim);
   window.addEventListener('resize',resizeScene,{passive:true});resizeScene();
   const raycaster=new THREE.Raycaster(),pointer=new THREE.Vector2();canvas.addEventListener('pointerdown',(e)=>{if(state.phase!=='reveal')return;const b=canvas.getBoundingClientRect();pointer.x=((e.clientX-b.left)/b.width)*2-1;pointer.y=-((e.clientY-b.top)/b.height)*2+1;raycaster.setFromCamera(pointer,camera);const hit=raycaster.intersectObjects(cardMeshes);if(hit.length)revealIndex(hit[0].object.userData.index)});
@@ -433,22 +440,44 @@ function frame(now){
   const t=now*.001,delta=Math.min(.05,t-lastTime||.016);lastTime=t;
   const ready=state.phase==='ready',opening=state.phase==='opening';
   if(pack){
-    const elapsed=opening?Math.max(0,t-openingAt):0,progress=opening?clamp(elapsed/(PACK_OPEN_DURATION/1000),0,1):0;
-    const tear=opening?clamp((elapsed-1.3)/1.2,0,1):0,split=EASE(tear);
-    pack.position.y=Math.sin(t*1.2)*.09+(opening?Math.min(1,elapsed/1.1)*.21:0);
-    pack.rotation.y=-.18+Math.sin(t*.7)*.13+(opening?Math.sin(t*9)*.045:0);
-    pack.rotation.z=opening?Math.sin(t*13)*(.008+progress*.038):Math.sin(t*.5)*.012;
-    pack.scale.setScalar(opening?1+EASE(progress)*.13:1);
-    pack.visible=(ready||opening)&&tear<=.001;
+    const elapsed=opening?Math.max(0,t-openingAt):0;
+    const progress=opening?clamp(elapsed/(PACK_OPEN_DURATION/1000),0,1):0;
+    const tear=opening?clamp((elapsed-2.52)/1.30,0,1):0;
+    const split=EASE(tear);
+    const energy=opening?Math.sin(Math.min(1,elapsed/1.5)*Math.PI*.5):0;
+    const shake=opening?energy*(1-EASE(clamp((elapsed-2.48)/1.35,0,1))):0;
+    const floatX=Math.sin(t*.53)*.095+Math.sin(t*.22)*.06;
+    pack.position.set(floatX,Math.sin(t*1.06)*.12+(opening?Math.min(1,elapsed/1.2)*.18:0),Math.cos(t*.37)*.032);
+    pack.rotation.y=-.16+Math.sin(t*.54)*.16+(opening?shake*Math.sin(t*29)*.14:0);
+    pack.rotation.x=Math.sin(t*.66)*.025+(opening?shake*Math.sin(t*19)*.045:0);
+    pack.rotation.z=Math.sin(t*.48)*.02+(opening?shake*Math.sin(t*25)*.105:0);
+    pack.scale.setScalar(opening?1+EASE(clamp(elapsed/2.7,0,1))*.105:1);
+    pack.visible=(ready||opening)&&tear<=.004;
     packRim.visible=pack.visible;
     packRim.position.copy(pack.position);packRim.rotation.copy(pack.rotation);packRim.scale.copy(pack.scale);
-    packParts.visible=opening&&tear>.001;
+    packParts.visible=opening&&tear>.004;
     if(packParts.visible){
-      packParts.position.copy(pack.position);packParts.rotation.copy(pack.rotation);packParts.scale.copy(pack.scale);
-      packTop.position.y=(3.83-.95)/2+split*1.25;
-      packTop.rotation.z=split*-.21;packTop.rotation.x=split*.12;
-      packBottom.position.y=-.95/2-split*.48;packBottom.rotation.z=split*.07;
-      packSeam.material.opacity=(1-tear)*.95;
+      packParts.position.copy(pack.position);packParts.rotation.copy(pack.rotation);
+      packParts.scale.copy(pack.scale);
+      // Top seal peels off; shell sinks as the holographic card clears the opening.
+      packTop.position.y=(3.83-.95)/2+split*1.06;
+      packTop.position.x=split*.37;
+      packTop.rotation.z=split*-.28;
+      packTop.rotation.x=split*.10;
+      packBottom.position.y=-.95/2-split*.52;
+      packBottom.rotation.z=split*.036;
+      packSeam.material.opacity=(1-tear)*.92;
+    }
+    if(openingCard){
+      const emerge=clamp((elapsed-2.94)/1.16,0,1);
+      openingCard.visible=opening&&elapsed>2.94&&elapsed<4.6;
+      if(openingCard.visible){
+        const rise=EASE(emerge);
+        openingCard.position.set(pack.position.x,pack.position.y-.83+rise*1.94,.27+rise*.21);
+        openingCard.rotation.y=-.11+Math.sin(t*.7)*.07;
+        openingCard.rotation.z=Math.sin(t*.85)*.026;
+        openingCard.scale.setScalar(.75+rise*.29);
+      }
     }
   }
   
@@ -500,7 +529,7 @@ function renderRevealStage(){
     track.append(button);
   });
   fillConcertCrowd();
-  setConcertRarity('DEFAULT');
+  setConcertRarity(state.pullHighlight||'DEFAULT');
   stage.hidden=false;stage.setAttribute('aria-hidden','false');document.body.classList.add('pack-revealing');
   $('stageHint').textContent='카드를 터치해서 한 장씩 확인하세요.';
   updateStageProgress();
@@ -550,7 +579,7 @@ async function openPack(count){
   firstPackSound();
   setConcertRarity('DEFAULT');
   state.phase='opening';syncCanvasPointerEvents();openingAt=performance.now()*.001;
-  concertStage?.setRarity(state.pullHighlight);
+  concertStage?.beginOpening(state.pullHighlight);
   document.body.classList.add('pack-cinematic');requestAnimationFrame(resizeScene);
   showControls([]);$('controlHeading').textContent='봉인을 해제하고 있어요…';
   $('sceneHeading').textContent='02 — BREAK THE SEAL';
@@ -558,6 +587,7 @@ async function openPack(count){
   chime(329,.2);
   setTimeout(()=>{
     if(state.phase!=='opening')return;
+    concertStage?.endOpening();
     document.body.classList.remove('pack-cinematic');requestAnimationFrame(resizeScene);
     state.phase='reveal';syncCanvasPointerEvents();state.busy=false;
     if(state.three&&!document.body.classList.contains('itm-concert'))addCards();
@@ -621,7 +651,7 @@ function revealAll(){
   }
 }
 function reset(){
-  closeRaritySplash();setConcertRarity('DEFAULT');
+  closeRaritySplash();concertStage?.endOpening();setConcertRarity('DEFAULT');
   document.body.classList.remove('pack-cinematic','pack-revealing');
   const stage=$('packRevealStage');stage.hidden=true;stage.setAttribute('aria-hidden','true');
   $('stageBurst').className='stage-burst';$('stageRarityBanner').className='stage-rarity-banner';
