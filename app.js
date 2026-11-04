@@ -4,6 +4,34 @@
    Once Supabase is configured, the server is the sole authority for pack results. */
 const $ = (id) => document.getElementById(id);
 const CONFIG = window.IDOL_CONFIG || {};
+// Official ITM branding: assets are optional until both PNG files are uploaded.
+const brandLogo = new Image();
+const brandCardBack = new Image();
+brandLogo.decoding = brandCardBack.decoding = 'async';
+brandLogo.src = './assets/itm-logo.png';
+brandCardBack.src = './assets/itm-card-back.png';
+function loaded(img){return img.complete && img.naturalWidth > 0;}
+brandLogo.addEventListener('load', () => {
+  if (THREE && renderer && pack) {
+    const old = packTexture;
+    packTexture = texture(makePackTexture());
+    pack.material[4].map = pack.material[5].map = packTexture;
+    pack.material[4].needsUpdate = pack.material[5].needsUpdate = true;
+    old?.dispose();
+  }
+});
+brandCardBack.addEventListener('load', () => {
+  if (THREE && renderer && backTexture) {
+    const old = backTexture;
+    backTexture = texture(brandCardBack);
+    for (const mesh of cardMeshes) {
+      mesh.material[5].map = backTexture;
+      mesh.material[5].needsUpdate = true;
+    }
+    old.dispose();
+  }
+  if (!state.three && state.phase === 'reveal') renderFallbackCards();
+});
 const POOL = [
   ['lumina-lyra','LYRA','LUMINA','COMMON','#bcd7ef',.14],
   ['lumina-miu','MIU','LUMINA','COMMON','#deb8e9',.34],
@@ -82,7 +110,7 @@ function makeCardArt(card){
   artCache.set(card.id,c);return c;
 }
 function makeBackTexture(){const c=document.createElement('canvas');c.width=512;c.height=746;const g=c.getContext('2d');const b=g.createLinearGradient(0,0,512,746);b.addColorStop(0,'#300d51');b.addColorStop(.5,'#100d2c');b.addColorStop(1,'#68307b');g.fillStyle=b;g.fillRect(0,0,512,746);g.strokeStyle='#e7a3f7';g.lineWidth=8;g.strokeRect(18,18,476,710);g.strokeStyle='#ffffff70';g.lineWidth=1.4;g.strokeRect(34,34,444,678);for(let i=0;i<7;i++){g.save();g.translate(256,360);g.rotate(i*Math.PI/7);g.strokeStyle='#e99cea44';g.beginPath();g.ellipse(0,0,160,250,0,0,Math.PI*2);g.stroke();g.restore()}g.textAlign='center';g.fillStyle='#ffaedc';g.font='120px serif';g.fillText('✳',256,382);g.fillStyle='#fff';g.font='900 43px system-ui';g.fillText('ITM',256,457);g.font='bold 15px system-ui';g.fillStyle='#e9badb';g.fillText('IDOL : THE MOMENT',256,493);return c}
-function makePackTexture(){const c=document.createElement('canvas');c.width=512;c.height=790;const g=c.getContext('2d');const b=g.createLinearGradient(0,0,512,790);b.addColorStop(0,'#251146');b.addColorStop(.2,'#d663bd');b.addColorStop(.42,'#6a4bc2');b.addColorStop(.62,'#140e35');b.addColorStop(.79,'#b973c2');b.addColorStop(1,'#4b1b72');g.fillStyle=b;g.fillRect(0,0,512,790);for(let i=-12;i<24;i++){g.strokeStyle=`rgba(255,255,255,${.035+(i%4)*.015})`;g.lineWidth=8;g.beginPath();g.moveTo(i*38,0);g.lineTo(i*38+250,790);g.stroke()}g.strokeStyle='#fff6';g.lineWidth=3;g.strokeRect(22,20,468,750);g.strokeStyle='#f8d2fb';g.lineWidth=1;g.strokeRect(31,30,450,732);let bloom=g.createRadialGradient(256,335,0,256,360,240);bloom.addColorStop(0,'#fff9');bloom.addColorStop(.35,'#fc93f77a');bloom.addColorStop(1,'#dd88fe00');g.fillStyle=bloom;g.fillRect(0,100,512,500);g.textAlign='center';g.fillStyle='#fff';g.font='bold 17px system-ui';g.fillText('✦   THE FIRST SHOWCASE   ✦',256,93);g.font='130px Georgia';g.fillText('✳',256,384);g.font='900 72px system-ui';g.fillText('ITM',256,492);g.font='bold 18px system-ui';g.fillText('IDOL : THE MOMENT',256,535);g.font='bold 19px system-ui';g.fillText('DEBUT COLLECTION',256,654);g.font='11px monospace';g.fillText('ONE UNFORGETTABLE MOMENT AWAITS',256,702);return c}
+function makePackTexture(){const c=document.createElement('canvas');c.width=512;c.height=790;const g=c.getContext('2d');const b=g.createLinearGradient(0,0,512,790);b.addColorStop(0,'#251146');b.addColorStop(.2,'#d663bd');b.addColorStop(.42,'#6a4bc2');b.addColorStop(.62,'#140e35');b.addColorStop(.79,'#b973c2');b.addColorStop(1,'#4b1b72');g.fillStyle=b;g.fillRect(0,0,512,790);for(let i=-12;i<24;i++){g.strokeStyle=`rgba(255,255,255,${.035+(i%4)*.015})`;g.lineWidth=8;g.beginPath();g.moveTo(i*38,0);g.lineTo(i*38+250,790);g.stroke()}g.strokeStyle='#fff6';g.lineWidth=3;g.strokeRect(22,20,468,750);g.strokeStyle='#f8d2fb';g.lineWidth=1;g.strokeRect(31,30,450,732);let bloom=g.createRadialGradient(256,335,0,256,360,240);bloom.addColorStop(0,'#fff9');bloom.addColorStop(.35,'#fc93f77a');bloom.addColorStop(1,'#dd88fe00');g.fillStyle=bloom;g.fillRect(0,100,512,500);g.textAlign='center';g.fillStyle='#fff';g.font='bold 17px system-ui';g.fillText('✦   THE FIRST SHOWCASE   ✦',256,93);g.font='130px Georgia';g.fillText('✳',256,384);g.font='900 72px system-ui';g.fillText('ITM',256,492);g.font='bold 18px system-ui';g.fillText('IDOL : THE MOMENT',256,535);g.font='bold 19px system-ui';g.fillText('DEBUT COLLECTION',256,654);g.font='11px monospace';g.fillText('ONE UNFORGETTABLE MOMENT AWAITS',256,702);if(loaded(brandLogo)){g.fillStyle='#1a103b';g.fillRect(136,270,240,280);g.drawImage(brandLogo,140,290,232,232)}return c}
 function texture(c){const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=Math.min(renderer.capabilities.getMaxAnisotropy(),8);return t}
 let backTexture,packTexture;
 function initScene(){
@@ -95,7 +123,7 @@ function initScene(){
   for(let i=0;i<4;i++){let ring=new THREE.Mesh(new THREE.TorusGeometry(2+i*.53,.008,5,128),new THREE.MeshBasicMaterial({color:i%2?0xc283f9:0xec81ba,transparent:true,opacity:.22-i*.035,depthWrite:false}));ring.rotation.x=-Math.PI/2;ring.position.y=-3.69+i*.002;scene.add(ring)}
   for(let i=0;i<4;i++){let cone=new THREE.Mesh(new THREE.ConeGeometry(2,10,32,1,true),new THREE.MeshBasicMaterial({color:i%2?0xd576ff:0xff86bf,transparent:true,opacity:.04,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending}));cone.position.set(-4+i*2.65,3.4,-4);cone.rotation.z=.1+(i-2)*.14;cone.rotation.x=Math.PI;scene.add(cone);stageLights.push(cone)}
   const points=1200,positions=new Float32Array(points*3),colors=new Float32Array(points*3);for(let i=0;i<points;i++){positions[i*3]=(rand()-.5)*27;positions[i*3+1]=(rand()-.5)*19;positions[i*3+2]=(rand()-.5)*21-5;const p=new THREE.Color().setHSL(.78+rand()*.17,.65,.55+rand()*.4);colors.set([p.r,p.g,p.b],i*3)}const geom=new THREE.BufferGeometry();geom.setAttribute('position',new THREE.BufferAttribute(positions,3));geom.setAttribute('color',new THREE.BufferAttribute(colors,3));dust=new THREE.Points(geom,new THREE.PointsMaterial({size:.036,vertexColors:true,transparent:true,opacity:.75,depthWrite:false,blending:THREE.AdditiveBlending}));scene.add(dust);
-  backTexture=texture(makeBackTexture());packTexture=texture(makePackTexture());
+  backTexture=texture(loaded(brandCardBack)?brandCardBack:makeBackTexture());packTexture=texture(makePackTexture());
   const face=new THREE.MeshPhysicalMaterial({map:packTexture,metalness:.3,roughness:.28,clearcoat:1,clearcoatRoughness:.13,side:THREE.DoubleSide});const side=new THREE.MeshPhysicalMaterial({color:0xe9a0e0,metalness:.78,roughness:.24,clearcoat:1});
   pack=new THREE.Mesh(new THREE.BoxGeometry(2.55,3.83,.23),[side,side,side,side,face,face]);pack.rotation.y=-.32;scene.add(pack);
   packRim=new THREE.Mesh(new THREE.BoxGeometry(2.62,3.9,.2),new THREE.MeshBasicMaterial({color:0xcc73ff,transparent:true,opacity:.16,wireframe:true,depthWrite:false}));scene.add(packRim);
@@ -120,8 +148,8 @@ function revealIndex(i){if(state.phase!=='reveal'||state.revealed.has(i))return;
 function revealNext(){const i=state.cards.findIndex((_,j)=>!state.revealed.has(j));if(i>=0)revealIndex(i)}
 function revealAll(){state.cards.forEach((_,i)=>{if(!state.revealed.has(i))revealIndex(i)})}
 function reset(){state.phase='ready';state.cards=[];state.revealed.clear();state.busy=false;clearCards();if(!state.three)resetFallback();showControls(['drawOne','drawFive']);$('controlHeading').textContent='어떤 순간을 열어볼까?';$('sceneHeading').textContent='01 — THE SEALED MOMENT';$('centerHint').innerHTML='<span>✧</span> THE SHOW IS ABOUT TO BEGIN'}
-function resetFallback(){const f=$('canvasFallback');f.style.flexDirection='column';f.style.flexWrap='nowrap';f.innerHTML='<div class="fallback-pack"><div class="fallback-pack-inner">✦<br/><b>ITM</b><small>DEBUT COLLECTION</small></div></div><p>3D 라이브러리가 연결되지 않아 가벼운 2D 미리보기를 표시합니다.</p>'}
-function renderFallbackCards(){const f=$('canvasFallback');f.innerHTML='';f.style.flexDirection='row';f.style.flexWrap='wrap';state.cards.forEach((c,i)=>{const el=document.createElement('img');el.src=state.revealed.has(i)?makeCardArt(c).toDataURL():makeBackTexture().toDataURL();el.alt=state.revealed.has(i)?c.name:'뒷면';el.style.cssText='width:clamp(70px,15%,130px);aspect-ratio:1/1.48;object-fit:cover;box-shadow:0 4px 25px #000a;cursor:pointer';el.onclick=()=>revealIndex(i);f.appendChild(el)})}
+function resetFallback(){const f=$('canvasFallback');f.style.flexDirection='column';f.style.flexWrap='nowrap';f.innerHTML='<div class="fallback-pack"><div class="fallback-pack-inner"><img src="./assets/itm-logo.png" alt="ITM" onerror="this.hidden=true" /><b hidden>ITM</b><small>DEBUT COLLECTION</small></div></div><p>3D 라이브러리가 연결되지 않아 가벼운 2D 미리보기를 표시합니다.</p>'}
+function renderFallbackCards(){const f=$('canvasFallback');f.innerHTML='';f.style.flexDirection='row';f.style.flexWrap='wrap';state.cards.forEach((c,i)=>{const el=document.createElement('img');el.src=state.revealed.has(i)?makeCardArt(c).toDataURL():(loaded(brandCardBack)?brandCardBack.src:makeBackTexture().toDataURL());el.alt=state.revealed.has(i)?c.name:'뒷면';el.style.cssText='width:clamp(70px,15%,130px);aspect-ratio:1/1.48;object-fit:cover;box-shadow:0 4px 25px #000a;cursor:pointer';el.onclick=()=>revealIndex(i);f.appendChild(el)})}
 function openModal(id){$(id).classList.add('active');$(id).setAttribute('aria-hidden','false')}
 function closeModal(id){$(id).classList.remove('active');$(id).setAttribute('aria-hidden','true')}
 function renderCollection(){const ids=Object.entries(state.inventory).filter(([id,q])=>Number(q)>0&&byId.has(id));const unique=ids.length;$('collectionSummary').textContent=`DISCOVERED ${unique} / ${POOL.length}   •   OWNED ${ids.reduce((sum,[,q])=>sum+Number(q),0)} CARDS`;const grid=$('collectionGrid');grid.replaceChildren();if(!ids.length){const p=document.createElement('p');p.className='collection-empty';p.textContent='아직 수집한 카드가 없어. 첫 번째 팩을 열어봐 ✦';grid.append(p)}ids.sort((a,b)=>POOL.findIndex(c=>c.id===a[0])-POOL.findIndex(c=>c.id===b[0])).forEach(([id,qty])=>{let card=byId.get(id),box=document.createElement('div');box.className='col-item';let img=document.createElement('img');img.src=makeCardArt(card).toDataURL();img.alt=`${card.group} ${card.name}`;let q=document.createElement('span');q.className='qty';q.textContent='×'+qty;let title=document.createElement('strong');title.textContent=card.group+' · '+card.name;let sub=document.createElement('small');sub.style.color=tone(card.rarity);sub.textContent=card.rarity;box.append(img,q,title,sub);grid.append(box)})}
