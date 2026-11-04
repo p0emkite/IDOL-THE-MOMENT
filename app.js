@@ -40,12 +40,15 @@ const POOL = [
   ['itm-demo-ur','VEGA','AURORA','UR','#ff9edc',.74],
 ].map(([id,name,group,rarity,tint,seed]) => ({id,name,group,rarity,tint,seed,edition:'DEBUT COLLECTION',image_url:null}));
 const byId = new Map(POOL.map(c=>[c.id,c]));
+// Shared grade palette: every tier has a gradient, with intense rainbow holography for UR.
+// Odds are unchanged. The same palette powers Canvas, 3D card edges and CSS UI.
 const TIERS = [
-  {key:'N',label:'N · Normal',chance:55,color:'#cdd2e1'},
-  {key:'R',label:'R · Rare',chance:28,color:'#59d0ff'},
-  {key:'SR',label:'SR · Super Rare',chance:12,color:'#ae8aff'},
-  {key:'SSR',label:'SSR · Special Super Rare',chance:4,color:'#ffce6e'},
-  {key:'UR',label:'UR · Ultra Rare',chance:1,color:'#ff82d8'},
+  {key:'N', label:'N · Normal',chance:55,color:'#929BA8',gradient:['#DDE3EA','#A9B3BF','#929BA8','#687585']},
+  {key:'R', label:'R · Rare',chance:28,color:'#2588E8',gradient:['#82D2FF','#2588E8','#1655BE']},
+  {key:'SR',label:'SR · Super Rare',chance:12,color:'#A35DDE',gradient:['#DBABFF','#A35DDE','#7039C1']},
+  {key:'SSR',label:'SSR · Special Super Rare',chance:4,color:'#FFCE46',gradient:['#FFF2AB','#FFCE46','#D99212']},
+  {key:'UR',label:'UR · Ultra Rare',chance:1,color:'#FF75D2',
+   gradient:['#54ECFF','#4F9BFF','#9974FF','#F46BE6','#FF83A1','#FFE26A','#71FFC4','#54ECFF']},
 ];
 const PACK_OPEN_DURATION = 2650;
 function readDemoInventory(){try{return JSON.parse(localStorage.getItem('itm-test-pack-inventory-v1')||'{}')||{}}catch{return {}}}
@@ -72,7 +75,25 @@ function drawDemo(count){
   if(count===5){const a=POOL.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(rand()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
   return Array.from({length:count},()=>{let n=rand()*100;for(const tier of TIERS){if(n<tier.chance)return POOL.find(c=>c.rarity===tier.key);n-=tier.chance}return POOL[POOL.length-1]});
 }
-function tone(rarity){return TIERS.find(t=>t.key===rarity)?.color||'#fff'}
+function tierMeta(rarity){return TIERS.find(t=>t.key===rarity)||TIERS[0]}
+function tone(rarity){return tierMeta(rarity).color}
+function tierCssGradient(rarity){
+  const colors=tierMeta(rarity).gradient;
+  return 'linear-gradient(135deg,'+colors.map((color,i)=>color+' '+(i*100/(colors.length-1)).toFixed(2)+'%').join(',')+')';
+}
+function paintTierGradient(ctx,rarity,x0,y0,x1,y1){
+  const colors=tierMeta(rarity).gradient;
+  const gradient=ctx.createLinearGradient(x0,y0,x1,y1);
+  colors.forEach((color,i)=>gradient.addColorStop(i/(colors.length-1),color));
+  return gradient;
+}
+function makeTierEdgeTexture(rarity){
+  const c=document.createElement('canvas');c.width=256;c.height=32;
+  const g=c.getContext('2d');
+  g.fillStyle=paintTierGradient(g,rarity,0,0,256,32);g.fillRect(0,0,256,32);
+  g.fillStyle='rgba(255,255,255,.22)';g.fillRect(0,0,256,3);
+  return c;
+}
 function flash(rarity){const f=$('flash');f.style.background=`radial-gradient(ellipse at center,#fff 0%,${tone(rarity)}b9 13%,#b76aff53 34%,transparent 68%)`;f.classList.add('active');setTimeout(()=>f.classList.remove('active'),rarity==='UR'?650:270)}
 let toastTimer;
 function toast(msg){const t=$('toast');t.textContent=msg;t.classList.add('visible');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('visible'),2900)}
@@ -83,7 +104,7 @@ const artCache=new Map();
 function makeCardArt(card){
   if(artCache.has(card.id))return artCache.get(card.id);
   const c=document.createElement('canvas');c.width=1024;c.height=1492;const g=c.getContext('2d');g.scale(2,2);
-  const tier=tone(card.rarity),hue=card.tint;
+  const tier=tone(card.rarity),hue=card.tint,isUR=card.rarity==='UR';
   let bg=g.createLinearGradient(0,0,512,746);bg.addColorStop(0,'#161525');bg.addColorStop(.4,hue);bg.addColorStop(.7,'#332343');bg.addColorStop(1,'#090b19');g.fillStyle=bg;g.fillRect(0,0,512,746);
   // soft stage light
   let beam=g.createRadialGradient(246,258,10,260,280,340);beam.addColorStop(0,'#ffffff9d');beam.addColorStop(.35,tier+'66');beam.addColorStop(1,'#1a163000');g.fillStyle=beam;g.fillRect(0,0,512,690);
@@ -100,18 +121,52 @@ function makeCardArt(card){
   g.fillStyle=hair;g.beginPath();g.moveTo(x-112,276);g.quadraticCurveTo(x-135,130,x-14,140);g.quadraticCurveTo(x+100,118,x+102,259);g.quadraticCurveTo(x+50,217,x+9,221);g.quadraticCurveTo(x-52,270,x-112,276);g.fill();
   g.strokeStyle='#4a344a';g.lineWidth=4;g.beginPath();g.moveTo(x-52,321);g.quadraticCurveTo(x-31,311,x-17,320);g.moveTo(x+18,320);g.quadraticCurveTo(x+40,312,x+53,322);g.stroke();
   g.strokeStyle='#9b627b';g.lineWidth=3;g.beginPath();g.arc(x,365,13,.1,Math.PI-.1);g.stroke();
-  const outfit=g.createLinearGradient(80,450,425,746);outfit.addColorStop(0,'#1e193d');outfit.addColorStop(.5,tier);outfit.addColorStop(1,'#120b2e');g.fillStyle=outfit;g.beginPath();g.moveTo(112,640);g.quadraticCurveTo(96,515,204,479);g.lineTo(256,520);g.lineTo(310,478);g.quadraticCurveTo(414,512,423,640);g.lineTo(420,746);g.lineTo(110,746);g.closePath();g.fill();
+  const outfit=g.createLinearGradient(80,450,425,746);
+  outfit.addColorStop(0,'#1e193d');
+  if(isUR){outfit.addColorStop(.23,'#4caeed');outfit.addColorStop(.52,'#b96af6');outfit.addColorStop(.79,'#ff8bc7')}
+  else outfit.addColorStop(.5,tier);
+  outfit.addColorStop(1,'#120b2e');g.fillStyle=outfit;g.beginPath();g.moveTo(112,640);g.quadraticCurveTo(96,515,204,479);g.lineTo(256,520);g.lineTo(310,478);g.quadraticCurveTo(414,512,423,640);g.lineTo(420,746);g.lineTo(110,746);g.closePath();g.fill();
   g.restore();
   let lower=g.createLinearGradient(0,470,0,746);lower.addColorStop(0,'#0c0a1a00');lower.addColorStop(.65,'#0907168c');lower.addColorStop(1,'#050610');g.fillStyle=lower;g.fillRect(0,450,512,296);
   if(card.rarity==='SSR'||card.rarity==='UR'){
     g.save();for(let i=0;i<28;i++){g.globalAlpha=.12+(i%4)*.08;g.fillStyle=i%2?'#fff':tier;g.beginPath();let xx=((i*137)%490)+8,yy=((i*197)%590)+50;g.arc(xx,yy,i%5===0?4:2,0,Math.PI*2);g.fill()}g.restore();
   }
-  g.strokeStyle=tier;g.lineWidth=7;g.strokeRect(14,14,484,718);g.strokeStyle='#ffffff9a';g.lineWidth=1.5;g.strokeRect(25,25,462,696);
+  // All grades use a true multistop gradient on the card frame, not a flat stroke.
+  // UR adds a vivid, translucent spectral foil and deterministic prismatic sparks.
+  if(isUR){
+    g.save();
+    g.globalCompositeOperation='screen';
+    g.globalAlpha=.19;
+    g.fillStyle=paintTierGradient(g,'UR',30,100,490,660);
+    g.fillRect(24,90,464,500);
+    g.restore();
+    const sparkleColors=tierMeta('UR').gradient;
+    g.save();g.globalCompositeOperation='screen';
+    for(let i=0;i<26;i++){
+      const sx=34+(i*173)%442,sy=82+(i*211)%570,rad=i%5===0?10:4;
+      g.strokeStyle=sparkleColors[i%sparkleColors.length];
+      g.globalAlpha=i%5===0?.85:.48;
+      g.lineWidth=i%5===0?1.6:.9;
+      g.beginPath();g.moveTo(sx-rad,sy);g.lineTo(sx+rad,sy);
+      g.moveTo(sx,sy-rad);g.lineTo(sx,sy+rad);g.stroke();
+    }
+    g.restore();
+  }
+  g.save();
+  g.strokeStyle=paintTierGradient(g,card.rarity,0,0,512,746);
+  g.lineWidth=isUR?10:7;g.shadowColor=tier;g.shadowBlur=isUR?24:8;
+  g.strokeRect(14,14,484,718);
+  g.restore();
+  g.strokeStyle=paintTierGradient(g,card.rarity,512,0,0,746);
+  g.lineWidth=isUR?2.5:1.5;
+  g.strokeRect(25,25,462,696);
+  g.fillStyle=paintTierGradient(g,card.rarity,32,0,480,0);
+  g.fillRect(32,79,448,isUR?6:4);
   g.fillStyle='#f9f0ff';g.textAlign='left';g.font='bold 24px system-ui';g.fillText('✳  ITM',47,68);
   g.textAlign='right';g.font='bold 15px system-ui';g.fillText('STAGE 001',466,65);
-  g.textAlign='left';g.font='700 14px system-ui';g.fillStyle=tier;g.fillText(card.group+' • '+card.edition,47,598);
+  g.textAlign='left';g.font='700 14px system-ui';g.fillStyle=paintTierGradient(g,card.rarity,47,598,325,598);g.fillText(card.group+' • '+card.edition,47,598);
   g.font='900 62px Arial, sans-serif';g.fillStyle='#fff';g.shadowColor='#000a';g.shadowBlur=20;g.fillText(card.name,44,660);g.shadowBlur=0;
-  g.font='700 17px system-ui';g.fillStyle=tier;g.fillText(card.rarity,47,695);
+  g.font='800 19px system-ui';g.fillStyle=paintTierGradient(g,card.rarity,47,695,190,695);g.fillText(card.rarity,47,695);
   g.textAlign='right';g.font='11px monospace';g.fillStyle='#f7e9fc';g.fillText('DEMO ART / #'+card.id.split('-').slice(-1).join(''),465,697);
   artCache.set(card.id,c);return c;
 }
@@ -195,7 +250,7 @@ if(dust){dust.rotation.y+=delta*.015;dust.rotation.z+=delta*.01}stageLights.forE
   const n=cardMeshes.length;cardMeshes.forEach((mesh,i)=>{const revealed=state.revealed.has(i);const mobile=window.innerWidth<780;const spread=n===1?0:(mobile?1.18:1.47);const targetX=(i-(n-1)/2)*spread;const targetY=.14+Math.sin(t*1.3+i)*.055;mesh.position.x+=(targetX-mesh.position.x)*Math.min(1,delta*4.2);mesh.position.y+=(targetY-mesh.position.y)*Math.min(1,delta*4.2);mesh.position.z+=(0-mesh.position.z)*Math.min(1,delta*3);const targetR=revealed?Math.PI*2:Math.PI;mesh.rotation.y+=(targetR-mesh.rotation.y)*Math.min(1,delta*(revealed?3.2:4.8));mesh.rotation.z=((i-(n-1)/2)*(mobile?-.035:-.043))+Math.sin(t*.7+i)*.012;const targetScale=(revealed&&['SSR','UR'].includes(state.cards[i].rarity))?1.07:1;mesh.scale.lerp(new THREE.Vector3(targetScale,targetScale,targetScale),Math.min(1,delta*3))});
   renderer.render(scene,camera)}
 function addCards(){cardMeshes.forEach(mesh=>{scene.remove(mesh);mesh.geometry.dispose();mesh.material.forEach(m=>{if(m.map && m.map!==backTexture)m.map.dispose();m.dispose()})});cardMeshes=[];
-  const n=state.cards.length;state.cards.forEach((c,i)=>{const front=texture(makeCardArt(c));const edge=new THREE.MeshPhysicalMaterial({color:new THREE.Color(tone(c.rarity)),metalness:.65,roughness:.2});const card=new THREE.Mesh(new THREE.BoxGeometry(1.56,2.3,.04),[edge,edge,edge,edge,new THREE.MeshBasicMaterial({map:front}),new THREE.MeshBasicMaterial({map:backTexture})]);card.position.set((i-(n-1)/2)*.25,-4,-i*.07);card.rotation.y=Math.PI;card.userData.index=i;cardMeshes.push(card);scene.add(card)})}
+  const n=state.cards.length;state.cards.forEach((c,i)=>{const front=texture(makeCardArt(c));const edge=new THREE.MeshPhysicalMaterial({map:texture(makeTierEdgeTexture(c.rarity)),metalness:.5,roughness:.24,clearcoat:.9});const card=new THREE.Mesh(new THREE.BoxGeometry(1.56,2.3,.04),[edge,edge,edge,edge,new THREE.MeshBasicMaterial({map:front}),new THREE.MeshBasicMaterial({map:backTexture})]);card.position.set((i-(n-1)/2)*.25,-4,-i*.07);card.rotation.y=Math.PI;card.userData.index=i;cardMeshes.push(card);scene.add(card)})}
 function clearCards(){cardMeshes.forEach(mesh=>{scene.remove(mesh);mesh.geometry.dispose();mesh.material.forEach(m=>{if(m.map&&m.map!==backTexture)m.map.dispose();m.dispose()})});cardMeshes=[]}
 function showControls(which){['drawOne','drawFive','revealNext','revealAll','nextPack'].forEach(id=>$(id).hidden=!which.includes(id))}
 function updateCounts(){let total=Object.values(visibleInventory()).reduce((a,n)=>a+Number(n||0),0);$('collectionCount').textContent=total}
@@ -207,6 +262,8 @@ function renderRevealStage(){
     const button=document.createElement('button');
     button.type='button';button.className='stage-card-button rarity-'+card.rarity.toLowerCase();
     button.style.setProperty('--arrive-delay',i*125+'ms');
+    button.style.setProperty('--tier-color',tone(card.rarity));
+    button.style.setProperty('--tier-gradient',tierCssGradient(card.rarity));
     button.setAttribute('aria-label',(i+1)+'번째 카드를 공개하기');
     const inner=document.createElement('span');inner.className='stage-card-inner';
     const back=document.createElement('span');back.className='stage-card-face stage-card-back';
@@ -337,7 +394,7 @@ function resetFallback(){const f=$('canvasFallback');f.style.flexDirection='colu
 function renderFallbackCards(){const f=$('canvasFallback');f.innerHTML='';f.style.flexDirection='row';f.style.flexWrap='wrap';state.cards.forEach((c,i)=>{const el=document.createElement('img');el.src=state.revealed.has(i)?makeCardArt(c).toDataURL():(loaded(brandCardBack)?brandCardBack.src:makeBackTexture().toDataURL());el.alt=state.revealed.has(i)?c.name:'뒷면';el.style.cssText='width:clamp(70px,15%,130px);aspect-ratio:1/1.48;object-fit:cover;box-shadow:0 4px 25px #000a;cursor:pointer';el.onclick=()=>revealIndex(i);f.appendChild(el)})}
 function openModal(id){$(id).classList.add('active');$(id).setAttribute('aria-hidden','false')}
 function closeModal(id){$(id).classList.remove('active');$(id).setAttribute('aria-hidden','true')}
-function renderCollection(){const ids=Object.entries(visibleInventory()).filter(([id,q])=>Number(q)>0&&byId.has(id));const unique=ids.length;$('collectionSummary').textContent=`DISCOVERED ${unique} / ${POOL.length}   •   OWNED ${ids.reduce((sum,[,q])=>sum+Number(q),0)} CARDS`;const grid=$('collectionGrid');grid.replaceChildren();if(!ids.length){const p=document.createElement('p');p.className='collection-empty';p.textContent='아직 수집한 카드가 없어. 첫 번째 팩을 열어봐 ✦';grid.append(p)}ids.sort((a,b)=>POOL.findIndex(c=>c.id===a[0])-POOL.findIndex(c=>c.id===b[0])).forEach(([id,qty])=>{let card=byId.get(id),box=document.createElement('div');box.className='col-item';let img=document.createElement('img');img.src=makeCardArt(card).toDataURL();img.alt=`${card.group} ${card.name}`;let q=document.createElement('span');q.className='qty';q.textContent='×'+qty;let title=document.createElement('strong');title.textContent=card.group+' · '+card.name;let sub=document.createElement('small');sub.style.color=tone(card.rarity);sub.textContent=card.rarity;box.append(img,q,title,sub);grid.append(box)})}
+function renderCollection(){const ids=Object.entries(visibleInventory()).filter(([id,q])=>Number(q)>0&&byId.has(id));const unique=ids.length;$('collectionSummary').textContent=`DISCOVERED ${unique} / ${POOL.length}   •   OWNED ${ids.reduce((sum,[,q])=>sum+Number(q),0)} CARDS`;const grid=$('collectionGrid');grid.replaceChildren();if(!ids.length){const p=document.createElement('p');p.className='collection-empty';p.textContent='아직 수집한 카드가 없어. 첫 번째 팩을 열어봐 ✦';grid.append(p)}ids.sort((a,b)=>POOL.findIndex(c=>c.id===a[0])-POOL.findIndex(c=>c.id===b[0])).forEach(([id,qty])=>{let card=byId.get(id),box=document.createElement('div');box.className='col-item rarity-'+card.rarity.toLowerCase();box.style.setProperty('--tier-color',tone(card.rarity));box.style.setProperty('--tier-gradient',tierCssGradient(card.rarity));let img=document.createElement('img');img.src=makeCardArt(card).toDataURL();img.alt=`${card.group} ${card.name}`;let q=document.createElement('span');q.className='qty';q.textContent='×'+qty;let title=document.createElement('strong');title.textContent=card.group+' · '+card.name;let sub=document.createElement('small');sub.style.color=tone(card.rarity);sub.textContent=card.rarity;box.append(img,q,title,sub);grid.append(box)})}
 
 async function syncRemote(){
   if(!state.supabase||!state.playerId)return false;
@@ -571,7 +628,7 @@ function bind(){
     }
     if(e.key==='Enter'&&document.activeElement===$('recoveryCodeInput'))restoreRecovery();
   });
-  $('oddsRows').innerHTML=TIERS.map(t=>`<div class="odds-row"><strong style="color:${t.color}">${t.label}</strong><span>${t.chance}%</span></div>`).join('');
+  $('oddsRows').innerHTML=TIERS.map(t=>`<div class="odds-row"><div class="odds-tier"><span class="odds-chip ${t.key==='UR'?'holo':''}" style="background:${tierCssGradient(t.key)}">${t.key}</span><strong>${t.label}</strong></div><span>${t.chance}%</span></div>`).join('');
   showControls(['drawOne','drawFive']);updateCounts();updateLogin();syncCanvasPointerEvents();
 }
 bind();init3D();initBackend();
