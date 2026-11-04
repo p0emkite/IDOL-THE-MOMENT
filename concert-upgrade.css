@@ -226,3 +226,38 @@ body.itm-concert .splash-fireworks{opacity:.82}
  body.itm-concert .rarity-splash .splash-art,
  body.itm-concert .stage-rarity-banner.active{animation:none!important}
 }
+
+/* In-front crowd silhouettes and waving penlights frame, rather than cover, the play buttons. */
+body.itm-concert .arena-foreground{
+  position:absolute;z-index:3;left:0;right:0;bottom:0;height:130px;
+  pointer-events:none;overflow:hidden;
+  background:linear-gradient(0deg,#08040ef2 0%,#08040e71 33%,transparent 90%)
+}
+body.itm-concert .arena-foreground:before{
+  content:"";position:absolute;left:0;right:0;bottom:-33px;height:86px;
+  background:repeating-radial-gradient(ellipse 15px 27px at 18px 55px,
+    #09050f 0 25px,transparent 27px 42px);
+  opacity:.95
+}
+body.itm-concert .arena-foreground span,
+body.itm-concert .concert-crowd span{
+  position:absolute;left:var(--x);bottom:var(--bottom);
+  width:var(--width);height:var(--height);
+  border-radius:999px;background:var(--color);
+  opacity:.85;transform:rotate(var(--angle));
+  box-shadow:0 0 7px var(--color),0 0 15px var(--color);
+  animation:itmAudienceWave var(--speed) ease-in-out infinite alternate
+}
+body.itm-concert .arena-foreground span:before{
+  content:"";position:absolute;left:-9px;bottom:-25px;width:23px;height:28px;
+  background:#06030d;border-radius:50% 50% 40% 40%;
+}
+body.itm-concert .pack-reveal-stage .concert-crowd{
+  display:block!important;z-index:1;
+  bottom:0;height:12%;opacity:.44;pointer-events:none;
+}
+@media(max-width:780px){
+ body.itm-concert .arena-foreground{height:80px}
+ body.itm-concert .arena-foreground span{height:calc(var(--height) * .68);opacity:.6}
+ body.itm-concert .pack-reveal-stage .concert-crowd{height:7%;opacity:.25}
+}
