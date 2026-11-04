@@ -70,14 +70,14 @@ export function createConcertStage({THREE,scene,renderer,oldBeams=[]}) {
   const screenTexture=new THREE.CanvasTexture(screenCanvas);
   screenTexture.colorSpace=THREE.SRGBColorSpace;
   screenTexture.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());
-  const wallGeo=new THREE.PlaneGeometry(22.4,7.65,96,24);
+  const wallGeo=new THREE.PlaneGeometry(22.4,6.55,96,24);
   const attr=wallGeo.attributes.position;
   const wallZ=x=>-8.05+1.53*Math.pow(x/11.2,2);
   for(let i=0;i<attr.count;i++){
     const x=attr.getX(i);attr.setZ(i,1.53*Math.pow(x/11.2,2));
   }
   wallGeo.computeVertexNormals();
-  const wall=mesh(wallGeo,new THREE.MeshBasicMaterial({map:screenTexture,side:THREE.DoubleSide,toneMapped:false}),[0,.74,-8.05]);
+  const wall=mesh(wallGeo,new THREE.MeshBasicMaterial({map:screenTexture,side:THREE.DoubleSide,toneMapped:false}),[0,.72,-8.05]);
   const rig=metal(0x55465a,.37,.53);
   const rigDark=metal(0x2b202f,.42,.5);
   const rigRose=mat(0xf4a3cf,.83);
@@ -85,9 +85,9 @@ export function createConcertStage({THREE,scene,renderer,oldBeams=[]}) {
   const upper=[],lower=[],archInner=[],archOuter=[];
   for(let i=0;i<=32;i++){
     const x=-11.15+i*(22.3/32),z=wallZ(x);
-    upper.push([x,4.65,z+.12]);lower.push([x,-3.18,z+.12]);
-    archInner.push([x,5.35+.36*Math.cos(x/11.15*Math.PI/2),-4.84+.38*(x/11.15)**2]);
-    archOuter.push([x,5.88+.42*Math.cos(x/11.15*Math.PI/2),-5.04+.38*(x/11.15)**2]);
+    upper.push([x,4.04,z+.12]);lower.push([x,-2.60,z+.12]);
+    archInner.push([x,4.59+.34*Math.cos(x/11.15*Math.PI/2),-4.84+.38*(x/11.15)**2]);
+    archOuter.push([x,5.13+.39*Math.cos(x/11.15*Math.PI/2),-5.04+.38*(x/11.15)**2]);
   }
   ribbon(upper,.08,rig);
   ribbon(lower,.07,rig);
@@ -102,21 +102,21 @@ export function createConcertStage({THREE,scene,renderer,oldBeams=[]}) {
   }
   for(const sign of [-1,1]){
     const x=sign*11.17,z=wallZ(x);
-    for(let y=-3.2;y<4.6;y+=.77){
-      rod([x,y,z+.08],[x,y+.77,z+.08],.067,rig);
-      rod([x-sign*.33,y,z+.12],[x+sign*.3,y+.77,z+.12],.027,rig);
+    for(let y=-2.62;y<4.05;y+=.74){
+      rod([x,y,z+.08],[x,y+.74,z+.08],.067,rig);
+      rod([x-sign*.33,y,z+.12],[x+sign*.3,y+.74,z+.12],.027,rig);
     }
-    rod([x,-3.2,z],[x,5.1,z],.11,rig);
-    rod([x-sign*.24,-3.2,z+.1],[x-sign*.24,5.1,z+.1],.034,rig);
+    rod([x,-2.62,z],[x,5.1,z],.11,rig);
+    rod([x-sign*.24,-2.62,z+.1],[x-sign*.24,5.1,z+.1],.034,rig);
     panel(x,-.1,z+.25,.13,5.7,.12,mat(0xf593c5,.38));
   }
   // Visible stage monitor footlights, rigged LED battens and glossy lenses.
   for(let i=0;i<13;i++){
     const x=(i-6)*1.44;
-    panel(x,5.47,-4.55,.73,.19,.47,rigDark);
-    const lens=panel(x,5.30,-4.18,.57,.09,.09,mat(i%4===0?0xffe5ef:0xffb3e2,.75));
+    panel(x,4.89,-4.55,.73,.19,.47,rigDark);
+    const lens=panel(x,4.70,-4.18,.57,.09,.09,mat(i%4===0?0xffe5ef:0xffb3e2,.79));
     glowMeshes.push(lens);
-    panel(x,-3.17,wallZ(x)+.31,.56,.11,.15,mat(i%3===0?0xffd1ea:0xffa2d5,.7));
+    panel(x,-2.58,wallZ(x)+.31,.56,.11,.15,mat(i%3===0?0xffd1ea:0xffa2d5,.7));
   }
   // Side stage lighting towers are now lattice trusses in real perspective.
   for(const sign of [-1,1]){
@@ -126,12 +126,12 @@ export function createConcertStage({THREE,scene,renderer,oldBeams=[]}) {
       rod([x+offset,-3.53,z+offset],[x+offset,5.4,z+offset],.074,rig);
     }
     for(let j=0;j<10;j++){
-      const y=-3.45+j*.87;
-      rod([x-.2,y,z-.2],[x+.2,y+.87,z+.2],.035,rig);
-      rod([x+.2,y,z-.2],[x-.2,y+.87,z+.2],.029,rig);
+      const y=-2.94+j*.78;
+      rod([x-.2,y,z-.2],[x+.2,y+.78,z+.2],.035,rig);
+      rod([x+.2,y,z-.2],[x-.2,y+.78,z+.2],.029,rig);
     }
     for(let k=0;k<4;k++){
-      const y=-2.48+k*1.86;
+      const y=-2.18+k*1.56;
       panel(x,y,z+.35,.34,1.03,.18,rigDark);
       panel(x,y,z+.48,.14,.91,.055,mat(k%2?0xea98ec:0xffb7e3,.64));
     }
@@ -166,6 +166,13 @@ export function createConcertStage({THREE,scene,renderer,oldBeams=[]}) {
     new THREE.MeshBasicMaterial({map:floorTex,transparent:true,opacity:.8,depthWrite:false,blending:THREE.AdditiveBlending}),[0,-3.522,-1.8]);
   reflection.rotation.x=-Math.PI/2;
 
+  // A restrained, diffuse view of the stage video wall reflected on the floor.
+  // Because it shares the live texture, every grade change also colors the reflection.
+  const reflectedScreen=mesh(new THREE.PlaneGeometry(18,10),
+    new THREE.MeshBasicMaterial({map:screenTexture,transparent:true,opacity:.15,depthWrite:false,
+      side:THREE.DoubleSide,blending:THREE.AdditiveBlending}),[0,-3.515,-2.8]);
+  reflectedScreen.rotation.x=-Math.PI/2;
+  reflectedScreen.scale.y=1.05;
   // Motion-timed light sources, balanced with a subtle volumetric falloff.
   const beamMat=(hex)=>new THREE.ShaderMaterial({
     transparent:true,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending,
@@ -201,8 +208,8 @@ export function createConcertStage({THREE,scene,renderer,oldBeams=[]}) {
   // Physically placed fan bodies and glowsticks form diagonal V-shaped stands
   // around the stage, leaving the centre aisle clear throughout the flythrough.
   const total=isMobile()?310:850;
-  const glowGeometry=new THREE.CylinderGeometry(.045,.052,.49,7);
-  const glowMaterial=new THREE.MeshBasicMaterial({color:0xffffff,toneMapped:false,transparent:true,opacity:.95,
+  const glowGeometry=new THREE.CylinderGeometry(.032,.040,.37,7);
+  const glowMaterial=new THREE.MeshBasicMaterial({color:0xffffff,toneMapped:false,transparent:true,opacity:.74,
     depthWrite:false,blending:THREE.AdditiveBlending});
   const bodyGeometry=new THREE.SphereGeometry(.29,9,7);
   const bodyMaterial=new THREE.MeshStandardMaterial({color:0x120d1a,metalness:.03,roughness:.91});
@@ -219,12 +226,17 @@ export function createConcertStage({THREE,scene,renderer,oldBeams=[]}) {
   for(let i=0;i<total;i++){
     const side=(i&1)?1:-1,r=prng(i+4),s=prng(i*7+3);
     const back=i>=total*.70;
-    const z=back?12.1+prng(i*9+11)*18:2.5+prng(i*6+15)*6.9;
+    const front=i<total*.28;
+    const z=back?12.1+prng(i*9+11)*18:
+      front?6.4+prng(i*6+15)*3.0:2.7+prng(i*6+15)*5.2;
     const x=back?side*(3.5+prng(i*9+7)*13.8):
-      side*(2.15+(z-2.5)*.28+prng(i*11+8)*5.4);
-    const y=back?-3.36+Math.min(2.35,(z-11)*.095)+prng(i*3)*.23:
-      -3.64+prng(i*4+5)*.55;
-    const k=back?.62+prng(i*5)*.23:.80+prng(i*5)*.48;
+      front?side*(1.02+(10.7-z)*.26+prng(i*11+8)*2.6):
+      side*(2.10+(z-2.5)*.24+prng(i*11+8)*4.2);
+    // Elevated diagonal spectator banks keep heads visible above the venue floor.
+    const y=back?-2.28+Math.min(2.35,(z-11)*.095)+prng(i*3)*.23:
+      front?-2.65+(z-6.4)*.34+prng(i*4+5)*.32:
+      -2.85+(z-2.7)*.20+prng(i*4+5)*.35;
+    const k=back?.65+prng(i*5)*.28:front?1.18+prng(i*5)*.42:.77+prng(i*5)*.43;
     batons.push({x,y,z,k,phase:prng(i*2+1)*Math.PI*2,side});
     dummy.position.set(x,y-.52*k,z);dummy.scale.set(.96*k,.75*k,.66*k);
     dummy.rotation.set(0,0,0);dummy.updateMatrix();bodies.setMatrixAt(i,dummy.matrix);
@@ -350,7 +362,7 @@ export function createConcertStage({THREE,scene,renderer,oldBeams=[]}) {
       glowMeshes[i].material.opacity=.54+.13*Math.sin(t*.61+i*.44);
     for(let i=0;i<batons.length;i++){
       const b=batons[i];
-      dummy.position.set(b.x+Math.sin(t*.42+b.phase)*.05,b.y+.56*b.k+Math.sin(t*1.41+b.phase)*.095,b.z);
+      dummy.position.set(b.x+Math.sin(t*.42+b.phase)*.05,b.y+.49*b.k+Math.sin(t*1.41+b.phase)*.065,b.z);
       dummy.scale.set(b.k,b.k,b.k);
       dummy.rotation.set(Math.sin(t*.8+b.phase)*.24,0,b.side*.16+Math.sin(t*1.58+b.phase)*.31);
       dummy.updateMatrix();sticks.setMatrixAt(i,dummy.matrix);
