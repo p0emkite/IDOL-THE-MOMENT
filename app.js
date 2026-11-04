@@ -189,20 +189,134 @@ function addCards(){cardMeshes.forEach(mesh=>{scene.remove(mesh);mesh.geometry.d
   const n=state.cards.length;state.cards.forEach((c,i)=>{const front=texture(makeCardArt(c));const edge=new THREE.MeshPhysicalMaterial({color:new THREE.Color(tone(c.rarity)),metalness:.65,roughness:.2});const card=new THREE.Mesh(new THREE.BoxGeometry(1.56,2.3,.04),[edge,edge,edge,edge,new THREE.MeshBasicMaterial({map:front}),new THREE.MeshBasicMaterial({map:backTexture})]);card.position.set((i-(n-1)/2)*.25,-4,-i*.07);card.rotation.y=Math.PI;card.userData.index=i;cardMeshes.push(card);scene.add(card)})}
 function clearCards(){cardMeshes.forEach(mesh=>{scene.remove(mesh);mesh.geometry.dispose();mesh.material.forEach(m=>{if(m.map&&m.map!==backTexture)m.map.dispose();m.dispose()})});cardMeshes=[]}
 function showControls(which){['drawOne','drawFive','revealNext','revealAll','nextPack'].forEach(id=>$(id).hidden=!which.includes(id))}
-function updateCounts(){let total=Object.values(state.inventory).reduce((a,n)=>a+Number(n||0),0);$('collectionCount').textContent=total}
-async function openPack(count){if(state.busy)return;if(CONFIG.supabaseUrl&&!state.backendReady){toast('클라우드 도감 연결을 확인하고 있어.');return}state.busy=true;$('drawOne').disabled=$('drawFive').disabled=true;let rolled;
-  if(state.supabase && !state.playerId){toast('ITM ID 서버 연결 후 팩을 열 수 있어.');accountOpen();state.busy=false;$('drawOne').disabled=$('drawFive').disabled=false;return}else if(state.supabase && state.playerId){const {data,error}=await state.supabase.rpc('open_idol_pack',{p_count:count});if(error){toast('팩 개봉 실패: '+error.message);state.busy=false;$('drawOne').disabled=$('drawFive').disabled=false;return}rolled=(Array.isArray(data)?data:[]).map(record=>({...byId.get(record.id),...record,rarity:record.rarity}));await syncRemote()}else{rolled=drawDemo(count);rolled.forEach(c=>state.inventory[c.id]=(state.inventory[c.id]||0)+1);writeLocal();updateCounts()}
-  if(!rolled?.length){toast('카드풀이 비어 있어요.');state.busy=false;return}state.cards=rolled;state.revealed=new Set();state.phase='opening';openingAt=performance.now()*.001;document.body.classList.add('pack-cinematic');requestAnimationFrame(resizeScene);showControls([]);$('controlHeading').textContent='빛나는 순간이 열리고 있어요…';$('sceneHeading').textContent='02 — BREAK THE SEAL';$('centerHint').innerHTML='<span>✦</span> UNSEALING YOUR MOMENT';chime(329,.2);
-  setTimeout(()=>{document.body.classList.remove('pack-cinematic');requestAnimationFrame(resizeScene);state.phase='reveal';state.busy=false;if(state.three)addCards();$('controlHeading').textContent='카드를 클릭하거나 한 장씩 공개해봐.';$('sceneHeading').textContent='03 — YOUR CARDS AWAIT';$('centerHint').innerHTML='<span>✧</span> TAP A CARD TO REVEAL';showControls(['revealNext','revealAll']);$('revealCounter').textContent=`0 / ${state.cards.length}`;$('drawOne').disabled=$('drawFive').disabled=false;if(!state.three)renderFallbackCards()},2650)}
-function revealIndex(i){if(state.phase!=='reveal'||state.revealed.has(i))return;state.revealed.add(i);const c=state.cards[i];chime(c.rarity==='MYTHIC'?783:c.rarity==='LEGENDARY'?659:523,['MYTHIC','LEGENDARY'].includes(c.rarity)?.24:.08);if(['EPIC','LEGENDARY','MYTHIC'].includes(c.rarity))flash(c.rarity);if(c.rarity==='MYTHIC'||c.rarity==='LEGENDARY')toast(`✦ ${c.rarity}! ${c.group} ${c.name} ✦`);$('revealCounter').textContent=`${state.revealed.size} / ${state.cards.length}`;if(!state.three)renderFallbackCards();if(state.revealed.size===state.cards.length){$('controlHeading').textContent='이 순간들이 도감에 기록됐어!';$('sceneHeading').textContent='04 — A MOMENT TO REMEMBER';$('centerHint').innerHTML='<span>✦</span> COLLECTION UPDATED';showControls(['nextPack'])}}
+function updateCounts(){let total=Object.values(state.demoInventory).reduce((a,n)=>a+Number(n||0),0);$('collectionCount').textContent=total}
+// Immersive reveal UI: real interactive, keyboard-accessible flip cards.
+function renderRevealStage(){
+  const stage=$('packRevealStage'),rail=$('stageCardRail');
+  rail.replaceChildren();rail.classList.toggle('one-card',state.cards.length===1);
+  state.cards.forEach((card,i)=>{
+    const button=document.createElement('button');
+    button.type='button';button.className='stage-card-button rarity-'+card.rarity.toLowerCase();
+    button.style.setProperty('--arrive-delay',i*125+'ms');
+    button.setAttribute('aria-label',(i+1)+'번째 카드를 공개하기');
+    const inner=document.createElement('span');inner.className='stage-card-inner';
+    const back=document.createElement('span');back.className='stage-card-face stage-card-back';
+    const backImg=document.createElement('img');backImg.src='./assets/itm-card-back.png';backImg.alt='ITM 공식 카드 뒷면';
+    backImg.onerror=()=>{backImg.style.display='none';back.textContent='✦ ITM ✦'};
+    back.append(backImg);
+    const front=document.createElement('span');front.className='stage-card-face stage-card-front';
+    const frontImg=document.createElement('img');frontImg.src=makeCardArt(card).toDataURL('image/png');
+    frontImg.alt=card.rarity+' '+card.group+' '+card.name+' 포토카드';
+    front.append(frontImg);inner.append(back,front);
+    const badge=document.createElement('span');badge.className='stage-card-badge';badge.textContent=TIERS.find(t=>t.key===card.rarity)?.label||card.rarity;
+    button.append(inner,badge);
+    button.addEventListener('click',()=>revealIndex(i));
+    rail.append(button);
+  });
+  stage.hidden=false;stage.setAttribute('aria-hidden','false');document.body.classList.add('pack-revealing');
+  $('stageHint').textContent='카드를 눌러 어떤 등급이 나왔는지 확인해 보세요.';
+  updateStageProgress();
+  $('stageRevealNext').focus({preventScroll:true});
+}
+function updateStageProgress(){
+  const total=state.cards.length,done=state.revealed.size;
+  $('stageProgress').textContent=done+' / '+total+' REVEALED';
+  $('stageRevealNext').hidden=done===total;
+  $('stageRevealAll').hidden=done===total;
+  $('stageFinish').hidden=done!==total;
+}
+function stageBurst(card){
+  if(!card||card.rarity==='N')return;
+  const klass='rarity-'+card.rarity.toLowerCase(),fx=$('stageBurst'),banner=$('stageRarityBanner');
+  fx.className='stage-burst';banner.className='stage-rarity-banner';
+  void fx.offsetWidth; // replay CSS animation for each newly revealed card
+  fx.className='stage-burst '+klass+' active';
+  banner.textContent=card.rarity==='UR'?'ULTRA RARE':card.rarity==='SSR'?'SPECIAL SUPER RARE':card.rarity==='SR'?'SUPER RARE':'RARE';
+  banner.className='stage-rarity-banner '+klass+' active';
+}
+function openPack(count){
+  if(state.busy||state.phase!=='ready')return;
+  // Deliberate isolated QA mode. Never call the legacy Supabase pack RPC:
+  // the old server card pool does not yet have the new N/R/SR/SSR/UR catalog.
+  state.busy=true;$('drawOne').disabled=$('drawFive').disabled=true;
+  const rolled=drawDemo(count);
+  if(!rolled.length){state.busy=false;toast('테스트 카드풀이 비어 있어.');return}
+  state.cards=rolled;state.revealed=new Set();
+  for(const card of rolled)state.demoInventory[card.id]=(state.demoInventory[card.id]||0)+1;
+  writeDemoInventory();updateCounts();
+  state.phase='opening';openingAt=performance.now()*.001;
+  document.body.classList.add('pack-cinematic');requestAnimationFrame(resizeScene);
+  showControls([]);$('controlHeading').textContent='봉인을 해제하고 있어요…';
+  $('sceneHeading').textContent='02 — BREAK THE SEAL';
+  $('centerHint').innerHTML='<span>✦</span> UNSEALING YOUR MOMENT';
+  chime(329,.2);
+  setTimeout(()=>{
+    if(state.phase!=='opening')return;
+    document.body.classList.remove('pack-cinematic');requestAnimationFrame(resizeScene);
+    state.phase='reveal';state.busy=false;
+    if(state.three)addCards();else renderFallbackCards();
+    $('controlHeading').textContent='한 장씩 뒤집어 카드의 등급을 확인해 봐.';
+    $('sceneHeading').textContent='03 — YOUR CARDS AWAIT';
+    $('centerHint').innerHTML='<span>✧</span> TAP A CARD TO REVEAL';
+    showControls(['revealNext','revealAll']);
+    $('revealCounter').textContent='0 / '+state.cards.length;
+    $('drawOne').disabled=$('drawFive').disabled=false;
+    renderRevealStage();
+  },PACK_OPEN_DURATION);
+}
+function revealIndex(i,silent=false){
+  if(state.phase!=='reveal'||state.revealed.has(i)||i<0||i>=state.cards.length)return;
+  state.revealed.add(i);
+  const card=state.cards[i],button=$('stageCardRail').children[i],tier=TIERS.find(t=>t.key===card.rarity);
+  if(button){
+    button.classList.add('is-revealed');
+    button.setAttribute('aria-label',card.rarity+' '+card.name+' 공개됨');
+    button.setAttribute('aria-pressed','true');
+  }
+  if(!silent){
+    const freq={N:440,R:523,SR:659,SSR:784,UR:1047}[card.rarity]||523;
+    chime(freq,card.rarity==='UR'?.26:card.rarity==='SSR'?.19:.09);
+    stageBurst(card);
+  }
+  $('stageHint').textContent=(tier?.label||card.rarity)+' · '+card.group+' '+card.name+' 발견!';
+  $('revealCounter').textContent=state.revealed.size+' / '+state.cards.length;
+  updateStageProgress();
+  if(!state.three)renderFallbackCards();
+  if(state.revealed.size===state.cards.length){
+    $('controlHeading').textContent='모든 카드를 확인했어! 테스트 도감에 기록됐어.';
+    $('sceneHeading').textContent='04 — A MOMENT TO REMEMBER';
+    $('centerHint').innerHTML='<span>✦</span> COLLECTION UPDATED';
+    $('stageHint').textContent='모든 카드가 공개됐어! ✦ 테스트 도감에서 다시 볼 수 있어.';
+    showControls(['nextPack']);
+  }
+}
 function revealNext(){const i=state.cards.findIndex((_,j)=>!state.revealed.has(j));if(i>=0)revealIndex(i)}
-function revealAll(){state.cards.forEach((_,i)=>{if(!state.revealed.has(i))revealIndex(i)})}
-function reset(){document.body.classList.remove('pack-cinematic');requestAnimationFrame(resizeScene);state.phase='ready';state.cards=[];state.revealed.clear();state.busy=false;clearCards();if(!state.three)resetFallback();showControls(['drawOne','drawFive']);$('controlHeading').textContent='어떤 순간을 열어볼까?';$('sceneHeading').textContent='01 — THE SEALED MOMENT';$('centerHint').innerHTML='<span>✧</span> THE SHOW IS ABOUT TO BEGIN'}
+function revealAll(){
+  const hidden=state.cards.filter((_,i)=>!state.revealed.has(i));
+  if(!hidden.length)return;
+  state.cards.forEach((_,i)=>{if(!state.revealed.has(i))revealIndex(i,true)});
+  const rank={N:0,R:1,SR:2,SSR:3,UR:4};
+  const highest=hidden.reduce((a,b)=>(!a||rank[b.rarity]>rank[a.rarity])?b:a,null);
+  if(highest){chime(highest.rarity==='UR'?1047:784,.2);stageBurst(highest)}
+}
+function reset(){
+  document.body.classList.remove('pack-cinematic','pack-revealing');
+  const stage=$('packRevealStage');stage.hidden=true;stage.setAttribute('aria-hidden','true');
+  $('stageBurst').className='stage-burst';$('stageRarityBanner').className='stage-rarity-banner';
+  requestAnimationFrame(resizeScene);
+  state.phase='ready';state.cards=[];state.revealed.clear();state.busy=false;
+  clearCards();if(!state.three)resetFallback();
+  showControls(['drawOne','drawFive']);$('drawOne').disabled=$('drawFive').disabled=false;
+  $('controlHeading').textContent='어떤 순간을 열어볼까?';
+  $('sceneHeading').textContent='01 — THE SEALED MOMENT';
+  $('centerHint').innerHTML='<span>✧</span> THE SHOW IS ABOUT TO BEGIN';
+}
+
 function resetFallback(){const f=$('canvasFallback');f.style.flexDirection='column';f.style.flexWrap='nowrap';f.innerHTML='<div class="fallback-pack"><div class="fallback-pack-inner"><img src="./assets/itm-logo.png" alt="ITM" onerror="this.hidden=true" /><b hidden>ITM</b><small>DEBUT COLLECTION</small></div></div><p>3D 라이브러리가 연결되지 않아 가벼운 2D 미리보기를 표시합니다.</p>'}
 function renderFallbackCards(){const f=$('canvasFallback');f.innerHTML='';f.style.flexDirection='row';f.style.flexWrap='wrap';state.cards.forEach((c,i)=>{const el=document.createElement('img');el.src=state.revealed.has(i)?makeCardArt(c).toDataURL():(loaded(brandCardBack)?brandCardBack.src:makeBackTexture().toDataURL());el.alt=state.revealed.has(i)?c.name:'뒷면';el.style.cssText='width:clamp(70px,15%,130px);aspect-ratio:1/1.48;object-fit:cover;box-shadow:0 4px 25px #000a;cursor:pointer';el.onclick=()=>revealIndex(i);f.appendChild(el)})}
 function openModal(id){$(id).classList.add('active');$(id).setAttribute('aria-hidden','false')}
 function closeModal(id){$(id).classList.remove('active');$(id).setAttribute('aria-hidden','true')}
-function renderCollection(){const ids=Object.entries(state.inventory).filter(([id,q])=>Number(q)>0&&byId.has(id));const unique=ids.length;$('collectionSummary').textContent=`DISCOVERED ${unique} / ${POOL.length}   •   OWNED ${ids.reduce((sum,[,q])=>sum+Number(q),0)} CARDS`;const grid=$('collectionGrid');grid.replaceChildren();if(!ids.length){const p=document.createElement('p');p.className='collection-empty';p.textContent='아직 수집한 카드가 없어. 첫 번째 팩을 열어봐 ✦';grid.append(p)}ids.sort((a,b)=>POOL.findIndex(c=>c.id===a[0])-POOL.findIndex(c=>c.id===b[0])).forEach(([id,qty])=>{let card=byId.get(id),box=document.createElement('div');box.className='col-item';let img=document.createElement('img');img.src=makeCardArt(card).toDataURL();img.alt=`${card.group} ${card.name}`;let q=document.createElement('span');q.className='qty';q.textContent='×'+qty;let title=document.createElement('strong');title.textContent=card.group+' · '+card.name;let sub=document.createElement('small');sub.style.color=tone(card.rarity);sub.textContent=card.rarity;box.append(img,q,title,sub);grid.append(box)})}
+function renderCollection(){const ids=Object.entries(state.demoInventory).filter(([id,q])=>Number(q)>0&&byId.has(id));const unique=ids.length;$('collectionSummary').textContent=`DISCOVERED ${unique} / ${POOL.length}   •   OWNED ${ids.reduce((sum,[,q])=>sum+Number(q),0)} CARDS`;const grid=$('collectionGrid');grid.replaceChildren();if(!ids.length){const p=document.createElement('p');p.className='collection-empty';p.textContent='아직 수집한 카드가 없어. 첫 번째 팩을 열어봐 ✦';grid.append(p)}ids.sort((a,b)=>POOL.findIndex(c=>c.id===a[0])-POOL.findIndex(c=>c.id===b[0])).forEach(([id,qty])=>{let card=byId.get(id),box=document.createElement('div');box.className='col-item';let img=document.createElement('img');img.src=makeCardArt(card).toDataURL();img.alt=`${card.group} ${card.name}`;let q=document.createElement('span');q.className='qty';q.textContent='×'+qty;let title=document.createElement('strong');title.textContent=card.group+' · '+card.name;let sub=document.createElement('small');sub.style.color=tone(card.rarity);sub.textContent=card.rarity;box.append(img,q,title,sub);grid.append(box)})}
 async function syncRemote(){
   if(!state.supabase||!state.playerId)return false;
   const {data,error}=await state.supabase.from('user_inventory').select('card_id,quantity');
@@ -333,6 +447,8 @@ function bind(){
   $('audioToggle').onclick=toggleAudio;
   $('drawOne').onclick=()=>openPack(1);$('drawFive').onclick=()=>openPack(5);
   $('revealNext').onclick=revealNext;$('revealAll').onclick=revealAll;$('nextPack').onclick=reset;
+  $('stageRevealNext').onclick=revealNext;$('stageRevealAll').onclick=revealAll;
+  $('stageFinish').onclick=reset;$('stageClose').onclick=reset;
   $('collectionOpen').onclick=()=>{renderCollection();openModal('collectionOverlay')};
   $('collectionClose').onclick=()=>closeModal('collectionOverlay');
   $('oddsOpen').onclick=()=>openModal('oddsOverlay');$('oddsClose').onclick=()=>closeModal('oddsOverlay');
@@ -343,7 +459,7 @@ function bind(){
     if(e.target===$(id)){if(id==='accountOverlay')accountClose();else closeModal(id)}
   }));
   document.addEventListener('keydown',e=>{
-    if(e.key==='Escape'){closeModal('collectionOverlay');closeModal('oddsOverlay');accountClose()}
+    if(e.key==='Escape'){if(!$('packRevealStage').hidden){reset();return}closeModal('collectionOverlay');closeModal('oddsOverlay');accountClose()}
     if(e.key==='Enter'&&document.activeElement===$('recoveryCodeInput'))restoreRecovery();
   });
   $('oddsRows').innerHTML=TIERS.map(t=>`<div class="odds-row"><strong style="color:${t.color}">${t.label}</strong><span>${t.chance}%</span></div>`).join('');
