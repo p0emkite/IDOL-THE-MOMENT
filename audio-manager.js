@@ -76,7 +76,7 @@ export function mountAudioPanel({onToggle,initialEnabled=false}) {
     const attempt=++serial;
     const oldBlobURL=currentBlobURL;currentBlobURL=null;
     player.pause();
-    player.removeAttribute('src');player.load();
+    player.removeAttribute('src');
     if(oldBlobURL)URL.revokeObjectURL(oldBlobURL);
     const blob=await storedTrack(index);
     if(attempt!==serial)return false;
@@ -87,6 +87,7 @@ export function mountAudioPanel({onToggle,initialEnabled=false}) {
     }else{
       player.src=urls[index];
     }
+    player.load();
     status('♪ '+(index+1)+'/3 · '+trackNames[index]);
     return true;
   }
