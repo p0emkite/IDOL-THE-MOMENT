@@ -64,7 +64,7 @@ function drawDemo(count){
   return Array.from({length:count},()=>{let n=rand()*100;for(const tier of TIERS){if(n<tier.chance)return POOL.find(c=>c.rarity===tier.key);n-=tier.chance}return POOL[POOL.length-1]});
 }
 function tone(rarity){return TIERS.find(t=>t.key===rarity)?.color||'#fff'}
-function flash(rarity){const f=$('flash');f.style.background=`radial-gradient(ellipse at center,#fff 0%,${tone(rarity)}b9 13%,#b76aff53 34%,transparent 68%)`;f.classList.add('active');setTimeout(()=>f.classList.remove('active'),rarity==='MYTHIC'?650:270)}
+function flash(rarity){const f=$('flash');f.style.background=`radial-gradient(ellipse at center,#fff 0%,${tone(rarity)}b9 13%,#b76aff53 34%,transparent 68%)`;f.classList.add('active');setTimeout(()=>f.classList.remove('active'),rarity==='UR'?650:270)}
 let toastTimer;
 function toast(msg){const t=$('toast');t.textContent=msg;t.classList.add('visible');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('visible'),2900)}
 function chime(freq=523,intensity=.13){if(!state.audio)return;try{audioContext ||= new(window.AudioContext||window.webkitAudioContext)();audioContext.resume();const now=audioContext.currentTime;[1,1.498,2].forEach((factor,i)=>{const o=audioContext.createOscillator(),g=audioContext.createGain();o.type=i===0?'sine':'triangle';o.frequency.value=freq*factor;g.gain.setValueAtTime(0,now+i*.07);g.gain.linearRampToValueAtTime(intensity/(i+1),now+i*.07+.02);g.gain.exponentialRampToValueAtTime(.0001,now+i*.07+.48);o.connect(g).connect(audioContext.destination);o.start(now+i*.07);o.stop(now+i*.07+.5)})}catch{}}
@@ -94,7 +94,7 @@ function makeCardArt(card){
   const outfit=g.createLinearGradient(80,450,425,746);outfit.addColorStop(0,'#1e193d');outfit.addColorStop(.5,tier);outfit.addColorStop(1,'#120b2e');g.fillStyle=outfit;g.beginPath();g.moveTo(112,640);g.quadraticCurveTo(96,515,204,479);g.lineTo(256,520);g.lineTo(310,478);g.quadraticCurveTo(414,512,423,640);g.lineTo(420,746);g.lineTo(110,746);g.closePath();g.fill();
   g.restore();
   let lower=g.createLinearGradient(0,470,0,746);lower.addColorStop(0,'#0c0a1a00');lower.addColorStop(.65,'#0907168c');lower.addColorStop(1,'#050610');g.fillStyle=lower;g.fillRect(0,450,512,296);
-  if(card.rarity==='MYTHIC'||card.rarity==='LEGENDARY'){
+  if(card.rarity==='SSR'||card.rarity==='UR'){
     g.save();for(let i=0;i<28;i++){g.globalAlpha=.12+(i%4)*.08;g.fillStyle=i%2?'#fff':tier;g.beginPath();let xx=((i*137)%490)+8,yy=((i*197)%590)+50;g.arc(xx,yy,i%5===0?4:2,0,Math.PI*2);g.fill()}g.restore();
   }
   g.strokeStyle=tier;g.lineWidth=7;g.strokeRect(14,14,484,718);g.strokeStyle='#ffffff9a';g.lineWidth=1.5;g.strokeRect(25,25,462,696);
@@ -272,6 +272,7 @@ function revealIndex(i,silent=false){
     button.classList.add('is-revealed');
     button.setAttribute('aria-label',card.rarity+' '+card.name+' 공개됨');
     button.setAttribute('aria-pressed','true');
+    if(!silent)button.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
   }
   if(!silent){
     const freq={N:440,R:523,SR:659,SSR:784,UR:1047}[card.rarity]||523;
