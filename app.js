@@ -77,19 +77,25 @@ function firstPackSound(){
   if(!audioPreferenceSet&&!state.audio){setSound(true);chime(440,.035)}
 }
 function fillConcertCrowd(){
-  const parent=$('concertCrowd');if(!parent||parent.childElementCount)return;
-  const f=document.createDocumentFragment(),colors=['#f7a9eb','#cba2ff','#ffe5a5','#a1d4ff','#aaf8d3'];
-  for(let i=0;i<70;i++){
-    const stick=document.createElement('span');
-    stick.style.setProperty('--x',((i*53%101)/100*100).toFixed(1)+'%');
-    stick.style.setProperty('--bottom',i%17+'px');
-    stick.style.setProperty('--width',(i%3===0?4:3)+'px');
-    stick.style.setProperty('--height',(11+i%6*5)+'px');
-    stick.style.setProperty('--color',colors[i%colors.length]);
-    stick.style.setProperty('--angle',((i%13)-6)*7+'deg');
-    stick.style.setProperty('--speed',(1.8+i%9*.21)+'s');
-    f.append(stick);
-  }parent.append(f);
+  const colors=['#f7a9eb','#cba2ff','#ffe5a5','#a1d4ff','#aaf8d3'];
+  for(const hostId of ['concertCrowd','arenaForeground']){
+    const parent=$(hostId);if(!parent||parent.childElementCount)continue;
+    const fragment=document.createDocumentFragment();
+    for(let i=0;i<92;i++){
+      const stick=document.createElement('span');
+      const distance=((i*53+13)%295)/10;
+      const x=i%2===0?distance:100-distance;
+      stick.style.setProperty('--x',x.toFixed(1)+'%');
+      stick.style.setProperty('--bottom',(i*7%26)+'px');
+      stick.style.setProperty('--width',(i%3===0?5:4)+'px');
+      stick.style.setProperty('--height',(17+i%8*4)+'px');
+      stick.style.setProperty('--color',colors[i%colors.length]);
+      stick.style.setProperty('--angle',((i%13)-6)*8+'deg');
+      stick.style.setProperty('--speed',(1.8+i%9*.21)+'s');
+      fragment.append(stick);
+    }
+    parent.append(fragment);
+  }
 }
 function closeConcertIntro(){
   introTimers.forEach(clearTimeout);introTimers=[];
@@ -883,6 +889,6 @@ function bind(){
     if(e.key==='Enter'&&document.activeElement===$('recoveryCodeInput'))restoreRecovery();
   });
   $('oddsRows').innerHTML=TIERS.map(t=>`<div class="odds-row"><div class="odds-tier"><span class="odds-chip ${t.key==='UR'?'holo':''}" style="background:${tierCssGradient(t.key)}">${t.key}</span><strong>${t.label}</strong></div><span>${t.chance}%</span></div>`).join('');
-  showControls(['drawOne','drawFive']);updateCounts();updateLogin();syncCanvasPointerEvents();
+  fillConcertCrowd();showControls(['drawOne','drawFive']);updateCounts();updateLogin();syncCanvasPointerEvents();
 }
 bind();init3D();initBackend();
