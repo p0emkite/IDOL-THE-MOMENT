@@ -375,7 +375,7 @@ function makeCards(count){
   group.userData.targetX=(i-(tiers.length-1)/2)*1.95;
   group.userData.targetY=(i%2===0?.05:-.02);
   cardRig.add(group);
-  return {group,body,tier,index:i,flipped:false,enterAt:performance.now()/1000+i*.12};
+  return {group,body,tier,index:i,flipped:false,enterAt:clock.getElapsedTime()+i*.12};
  });
  $('progress').textContent='0 / '+count;
  $('resultHint').textContent= count===5?'카드를 터치해 공개하세요 · 좌우로 밀어 카드 이동':'카드를 터치해 등급을 공개하세요';
@@ -508,7 +508,7 @@ function resize(){
  bloom.resolution.set(Math.round(w*pixelRatio),Math.round(h*pixelRatio));
 }
 function renderFrame(){
- const t=clock.getElapsedTime(),dt=Math.min(.08,clock.getDelta()||.016);
+ const dt=Math.min(.08,clock.getDelta()||.016),t=clock.elapsedTime;
  if(state.mode==='loading')return;
  const isIntro=state.mode==='intro',isOpen=state.mode==='opening',isReveal=state.mode==='reveal';
  const targetZ=mobile?12.9:10.8;
