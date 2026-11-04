@@ -378,14 +378,14 @@ function setAccountMode(mode){
 function accountOpen(required=false){
   state.entryRequired=!!required;
   setAccountMode('login');updateLogin();
-  if(required)setAccountMessage('로그인, 회원가입 또는 게스트 플레이 중 하나를 선택해 줘.');
+  if(required)setAccountMessage('');
   openModal('accountOverlay');
 }
 function chooseGuest(){
   state.entryRequired=false;saveEntryChoice('guest');
   closeModal('accountOverlay');
   updateCounts();updateLogin();
-  toast('게스트 모드 · 수집 기록은 이 브라우저에만 저장돼.');
+  toast('게스트 모드 · 수집 기록은 이 브라우저에만 저장됩니다.');
 }
 async function activateNamedUser(user){
   if(!user||!accountNameOf(user))throw Error('ITM 계정 정보를 확인할 수 없어.');
