@@ -54,4 +54,6 @@ jobs:
           git push origin HEAD:refs/heads/qa-screenshots --force
       - name: Report browser issues
         if: steps.capture.outcome == 'failure'
-        run: echo "::warning::ITM browser check found an error. Inspect visual QA artifact."
+        run: |
+          echo "::error::ITM browser check failed. Inspect the uploaded visual QA artifact."
+          exit 1
