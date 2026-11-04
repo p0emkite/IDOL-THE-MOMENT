@@ -33,39 +33,36 @@ brandCardBack.addEventListener('load', () => {
   if (!state.three && state.phase === 'reveal') renderFallbackCards();
 });
 const POOL = [
-  ['lumina-lyra','LYRA','LUMINA','COMMON','#bcd7ef',.14],
-  ['lumina-miu','MIU','LUMINA','COMMON','#deb8e9',.34],
-  ['lumina-sol','SOLI','LUMINA','COMMON','#efd3ac',.42],
-  ['novus-nix','NIX','NOVUS','COMMON','#bdd1fa',.62],
-  ['novus-via','VIA','NOVUS','COMMON','#f7b9cb',.22],
-  ['lumina-lyra-rare','LYRA','LUMINA','RARE','#9de9e4',.17],
-  ['novus-nix-rare','NIX','NOVUS','RARE','#8ec5ff',.58],
-  ['novus-via-rare','VIA','NOVUS','RARE','#e7b4f8',.43],
-  ['lumina-miu-rare','MIU','LUMINA','RARE','#8eeac9',.35],
-  ['lumina-sol-epic','SOLI','LUMINA','EPIC','#a78aff',.72],
-  ['novus-via-epic','VIA','NOVUS','EPIC','#ce9dff',.26],
-  ['lumina-lyra-epic','LYRA','LUMINA','EPIC','#ff9acb',.53],
-  ['lumina-miu-legendary','MIU','LUMINA','LEGENDARY','#f3d77b',.43],
-  ['novus-nix-legendary','NIX','NOVUS','LEGENDARY','#f7bf71',.72],
-  ['lumina-lyra-mythic','LYRA','LUMINA','MYTHIC','#ff83cd',.61],
-  ['novus-via-mythic','VIA','NOVUS','MYTHIC','#fb91da',.14],
-].map(([id,name,group,rarity,tint,seed]) => ({id, name, group, rarity, tint, seed, edition:'DEBUT COLLECTION', image_url:null}));
+  ['itm-demo-n','ARIA','LUMINA','N','#b6d0e9',.14],
+  ['itm-demo-r','MIU','NOVUS','R','#8cd9f5',.34],
+  ['itm-demo-sr','NOVA','PRISM','SR','#c0a1fc',.62],
+  ['itm-demo-ssr','LYRA','SOLAR','SSR','#f7d58f',.43],
+  ['itm-demo-ur','VEGA','AURORA','UR','#ff9edc',.74],
+].map(([id,name,group,rarity,tint,seed]) => ({id,name,group,rarity,tint,seed,edition:'DEBUT COLLECTION',image_url:null}));
 const byId = new Map(POOL.map(c=>[c.id,c]));
 const TIERS = [
-  {key:'COMMON',label:'COMMON',chance:55,color:'#bec7de'},
-  {key:'RARE',label:'RARE',chance:30,color:'#89e7e0'},
-  {key:'EPIC',label:'EPIC',chance:12,color:'#b18bff'},
-  {key:'LEGENDARY',label:'LEGENDARY',chance:2.5,color:'#ffdb81'},
-  {key:'MYTHIC',label:'MYTHIC',chance:0.5,color:'#ff8acd'},
+  {key:'N',label:'N · Normal',chance:55,color:'#cdd2e1'},
+  {key:'R',label:'R · Rare',chance:28,color:'#59d0ff'},
+  {key:'SR',label:'SR · Super Rare',chance:12,color:'#ae8aff'},
+  {key:'SSR',label:'SSR · Special Super Rare',chance:4,color:'#ffce6e'},
+  {key:'UR',label:'UR · Ultra Rare',chance:1,color:'#ff82d8'},
 ];
-const state = {phase:'ready',cards:[],revealed:new Set(),inventory:readLocal(),supabase:null,user:null,playerId:null,hasRecovery:false,authError:null,backendReady:false,accountBusy:false,issuedRecovery:null,three:false,audio:false,busy:false};
-let scene,renderer,camera,pack,packRim,cardMeshes=[],dust,halos,stageLights=[],THREE,clock,lastTime=0,openingAt=0,audioContext=null;
+const PACK_OPEN_DURATION = 2650;
+function readDemoInventory(){try{return JSON.parse(localStorage.getItem('itm-test-pack-inventory-v1')||'{}')||{}}catch{return {}}}
+function writeDemoInventory(){try{localStorage.setItem('itm-test-pack-inventory-v1',JSON.stringify(state.demoInventory))}catch{}}
+
+const state = {phase:'ready',cards:[],revealed:new Set(),inventory:readLocal(),demoInventory:readDemoInventory(),supabase:null,user:null,playerId:null,hasRecovery:false,authError:null,backendReady:false,accountBusy:false,issuedRecovery:null,three:false,audio:false,busy:false};
+let scene,renderer,camera,pack,packRim,packParts,packTop,packBottom,packSeam,cardMeshes=[],dust,halos,stageLights=[],THREE,clock,lastTime=0,openingAt=0,audioContext=null;
 const EASE = t => 1-Math.pow(1-Math.min(1,Math.max(0,t)),3);
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 function readLocal(){try{return JSON.parse(localStorage.getItem('itm-inventory-v1')||localStorage.getItem('encore-inventory-v1'))||{}}catch{return {}}}
 function writeLocal(){try{localStorage.setItem('itm-inventory-v1',JSON.stringify(state.inventory))}catch{}}
 function rand(){if(window.crypto?.getRandomValues){const n=new Uint32Array(1);crypto.getRandomValues(n);return n[0]/4294967296}return Math.random()}
-function drawDemo(count){return Array.from({length:count},()=>{let r=rand()*100,tier=TIERS[TIERS.length-1].key;for(const t of TIERS){if(r<t.chance){tier=t.key;break}r-=t.chance}const candidates=POOL.filter(c=>c.rarity===tier);return candidates[Math.floor(rand()*candidates.length)]})}
+function drawDemo(count){
+  // Five-card test packs include one of every tier (shuffled), rather than production odds.
+  if(count===5){const a=POOL.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(rand()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+  return Array.from({length:count},()=>{let n=rand()*100;for(const tier of TIERS){if(n<tier.chance)return POOL.find(c=>c.rarity===tier.key);n-=tier.chance}return POOL[POOL.length-1]});
+}
 function tone(rarity){return TIERS.find(t=>t.key===rarity)?.color||'#fff'}
 function flash(rarity){const f=$('flash');f.style.background=`radial-gradient(ellipse at center,#fff 0%,${tone(rarity)}b9 13%,#b76aff53 34%,transparent 68%)`;f.classList.add('active');setTimeout(()=>f.classList.remove('active'),rarity==='MYTHIC'?650:270)}
 let toastTimer;
@@ -76,7 +73,7 @@ function toggleAudio(){state.audio=!state.audio;$('audioToggle').textContent=sta
 const artCache=new Map();
 function makeCardArt(card){
   if(artCache.has(card.id))return artCache.get(card.id);
-  const c=document.createElement('canvas');c.width=512;c.height=746;const g=c.getContext('2d');
+  const c=document.createElement('canvas');c.width=1024;c.height=1492;const g=c.getContext('2d');g.scale(2,2);
   const tier=tone(card.rarity),hue=card.tint;
   let bg=g.createLinearGradient(0,0,512,746);bg.addColorStop(0,'#161525');bg.addColorStop(.4,hue);bg.addColorStop(.7,'#332343');bg.addColorStop(1,'#090b19');g.fillStyle=bg;g.fillRect(0,0,512,746);
   // soft stage light
@@ -126,9 +123,14 @@ function logoForPack(){
   while(head<tail){const i=queue[head++],x=i%w,y=(i/w)|0,k=i*4;p[k+3]=0;if(x>0)add(i-1);if(x<w-1)add(i+1);if(y>0)add(i-w);if(y<h-1)add(i+w)}
   ctx.putImageData(im,0,0);return c;
 }
-function makePackTexture(){const c=document.createElement('canvas');c.width=512;c.height=790;const g=c.getContext('2d');const b=g.createLinearGradient(0,0,512,790);b.addColorStop(0,'#251146');b.addColorStop(.2,'#d663bd');b.addColorStop(.42,'#6a4bc2');b.addColorStop(.62,'#140e35');b.addColorStop(.79,'#b973c2');b.addColorStop(1,'#4b1b72');g.fillStyle=b;g.fillRect(0,0,512,790);for(let i=-12;i<24;i++){g.strokeStyle=`rgba(255,255,255,${.035+(i%4)*.015})`;g.lineWidth=8;g.beginPath();g.moveTo(i*38,0);g.lineTo(i*38+250,790);g.stroke()}g.strokeStyle='#fff6';g.lineWidth=3;g.strokeRect(22,20,468,750);g.strokeStyle='#f8d2fb';g.lineWidth=1;g.strokeRect(31,30,450,732);let bloom=g.createRadialGradient(256,335,0,256,360,240);bloom.addColorStop(0,'#fff9');bloom.addColorStop(.35,'#fc93f77a');bloom.addColorStop(1,'#dd88fe00');g.fillStyle=bloom;g.fillRect(0,100,512,500);g.textAlign='center';g.fillStyle='#fff';g.font='bold 17px system-ui';g.fillText('✦   THE FIRST SHOWCASE   ✦',256,93);g.font='130px Georgia';g.fillText('✳',256,384);g.font='900 72px system-ui';g.fillText('ITM',256,492);g.font='bold 18px system-ui';g.fillText('IDOL : THE MOMENT',256,535);g.font='bold 19px system-ui';g.fillText('DEBUT COLLECTION',256,654);g.font='11px monospace';g.fillText('ONE UNFORGETTABLE MOMENT AWAITS',256,702);if(loaded(brandLogo)){const logo=logoForPack();g.save();g.shadowColor='#ff8bdf';g.shadowBlur=20;g.drawImage(logo,116,260,280,280);g.restore()}return c}
+function makePackTexture(){const c=document.createElement('canvas');c.width=1024;c.height=1580;const g=c.getContext('2d');g.scale(2,2);const b=g.createLinearGradient(0,0,512,790);b.addColorStop(0,'#251146');b.addColorStop(.2,'#d663bd');b.addColorStop(.42,'#6a4bc2');b.addColorStop(.62,'#140e35');b.addColorStop(.79,'#b973c2');b.addColorStop(1,'#4b1b72');g.fillStyle=b;g.fillRect(0,0,512,790);for(let i=-12;i<24;i++){g.strokeStyle=`rgba(255,255,255,${.035+(i%4)*.015})`;g.lineWidth=8;g.beginPath();g.moveTo(i*38,0);g.lineTo(i*38+250,790);g.stroke()}g.strokeStyle='#fff6';g.lineWidth=3;g.strokeRect(22,20,468,750);g.strokeStyle='#f8d2fb';g.lineWidth=1;g.strokeRect(31,30,450,732);let bloom=g.createRadialGradient(256,335,0,256,360,240);bloom.addColorStop(0,'#fff9');bloom.addColorStop(.35,'#fc93f77a');bloom.addColorStop(1,'#dd88fe00');g.fillStyle=bloom;g.fillRect(0,100,512,500);g.textAlign='center';g.fillStyle='#fff';g.font='bold 17px system-ui';g.fillText('✦   THE FIRST SHOWCASE   ✦',256,93);g.font='130px Georgia';g.fillText('✳',256,384);g.font='900 72px system-ui';g.fillText('ITM',256,492);g.font='bold 18px system-ui';g.fillText('IDOL : THE MOMENT',256,535);g.font='bold 19px system-ui';g.fillText('DEBUT COLLECTION',256,654);g.font='11px monospace';g.fillText('ONE UNFORGETTABLE MOMENT AWAITS',256,702);if(loaded(brandLogo)){const logo=logoForPack();g.save();g.shadowColor='#ff8bdf';g.shadowBlur=20;g.drawImage(logo,116,260,280,280);g.restore()}return c}
 function texture(c){const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=Math.min(renderer.capabilities.getMaxAnisotropy(),8);return t}
 let backTexture,packTexture;
+function makePackPartGeometry(height,uvStart,uvSize){
+  const geometry=new THREE.BoxGeometry(2.55,height,.23),uv=geometry.attributes.uv;
+  for(let i=0;i<uv.count;i++)uv.setY(i,uv.getY(i)*uvSize+uvStart);
+  return geometry;
+}
 function initScene(){
   const canvas=$('threeCanvas');renderer=new THREE.WebGLRenderer({canvas,alpha:true,antialias:true,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.7));renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.55;
   scene=new THREE.Scene();scene.fog=new THREE.FogExp2(0x0d061a,.045);camera=new THREE.PerspectiveCamera(42,1,.1,100);camera.position.set(0,.2,10.7);
@@ -142,14 +144,46 @@ function initScene(){
   backTexture=texture(loaded(brandCardBack)?brandCardBack:makeBackTexture());packTexture=texture(makePackTexture());
   const face=new THREE.MeshPhysicalMaterial({map:packTexture,metalness:.3,roughness:.28,clearcoat:1,clearcoatRoughness:.13,side:THREE.DoubleSide});const side=new THREE.MeshPhysicalMaterial({color:0xe9a0e0,metalness:.78,roughness:.24,clearcoat:1});
   pack=new THREE.Mesh(new THREE.BoxGeometry(2.55,3.83,.23),[side,side,side,side,face,face]);pack.rotation.y=-.32;scene.add(pack);
+  // Split the foil using top and bottom meshes with independently cropped UVs.
+  packParts=new THREE.Group();
+  const cutHeight=.95,bottomHeight=3.83-cutHeight,bottomUv=bottomHeight/3.83;
+  packTop=new THREE.Mesh(makePackPartGeometry(cutHeight,bottomUv,cutHeight/3.83),[side,side,side,side,face,face]);
+  packBottom=new THREE.Mesh(makePackPartGeometry(bottomHeight,0,bottomUv),[side,side,side,side,face,face]);
+  packTop.position.y=bottomHeight/2;packBottom.position.y=-cutHeight/2;
+  packSeam=new THREE.Mesh(new THREE.PlaneGeometry(2.64,.07),new THREE.MeshBasicMaterial({color:0xffe6ff,transparent:true,opacity:.9,depthWrite:false,blending:THREE.AdditiveBlending}));
+  packSeam.position.set(0,3.83/2-cutHeight,.15);
+  packParts.add(packTop,packBottom,packSeam);packParts.visible=false;scene.add(packParts);
   packRim=new THREE.Mesh(new THREE.BoxGeometry(2.62,3.9,.2),new THREE.MeshBasicMaterial({color:0xcc73ff,transparent:true,opacity:.16,wireframe:true,depthWrite:false}));scene.add(packRim);
   window.addEventListener('resize',resizeScene,{passive:true});resizeScene();
   const raycaster=new THREE.Raycaster(),pointer=new THREE.Vector2();canvas.addEventListener('pointerdown',(e)=>{if(state.phase!=='reveal')return;const b=canvas.getBoundingClientRect();pointer.x=((e.clientX-b.left)/b.width)*2-1;pointer.y=-((e.clientY-b.top)/b.height)*2+1;raycaster.setFromCamera(pointer,camera);const hit=raycaster.intersectObjects(cardMeshes);if(hit.length)revealIndex(hit[0].object.userData.index)});
   renderer.setAnimationLoop(frame);state.three=true;
 }
-function resizeScene(){if(!renderer)return;const r=$('sceneWrap').getBoundingClientRect();const w=Math.max(250,r.width*1.36),h=Math.max(260,r.height*1.3);renderer.setSize(w,h,false);camera.aspect=w/h;camera.position.z=window.innerWidth<780?12.8:10.7;camera.updateProjectionMatrix()}
-function frame(now){const t=now*.001,delta=Math.min(.05,t-lastTime||.016);lastTime=t;const ready=state.phase==='ready',opening=state.phase==='opening';if(pack){pack.visible=ready||opening;packRim.visible=pack.visible;if(pack.visible){pack.position.y=Math.sin(t*1.2)*.14+(opening?Math.min(1,(t-openingAt)/1.1)*1.1:0);pack.rotation.y=-.28+Math.sin(t*.7)*.24+(opening?Math.sin(t*36)*.17:0);const progress=opening?clamp((t-openingAt)/2.65,0,1):0;pack.rotation.z=opening?Math.sin(t*(18+progress*38))*(.04+progress*.2):Math.sin(t*.5)*.025;const scale=opening?1+EASE(progress)*.9:1;pack.scale.setScalar(scale);packRim.position.copy(pack.position);packRim.rotation.copy(pack.rotation);packRim.scale.setScalar(scale)}}if(dust){dust.rotation.y+=delta*.015;dust.rotation.z+=delta*.01}stageLights.forEach((cone,i)=>cone.rotation.z=Math.sin(t*.4+i)*.23);
-  const n=cardMeshes.length;cardMeshes.forEach((mesh,i)=>{const revealed=state.revealed.has(i);const mobile=window.innerWidth<780;const spread=n===1?0:(mobile?1.18:1.47);const targetX=(i-(n-1)/2)*spread;const targetY=.14+Math.sin(t*1.3+i)*.055;mesh.position.x+=(targetX-mesh.position.x)*Math.min(1,delta*4.2);mesh.position.y+=(targetY-mesh.position.y)*Math.min(1,delta*4.2);mesh.position.z+=(0-mesh.position.z)*Math.min(1,delta*3);const targetR=revealed?Math.PI*2:Math.PI;mesh.rotation.y+=(targetR-mesh.rotation.y)*Math.min(1,delta*(revealed?3.2:4.8));mesh.rotation.z=((i-(n-1)/2)*(mobile?-.035:-.043))+Math.sin(t*.7+i)*.012;const targetScale=(revealed&&['LEGENDARY','MYTHIC'].includes(state.cards[i].rarity))?1.07:1;mesh.scale.lerp(new THREE.Vector3(targetScale,targetScale,targetScale),Math.min(1,delta*3))});
+function resizeScene(){if(!renderer)return;const r=$('sceneWrap').getBoundingClientRect(),full=document.body.classList.contains('pack-cinematic');const w=Math.max(250,r.width*(full?1:1.36)),h=Math.max(260,r.height*(full?1:1.3));renderer.setSize(w,h,false);camera.aspect=w/h;camera.position.z=window.innerWidth<780?12.8:10.7;camera.updateProjectionMatrix()}
+function frame(now){
+  const t=now*.001,delta=Math.min(.05,t-lastTime||.016);lastTime=t;
+  const ready=state.phase==='ready',opening=state.phase==='opening';
+  if(pack){
+    const elapsed=opening?Math.max(0,t-openingAt):0,progress=opening?clamp(elapsed/(PACK_OPEN_DURATION/1000),0,1):0;
+    const tear=opening?clamp((elapsed-1.3)/1.2,0,1):0,split=EASE(tear);
+    pack.position.y=Math.sin(t*1.2)*.14+(opening?Math.min(1,elapsed/1.1)*.45:0);
+    pack.rotation.y=-.28+Math.sin(t*.7)*.24+(opening?Math.sin(t*36)*.14:0);
+    pack.rotation.z=opening?Math.sin(t*(18+progress*38))*(.025+progress*.15):Math.sin(t*.5)*.025;
+    pack.scale.setScalar(opening?1+EASE(progress)*.65:1);
+    pack.visible=(ready||opening)&&tear<=.001;
+    packRim.visible=pack.visible;
+    packRim.position.copy(pack.position);packRim.rotation.copy(pack.rotation);packRim.scale.copy(pack.scale);
+    packParts.visible=opening&&tear>.001;
+    if(packParts.visible){
+      packParts.position.copy(pack.position);packParts.rotation.copy(pack.rotation);packParts.scale.copy(pack.scale);
+      packTop.position.y=(3.83-.95)/2+split*1.25;
+      packTop.rotation.z=split*-.21;packTop.rotation.x=split*.12;
+      packBottom.position.y=-.95/2-split*.48;packBottom.rotation.z=split*.07;
+      packSeam.material.opacity=(1-tear)*.95;
+    }
+  }
+  
+if(dust){dust.rotation.y+=delta*.015;dust.rotation.z+=delta*.01}stageLights.forEach((cone,i)=>cone.rotation.z=Math.sin(t*.4+i)*.23);
+  const n=cardMeshes.length;cardMeshes.forEach((mesh,i)=>{const revealed=state.revealed.has(i);const mobile=window.innerWidth<780;const spread=n===1?0:(mobile?1.18:1.47);const targetX=(i-(n-1)/2)*spread;const targetY=.14+Math.sin(t*1.3+i)*.055;mesh.position.x+=(targetX-mesh.position.x)*Math.min(1,delta*4.2);mesh.position.y+=(targetY-mesh.position.y)*Math.min(1,delta*4.2);mesh.position.z+=(0-mesh.position.z)*Math.min(1,delta*3);const targetR=revealed?Math.PI*2:Math.PI;mesh.rotation.y+=(targetR-mesh.rotation.y)*Math.min(1,delta*(revealed?3.2:4.8));mesh.rotation.z=((i-(n-1)/2)*(mobile?-.035:-.043))+Math.sin(t*.7+i)*.012;const targetScale=(revealed&&['SSR','UR'].includes(state.cards[i].rarity))?1.07:1;mesh.scale.lerp(new THREE.Vector3(targetScale,targetScale,targetScale),Math.min(1,delta*3))});
   renderer.render(scene,camera)}
 function addCards(){cardMeshes.forEach(mesh=>{scene.remove(mesh);mesh.geometry.dispose();mesh.material.forEach(m=>{if(m.map && m.map!==backTexture)m.map.dispose();m.dispose()})});cardMeshes=[];
   const n=state.cards.length;state.cards.forEach((c,i)=>{const front=texture(makeCardArt(c));const edge=new THREE.MeshPhysicalMaterial({color:new THREE.Color(tone(c.rarity)),metalness:.65,roughness:.2});const card=new THREE.Mesh(new THREE.BoxGeometry(1.56,2.3,.04),[edge,edge,edge,edge,new THREE.MeshBasicMaterial({map:front}),new THREE.MeshBasicMaterial({map:backTexture})]);card.position.set((i-(n-1)/2)*.25,-4,-i*.07);card.rotation.y=Math.PI;card.userData.index=i;cardMeshes.push(card);scene.add(card)})}
