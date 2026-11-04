@@ -105,9 +105,9 @@ function makeCardArt(card){
   if(artCache.has(card.id))return artCache.get(card.id);
   const c=document.createElement('canvas');c.width=1024;c.height=1492;const g=c.getContext('2d');g.scale(2,2);
   const tier=tone(card.rarity),hue=card.tint,isUR=card.rarity==='UR';
-  let bg=g.createLinearGradient(0,0,512,746);bg.addColorStop(0,'#161525');bg.addColorStop(.4,hue);bg.addColorStop(.7,'#332343');bg.addColorStop(1,'#090b19');g.fillStyle=bg;g.fillRect(0,0,512,746);
+  let bg=g.createLinearGradient(0,0,512,746);bg.addColorStop(0,'#29263b');bg.addColorStop(.4,hue);bg.addColorStop(.7,'#533c68');bg.addColorStop(1,'#18112d');g.fillStyle=bg;g.fillRect(0,0,512,746);
   // soft stage light
-  let beam=g.createRadialGradient(246,258,10,260,280,340);beam.addColorStop(0,'#ffffff9d');beam.addColorStop(.35,tier+'66');beam.addColorStop(1,'#1a163000');g.fillStyle=beam;g.fillRect(0,0,512,690);
+  let beam=g.createRadialGradient(246,258,10,260,280,340);beam.addColorStop(0,'#ffffffcb');beam.addColorStop(.35,tier+'85');beam.addColorStop(1,'#1a163000');g.fillStyle=beam;g.fillRect(0,0,512,690);
   // decorative spotlight strokes
   g.save();g.globalAlpha=.2;g.strokeStyle='#fff';for(let i=0;i<15;i++){g.beginPath();g.moveTo(256,40);g.lineTo(i*44-70,600);g.stroke()}g.restore();
   // original stylized person silhouette, not a photograph or portrayal of a real idol
@@ -127,7 +127,7 @@ function makeCardArt(card){
   else outfit.addColorStop(.5,tier);
   outfit.addColorStop(1,'#120b2e');g.fillStyle=outfit;g.beginPath();g.moveTo(112,640);g.quadraticCurveTo(96,515,204,479);g.lineTo(256,520);g.lineTo(310,478);g.quadraticCurveTo(414,512,423,640);g.lineTo(420,746);g.lineTo(110,746);g.closePath();g.fill();
   g.restore();
-  let lower=g.createLinearGradient(0,470,0,746);lower.addColorStop(0,'#0c0a1a00');lower.addColorStop(.65,'#0907168c');lower.addColorStop(1,'#050610');g.fillStyle=lower;g.fillRect(0,450,512,296);
+  let lower=g.createLinearGradient(0,470,0,746);lower.addColorStop(0,'#0c0a1a00');lower.addColorStop(.65,'#140b2a55');lower.addColorStop(1,'#110d25c9');g.fillStyle=lower;g.fillRect(0,450,512,296);
   if(card.rarity==='SSR'||card.rarity==='UR'){
     g.save();for(let i=0;i<28;i++){g.globalAlpha=.12+(i%4)*.08;g.fillStyle=i%2?'#fff':tier;g.beginPath();let xx=((i*137)%490)+8,yy=((i*197)%590)+50;g.arc(xx,yy,i%5===0?4:2,0,Math.PI*2);g.fill()}g.restore();
   }
@@ -162,7 +162,7 @@ function makeCardArt(card){
   g.strokeRect(25,25,462,696);
   g.fillStyle=paintTierGradient(g,card.rarity,32,0,480,0);
   g.fillRect(32,79,448,isUR?6:4);
-  g.fillStyle='#f9f0ff';g.textAlign='left';g.font='bold 24px system-ui';g.fillText('✳  ITM',47,68);
+  g.fillStyle='#f9f0ff';g.textAlign='left';g.font='bold 24px system-ui';g.fillText('ITM',47,68);
   g.textAlign='right';g.font='bold 15px system-ui';g.fillText('STAGE 001',466,65);
   g.textAlign='left';g.font='700 14px system-ui';g.fillStyle=paintTierGradient(g,card.rarity,47,598,325,598);g.fillText(card.group+' • '+card.edition,47,598);
   g.font='900 62px Arial, sans-serif';g.fillStyle='#fff';g.shadowColor='#000a';g.shadowBlur=20;g.fillText(card.name,44,660);g.shadowBlur=0;
@@ -170,7 +170,7 @@ function makeCardArt(card){
   g.textAlign='right';g.font='11px monospace';g.fillStyle='#f7e9fc';g.fillText('DEMO ART / #'+card.id.split('-').slice(-1).join(''),465,697);
   artCache.set(card.id,c);return c;
 }
-function makeBackTexture(){const c=document.createElement('canvas');c.width=512;c.height=746;const g=c.getContext('2d');const b=g.createLinearGradient(0,0,512,746);b.addColorStop(0,'#300d51');b.addColorStop(.5,'#100d2c');b.addColorStop(1,'#68307b');g.fillStyle=b;g.fillRect(0,0,512,746);g.strokeStyle='#e7a3f7';g.lineWidth=8;g.strokeRect(18,18,476,710);g.strokeStyle='#ffffff70';g.lineWidth=1.4;g.strokeRect(34,34,444,678);for(let i=0;i<7;i++){g.save();g.translate(256,360);g.rotate(i*Math.PI/7);g.strokeStyle='#e99cea44';g.beginPath();g.ellipse(0,0,160,250,0,0,Math.PI*2);g.stroke();g.restore()}g.textAlign='center';g.fillStyle='#ffaedc';g.font='120px serif';g.fillText('✳',256,382);g.fillStyle='#fff';g.font='900 43px system-ui';g.fillText('ITM',256,457);g.font='bold 15px system-ui';g.fillStyle='#e9badb';g.fillText('IDOL : THE MOMENT',256,493);return c}
+function makeBackTexture(){const c=document.createElement('canvas');c.width=512;c.height=746;const g=c.getContext('2d');const b=g.createLinearGradient(0,0,512,746);b.addColorStop(0,'#300d51');b.addColorStop(.5,'#100d2c');b.addColorStop(1,'#68307b');g.fillStyle=b;g.fillRect(0,0,512,746);g.strokeStyle='#e7a3f7';g.lineWidth=8;g.strokeRect(18,18,476,710);g.strokeStyle='#ffffff70';g.lineWidth=1.4;g.strokeRect(34,34,444,678);for(let i=0;i<7;i++){g.save();g.translate(256,360);g.rotate(i*Math.PI/7);g.strokeStyle='#e99cea44';g.beginPath();g.ellipse(0,0,160,250,0,0,Math.PI*2);g.stroke();g.restore()}g.textAlign='center';g.fillStyle='#ffaedc';g.font='120px serif';g.fillStyle='#fff';g.font='900 43px system-ui';g.fillText('ITM',256,457);g.font='bold 15px system-ui';g.fillStyle='#e9badb';g.fillText('IDOL : THE MOMENT',256,493);return c}
 // Remove only the edge-connected dark matte from the supplied branding image.
 // Keep the original source asset untouched for the header and other uses.
 function logoForPack(){
@@ -187,7 +187,7 @@ function logoForPack(){
   while(head<tail){const i=queue[head++],x=i%w,y=(i/w)|0,k=i*4;p[k+3]=0;if(x>0)add(i-1);if(x<w-1)add(i+1);if(y>0)add(i-w);if(y<h-1)add(i+w)}
   ctx.putImageData(im,0,0);return c;
 }
-function makePackTexture(){const c=document.createElement('canvas');c.width=1024;c.height=1580;const g=c.getContext('2d');g.scale(2,2);const b=g.createLinearGradient(0,0,512,790);b.addColorStop(0,'#251146');b.addColorStop(.2,'#d663bd');b.addColorStop(.42,'#6a4bc2');b.addColorStop(.62,'#140e35');b.addColorStop(.79,'#b973c2');b.addColorStop(1,'#4b1b72');g.fillStyle=b;g.fillRect(0,0,512,790);for(let i=-12;i<24;i++){g.strokeStyle=`rgba(255,255,255,${.035+(i%4)*.015})`;g.lineWidth=8;g.beginPath();g.moveTo(i*38,0);g.lineTo(i*38+250,790);g.stroke()}g.strokeStyle='#fff6';g.lineWidth=3;g.strokeRect(22,20,468,750);g.strokeStyle='#f8d2fb';g.lineWidth=1;g.strokeRect(31,30,450,732);let bloom=g.createRadialGradient(256,335,0,256,360,240);bloom.addColorStop(0,'#fff9');bloom.addColorStop(.35,'#fc93f77a');bloom.addColorStop(1,'#dd88fe00');g.fillStyle=bloom;g.fillRect(0,100,512,500);g.textAlign='center';g.fillStyle='#fff';g.font='bold 17px system-ui';g.fillText('✦   THE FIRST SHOWCASE   ✦',256,93);g.font='130px Georgia';g.fillText('✳',256,384);g.font='900 72px system-ui';g.fillText('ITM',256,492);g.font='bold 18px system-ui';g.fillText('IDOL : THE MOMENT',256,535);g.font='bold 19px system-ui';g.fillText('DEBUT COLLECTION',256,654);g.font='11px monospace';g.fillText('ONE UNFORGETTABLE MOMENT AWAITS',256,702);if(loaded(brandLogo)){const logo=logoForPack();g.save();g.shadowColor='#ff8bdf';g.shadowBlur=20;g.drawImage(logo,116,260,280,280);g.restore()}return c}
+function makePackTexture(){const c=document.createElement('canvas');c.width=1024;c.height=1580;const g=c.getContext('2d');g.scale(2,2);const b=g.createLinearGradient(0,0,512,790);b.addColorStop(0,'#422361');b.addColorStop(.2,'#ea7bcc');b.addColorStop(.42,'#8064d5');b.addColorStop(.62,'#282044');b.addColorStop(.79,'#ce84d6');b.addColorStop(1,'#5e2c84');g.fillStyle=b;g.fillRect(0,0,512,790);for(let i=-12;i<24;i++){g.strokeStyle=`rgba(255,255,255,${.035+(i%4)*.015})`;g.lineWidth=8;g.beginPath();g.moveTo(i*38,0);g.lineTo(i*38+250,790);g.stroke()}g.strokeStyle='#fff6';g.lineWidth=3;g.strokeRect(22,20,468,750);g.strokeStyle='#f8d2fb';g.lineWidth=1;g.strokeRect(31,30,450,732);let bloom=g.createRadialGradient(256,335,0,256,360,240);bloom.addColorStop(0,'#fff9');bloom.addColorStop(.35,'#fc93f77a');bloom.addColorStop(1,'#dd88fe00');g.fillStyle=bloom;g.fillRect(0,100,512,500);g.textAlign='center';g.fillStyle='#fff';g.font='bold 17px system-ui';g.fillText('✦   THE FIRST SHOWCASE   ✦',256,93);g.font='130px Georgia';g.font='900 72px system-ui';g.fillText('ITM',256,492);g.font='bold 18px system-ui';g.fillText('IDOL : THE MOMENT',256,535);g.font='bold 19px system-ui';g.fillText('DEBUT COLLECTION',256,654);g.font='11px monospace';g.fillText('ONE UNFORGETTABLE MOMENT AWAITS',256,702);if(loaded(brandLogo)){const logo=logoForPack();g.save();g.shadowColor='#ff8bdf';g.shadowBlur=20;g.drawImage(logo,116,260,280,280);g.restore()}return c}
 function texture(c){const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=Math.min(renderer.capabilities.getMaxAnisotropy(),8);return t}
 let backTexture,packTexture;
 function makePackPartGeometry(height,uvStart,uvSize){
@@ -206,7 +206,7 @@ function initScene(){
   for(let i=0;i<4;i++){let cone=new THREE.Mesh(new THREE.ConeGeometry(2,10,32,1,true),new THREE.MeshBasicMaterial({color:i%2?0xd576ff:0xff86bf,transparent:true,opacity:.04,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending}));cone.position.set(-4+i*2.65,3.4,-4);cone.rotation.z=.1+(i-2)*.14;cone.rotation.x=Math.PI;scene.add(cone);stageLights.push(cone)}
   const points=1200,positions=new Float32Array(points*3),colors=new Float32Array(points*3);for(let i=0;i<points;i++){positions[i*3]=(rand()-.5)*27;positions[i*3+1]=(rand()-.5)*19;positions[i*3+2]=(rand()-.5)*21-5;const p=new THREE.Color().setHSL(.78+rand()*.17,.65,.55+rand()*.4);colors.set([p.r,p.g,p.b],i*3)}const geom=new THREE.BufferGeometry();geom.setAttribute('position',new THREE.BufferAttribute(positions,3));geom.setAttribute('color',new THREE.BufferAttribute(colors,3));dust=new THREE.Points(geom,new THREE.PointsMaterial({size:.036,vertexColors:true,transparent:true,opacity:.75,depthWrite:false,blending:THREE.AdditiveBlending}));scene.add(dust);
   backTexture=texture(loaded(brandCardBack)?brandCardBack:makeBackTexture());packTexture=texture(makePackTexture());
-  const face=new THREE.MeshPhysicalMaterial({map:packTexture,metalness:.3,roughness:.28,clearcoat:1,clearcoatRoughness:.13,side:THREE.DoubleSide});const side=new THREE.MeshPhysicalMaterial({color:0xe9a0e0,metalness:.78,roughness:.24,clearcoat:1});
+  const face=new THREE.MeshPhysicalMaterial({map:packTexture,metalness:.12,roughness:.3,clearcoat:1,clearcoatRoughness:.13,side:THREE.DoubleSide});const side=new THREE.MeshPhysicalMaterial({color:0xe9a0e0,metalness:.78,roughness:.24,clearcoat:1});
   pack=new THREE.Mesh(new THREE.BoxGeometry(2.55,3.83,.23),[side,side,side,side,face,face]);pack.rotation.y=-.32;scene.add(pack);
   // Split the foil using top and bottom meshes with independently cropped UVs.
   packParts=new THREE.Group();
@@ -349,7 +349,13 @@ function revealIndex(i,silent=false){
     button.classList.add('is-revealed');
     button.setAttribute('aria-label',card.rarity+' '+card.name+' 공개됨');
     button.setAttribute('aria-pressed','true');
-    if(!silent)button.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
+    if(!silent){
+      // Scroll only the horizontal card rail; scrollIntoView also moves the iOS page.
+      const rail=$('stageCardRail');
+      const railRect=rail.getBoundingClientRect(),buttonRect=button.getBoundingClientRect();
+      const desired=rail.scrollLeft+(buttonRect.left-railRect.left)-(railRect.width-buttonRect.width)/2;
+      rail.scrollTo({left:Math.max(0,desired),behavior:'smooth'});
+    }
   }
   if(!silent){
     const freq={N:440,R:523,SR:659,SSR:784,UR:1047}[card.rarity]||523;
