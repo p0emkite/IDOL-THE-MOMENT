@@ -55,11 +55,37 @@ async function check(name,device){
     await page.screenshot({path:reveal,fullPage:false});
     report.screenshots.push(reveal);
   }
+  if(name==='landscape'){
+    await page.locator('#drawFive').click({timeout:12000});
+    await page.waitForFunction(()=>{
+      const stage=document.getElementById('packRevealStage');
+      return stage&&!stage.hidden&&document.querySelectorAll('#stageCardTrack .stage-card-button').length===5;
+    },null,{timeout:22000});
+    const ur=page.locator('#stageCardTrack .stage-card-button.rarity-ur');
+    await ur.scrollIntoViewIfNeeded();
+    await ur.click({timeout:12000});
+    await page.waitForFunction(()=>!document.getElementById('raritySplash').hidden,null,{timeout:13000});
+    await page.waitForTimeout(1750);
+    report.checks.landscapeUR=await page.evaluate(()=>{
+      const splash=document.getElementById('raritySplash');
+      const grade=document.getElementById('splashGrade');
+      const name=document.getElementById('splashName');
+      const box=el=>{const r=el.getBoundingClientRect();return {left:r.left,top:r.top,right:r.right,bottom:r.bottom,width:r.width,height:r.height}};
+      const g=box(grade),n=box(name);
+      return {visible:!splash.hidden,grade:g,name:n,viewport:[innerWidth,innerHeight],
+        gradeFullyVisible:g.left>=0&&g.top>=0&&g.bottom<=innerHeight&&g.right<=innerWidth,
+        nameFullyVisible:n.left>=0&&n.top>=0&&n.bottom<=innerHeight&&n.right<=innerWidth};
+    });
+    const splashShot='qa/landscape-ur.png';
+    await page.screenshot({path:splashShot,fullPage:false});
+    report.screenshots.push(splashShot);
+  }
   await context.close();
 }
 try{
  await check('desktop',{width:1680,height:940});
  await check('mobile',{width:390,height:844});
+ await check('landscape',{width:844,height:390});
 }finally{
  await browser.close();
  await writeFile('qa/visual-qa-result.json',JSON.stringify(report,null,2),'utf8');
@@ -68,3 +94,4 @@ try{
 if(report.consoleErrors.some(x=>/Uncaught|TypeError|ReferenceError|Failed to resolve module/i.test(x)))process.exitCode=1;
 if(!report.checks.desktop?.webgl||!report.checks.mobile?.webgl)process.exitCode=1;
 if(!report.checks.open?.reveal||report.checks.open?.actualCards!==5)process.exitCode=1;
+if(!report.checks.landscapeUR?.gradeFullyVisible||!report.checks.landscapeUR?.nameFullyVisible)process.exitCode=1;
