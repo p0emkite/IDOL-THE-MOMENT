@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#080610">
+  <meta name="description" content="ITM 무대형 카드팩 개봉 인터페이스 시안. 기존 ITM과 독립된 연출 테스트입니다.">
+  <title>ITM — STAGE EXPERIENCE PREVIEW</title>
+  <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml">
+  <style>
+    :root{color-scheme:dark;--purple:#aa70ff;--rose:#ff80cf;--gold:#ffe6a4;--bg:#07050d}
+    *{box-sizing:border-box}
+    html,body{margin:0;width:100%;height:100%;background:var(--bg);color:#fff;font-family:Inter,Pretendard,"Noto Sans KR",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    body{overflow:hidden}
+    button,a{-webkit-tap-highlight-color:transparent}
+    button{cursor:pointer;font:inherit}
+    button:focus-visible,a:focus-visible{outline:2px solid #ffdeaa;outline-offset:4px}
+    [hidden]{display:none!important}
+    .experience{isolation:isolate;position:fixed;inset:0;width:100%;height:100dvh;min-height:0;overflow:hidden;background:radial-gradient(ellipse at 50% 44%,#251434 0%,#100a1b 46%,#05040a 93%)}
+    .theatre,.particles,.lights,.floor,.stage{position:absolute;inset:0}
+    .theatre{pointer-events:none;overflow:hidden}
+    .theatre:before,.theatre:after{content:"";position:absolute;top:0;bottom:0;width:28%;z-index:1;background:repeating-linear-gradient(90deg,#0c0811 0%,#2c1636 13%,#100a18 32%,#3a2040 46%,#130b1e 65%,#09060e 100%);opacity:.54;filter:brightness(.64)}
+    .theatre:before{left:-22%;transform:skewY(-3deg)}
+    .theatre:after{right:-22%;transform:scaleX(-1) skewY(3deg)}
+    .back-wall{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 45%,#56355c22 0%,transparent 43%),repeating-linear-gradient(90deg,#ffffff07 0 1px,transparent 1px 92px)}
+    .light-source{position:absolute;top:-21px;left:50%;width:190px;height:32px;transform:translateX(-50%);background:#fdf1f2;border-radius:50%;filter:blur(20px);box-shadow:0 0 35px #ffd8c8,0 0 80px #caa5ff;z-index:3;opacity:.88}
+    .beam{position:absolute;left:50%;top:-17%;height:97%;width:min(78vw,760px);transform:translateX(-50%);clip-path:polygon(47% 0,53% 0,100% 100%,0 100%);background:linear-gradient(180deg,#ffe9bf69 0%,#edcdff31 42%,#d78bf313 100%);filter:blur(14px);opacity:.84;animation:beamBreathe 5.2s ease-in-out infinite alternate}
+    .beam.secondary{left:26%;width:45vw;opacity:.22;transform:translateX(-50%) rotate(-18deg);background:linear-gradient(180deg,#cfbcff72,transparent)}
+    .beam.tertiary{left:74%;width:45vw;opacity:.24;transform:translateX(-50%) rotate(18deg);background:linear-gradient(180deg,#ffb8e773,transparent)}
+    .floor{top:auto;height:32%;background:linear-gradient(180deg,transparent,#120b1b 31%,#07050b 100%);perspective:500px}
+    .floor:before{content:"";position:absolute;left:50%;top:-22%;width:min(78vw,780px);height:54%;border-radius:50%;transform:translateX(-50%) perspective(320px) rotateX(56deg);background:radial-gradient(ellipse,#fff5d86b 0%,#d69eff3a 33%,#ae68ff11 59%,transparent 78%);filter:blur(13px)}
+    .floor:after{content:"";position:absolute;left:50%;top:13%;width:min(95vw,1000px);height:56%;border:1px solid #f8c5ff28;border-radius:50%;transform:translateX(-50%) perspective(300px) rotateX(61deg);box-shadow:0 0 24px #ba7df327,0 0 0 35px #ffffff03,0 0 0 75px #ffffff02}
+    .particle{position:absolute;left:var(--x);top:var(--y);width:var(--s);height:var(--s);border-radius:50%;background:#fff1d8;box-shadow:0 0 8px #fbe9dc;opacity:0;animation:twinkle var(--dur) ease-in-out var(--delay) infinite alternate}
+    .utility{position:fixed;z-index:10;top:max(18px,env(safe-area-inset-top));display:grid;place-items:center;width:40px;height:40px;border:1px solid #ffffff2d;border-radius:50%;background:#0c0916a1;color:#fff;backdrop-filter:blur(12px);transition:background .2s}
+    .utility:hover{background:#ffffff1c}
+    .back-home{left:clamp(16px,3vw,46px);text-decoration:none;font-size:24px}
+    .replay{right:clamp(16px,3vw,46px);font-size:20px}
+    .stage{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:max(68px,env(safe-area-inset-top)) 18px calc(116px + env(safe-area-inset-bottom));min-height:0}
+    .stage-title{position:absolute;top:clamp(75px,11vh,120px);left:50%;transform:translateX(-50%);z-index:4;opacity:.92;font-size:clamp(11px,1.25vw,15px);font-weight:900;letter-spacing:.42em;white-space:nowrap;text-shadow:0 0 20px #deb4ff5b}
+    .stage-title b{font-size:1.5em;letter-spacing:.15em;font-weight:1000}
+    .pack-zone{position:relative;z-index:4;display:grid;place-items:center;width:100%;height:100%;min-height:0;max-height:650px;perspective:1100px}
+    .pack-shadow{position:absolute;bottom:clamp(8px,8%,57px);left:50%;width:clamp(160px,23vw,290px);height:44px;border-radius:50%;transform:translateX(-50%);background:#050207e8;filter:blur(17px);box-shadow:0 0 45px #d0a0ff42;opacity:.62}
+    .pack-float{position:relative;width:clamp(155px,min(25vw,28vh),250px);aspect-ratio:0.635;transform-style:preserve-3d;animation:float 4.4s ease-in-out infinite;filter:drop-shadow(0 30px 32px #000b) drop-shadow(0 0 26px #bb78ff4d)}
+    .pack-object{position:absolute;inset:0;border-radius:8px 8px 11px 11px;transform:rotateY(-12deg) rotateZ(-2deg);transform-style:preserve-3d;will-change:transform}
+    .pack-face{position:absolute;inset:6% 0 6%;border:2px solid #ffe3ffbd;overflow:hidden;border-radius:7px;background:linear-gradient(112deg,#5f2f80 0%,#f5b4e0 9%,#d96ac4 17%,#652c94 34%,#3c1768 45%,#c664b7 67%,#ffb3d2 79%,#6b328a 100%);box-shadow:inset 0 0 0 5px #ffffff2d,inset 0 0 55px #1b0629b2,0 0 24px #db8de36b}
+    .pack-face:before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(106deg,transparent 0 14px,#ffffff0f 15px,#ffffff18 17px,transparent 19px 35px),radial-gradient(ellipse at 50% 44%,#fbe0ff61,transparent 58%);mix-blend-mode:screen;pointer-events:none}
+    .pack-face:after{content:"";position:absolute;inset:-60%;transform:translateX(-60%) rotate(15deg);background:linear-gradient(100deg,transparent 43%,#ffffff7f 50%,transparent 57%);animation:foilGlint 5.4s linear infinite;pointer-events:none}
+    .pack-inset{position:absolute;inset:6% 7%;border:1px solid #ffddff99;box-shadow:0 0 0 6px #ffffff0c,inset 0 0 16px #df91ff5e;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:5%}
+    .pack-star{position:absolute;top:8%;color:#ffeafc;font-size:clamp(16px,2vw,23px);letter-spacing:.45em;text-shadow:0 0 18px #fff}
+    .pack-monogram{font-family:Georgia,"Times New Roman",serif;font-weight:900;font-style:italic;font-size:clamp(56px,8vw,96px);letter-spacing:-.16em;padding-right:.15em;color:#fff0fa;transform:skewX(-8deg);line-height:1;text-shadow:2px 3px 0 #9e4ccc,4px 6px 0 #482078,0 0 25px #ffe8ff}
+    .pack-rule{width:56%;height:1px;background:linear-gradient(90deg,transparent,#ffefff,transparent)}
+    .pack-name{font-size:clamp(7px,1vw,11px);letter-spacing:.24em;font-weight:900;white-space:nowrap;color:#ffe8ff;text-shadow:0 0 12px #fff}
+    .pack-edition{position:absolute;bottom:9%;font-size:clamp(7px,.95vw,10px);letter-spacing:.23em;color:#ffddf5;white-space:nowrap}
+    .pack-crimp{position:absolute;left:-1%;right:-1%;height:9.2%;z-index:5;border:1px solid #ffe4fa95;background:repeating-linear-gradient(180deg,#fff0fb8c 0 2px,#e970d3cc 3px 5px,#6c267ecf 6px 8px,#f3a5dfcc 9px 11px),linear-gradient(90deg,#5a2777,#fbbce2 20%,#af59ac 55%,#ffe1ee 75%,#7f3e9c);box-shadow:inset 0 0 9px #ffffff8d,0 2px 4px #0006}
+    .pack-crimp.top{top:0;border-radius:6px 6px 0 0;clip-path:polygon(0 15%,2% 0,4% 15%,6% 0,8% 15%,10% 0,12% 15%,14% 0,16% 15%,18% 0,20% 15%,22% 0,24% 15%,26% 0,28% 15%,30% 0,32% 15%,34% 0,36% 15%,38% 0,40% 15%,42% 0,44% 15%,46% 0,48% 15%,50% 0,52% 15%,54% 0,56% 15%,58% 0,60% 15%,62% 0,64% 15%,66% 0,68% 15%,70% 0,72% 15%,74% 0,76% 15%,78% 0,80% 15%,82% 0,84% 15%,86% 0,88% 15%,90% 0,92% 15%,94% 0,96% 15%,98% 0,100% 15%,100% 100%,0 100%)}
+    .pack-crimp.bottom{bottom:0;transform:rotate(180deg)}
+    .pack-seam{position:absolute;top:9.3%;left:2%;right:2%;height:2px;z-index:6;background:linear-gradient(90deg,transparent,#ffe5ff,transparent);opacity:.8;box-shadow:0 0 9px #ffe7ff}
+    .pack-opening .pack-float{animation:none;filter:drop-shadow(0 0 42px #ff9fffd4)}
+    .pack-opening .pack-object{animation:packRumble 1.28s cubic-bezier(.36,.06,.62,.97) both}
+    .pack-opening .pack-crimp.top{animation:tearFoil .7s 1s ease-in forwards}
+    .pack-opening .pack-seam{animation:seamBurst .45s .93s ease-in forwards}
+    .pack-opening .pack-face{animation:foilRelease .6s 1.05s ease-in forwards}
+    .pack-opening .pack-shadow{animation:shadowBurst 1.8s forwards}
+    .flash{position:absolute;z-index:8;inset:0;pointer-events:none;background:radial-gradient(circle at 50% 48%,#fff 0%,#ffe8ffd6 12%,#df9cff5e 30%,transparent 63%);opacity:0}
+    .pack-opening .flash{animation:openFlash 1.75s ease-out forwards}
+    .pack-opening.is-five .flash{background:radial-gradient(circle at 50% 48%,#fff 0%,#ffffe8f4 13%,#ffd491b5 27%,#9a7cff7f 40%,transparent 69%)}
+    .actions{position:absolute;z-index:9;bottom:calc(42px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);width:min(570px,calc(100% - 34px));display:grid;grid-template-columns:1fr 1.12fr;gap:13px;transition:opacity .35s,transform .35s}
+    .action{position:relative;isolation:isolate;overflow:hidden;min-height:76px;border-radius:14px;font-weight:950;font-size:clamp(16px,2.3vw,20px);letter-spacing:-.02em;white-space:nowrap;transition:transform .2s,box-shadow .2s,border-color .2s}
+    .action:active{transform:scale(.97)}
+    .action:hover{transform:translateY(-3px)}
+    .action.one{border:1px solid #ddc4f17b;color:#fbe9ff;background:linear-gradient(140deg,#24152fcc,#100c18f2);box-shadow:0 9px 23px #0006,inset 0 1px #ffffff28}
+    .action.five{border:1px solid #fff3c4;color:#24102e;background:linear-gradient(112deg,#fff3cb 0%,#f8c9ff 28%,#d4b6ff 49%,#fbe19e 75%,#fff8df 100%);box-shadow:0 0 22px #c995ff9c,0 0 46px #fbc4ab45,0 12px 30px #0008;animation:fivePulse 3.6s ease-in-out infinite}
+    .action.five:before{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(100deg,transparent 15%,#ffffffd9 38%,transparent 52%);transform:translateX(-140%);animation:buttonSweep 3.6s ease-in-out infinite}
+    .action.five:after{content:"✦";position:absolute;top:8px;right:12px;font-size:15px;color:#9a4cc3;text-shadow:0 0 8px #fff}
+    .action strong{font-weight:1000}
+    .not-ready .actions{opacity:0;pointer-events:none;transform:translate(-50%,20px)}
+    .pack-opening .actions{opacity:0;pointer-events:none;transform:translate(-50%,20px)}
+    .intro-overlay{position:fixed;inset:0;z-index:40;display:grid;place-items:center;background:#030207;overflow:hidden;opacity:1;visibility:visible}
+    .intro-overlay[hidden]{display:none}
+    .intro-curtain{position:absolute;top:0;bottom:0;width:50.1%;background:repeating-linear-gradient(90deg,#09050f 0 26px,#351b42 44px,#100919 66px,#09050f 89px);z-index:3;box-shadow:inset 0 0 80px #000}
+    .intro-curtain.left{left:0;border-right:1px solid #b174dc55}
+    .intro-curtain.right{right:0;border-left:1px solid #b174dc55}
+    .intro-logo{position:relative;z-index:4;text-align:center;opacity:0;transform:scale(.82);filter:blur(12px)}
+    .intro-logo .big{display:block;font-family:Georgia,"Times New Roman",serif;font-style:italic;font-weight:900;font-size:clamp(93px,22vw,260px);letter-spacing:-.13em;padding-right:.16em;line-height:1;color:#fff;text-shadow:0 0 28px #fff9,0 0 75px #cf91ff}
+    .intro-logo .small{display:block;font-size:clamp(11px,1.5vw,16px);letter-spacing:.6em;margin-top:10px;color:#f8ddfa;white-space:nowrap}
+    .intro-halo{position:absolute;left:50%;top:44%;width:50vw;height:40vw;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle,#f9d6ff46 0%,#ab69ed24 32%,transparent 65%);filter:blur(24px);opacity:0}
+    .skip-intro{position:absolute;z-index:8;bottom:max(30px,env(safe-area-inset-bottom));right:clamp(20px,5vw,60px);background:none;border:0;color:#e9d5f0b5;letter-spacing:.22em;font-size:11px;padding:13px}
+    .intro-active .intro-logo{animation:introMark 1.75s .2s ease-out forwards}
+    .intro-active .intro-halo{animation:introHalo 2.2s ease-in-out forwards}
+    .intro-opening .intro-curtain.left{animation:curtainLeft 1.3s ease-in-out forwards}
+    .intro-opening .intro-curtain.right{animation:curtainRight 1.3s ease-in-out forwards}
+    .intro-opening .intro-logo{animation:introFade 1.2s ease-in forwards;opacity:1;filter:none}
+    .intro-opening .intro-overlay{animation:introEnd 1.35s ease-in forwards}
+    .result-screen{position:fixed;inset:0;z-index:30;display:grid;grid-template-rows:auto minmax(0,1fr) auto;background:radial-gradient(ellipse at 50% 42%,#3a1b58 0%,#1b1029 46%,#090611 94%);overflow:hidden}
+    .result-top{display:flex;align-items:center;justify-content:space-between;padding:clamp(18px,3vw,36px);padding-top:max(18px,env(safe-area-inset-top));border-bottom:1px solid #ffffff26;gap:15px}
+    .result-headline{font-size:clamp(17px,3vw,25px);font-weight:950;letter-spacing:.04em}
+    .close-result{width:44px;height:44px;border-radius:50%;border:1px solid #ffffff4b;background:#ffffff13;color:#fff;font-size:25px;flex-shrink:0}
+    .result-center{display:flex;align-items:center;flex-direction:column;justify-content:center;min-height:0;overflow:hidden;padding:10px 0 15px;gap:15px}
+    .result-cards{width:100%;max-width:1210px;min-width:0;min-height:0;display:flex;align-items:center;justify-content:flex-start;gap:clamp(10px,1.4vw,22px);padding:25px clamp(16px,4vw,45px) 35px;overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;touch-action:pan-x;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
+    .result-cards.single{justify-content:center}
+    .result-card{--tier1:#c8d2e0;--tier2:#8796a8;flex:0 0 clamp(126px,17vw,210px);aspect-ratio:512/746;position:relative;perspective:900px;scroll-snap-align:center;cursor:pointer}
+    .result-card.single{flex-basis:clamp(174px,27vw,290px)}
+    .card-body{position:absolute;inset:0;transform-style:preserve-3d;transition:transform .85s cubic-bezier(.18,.76,.18,1)}
+    .result-card.flipped .card-body{transform:rotateY(180deg)}
+    .card-side{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;overflow:hidden;border-radius:11px;border:2px solid #ffdaffb8;box-shadow:0 14px 35px #000a,0 0 17px var(--tier2)}
+    .card-back{background:#24133a}
+    .card-back img{width:100%;height:100%;object-fit:fill;display:block}
+    .card-front{transform:rotateY(180deg);background:linear-gradient(130deg,var(--tier1),var(--tier2),#120c21 83%);border:3px solid var(--tier1)}
+    .card-front:before{content:"";position:absolute;inset:7px;border:1px solid #ffffff99;pointer-events:none}
+    .card-front:after{content:"✦";font-size:clamp(64px,10vw,110px);font-family:Georgia,serif;color:#ffffffbd;text-shadow:0 0 22px #fff;position:absolute;left:50%;top:39%;transform:translate(-50%,-50%)}
+    .card-front .card-brand{position:absolute;left:14px;top:17px;font-weight:900;letter-spacing:.15em;font-size:13px;color:#fff}
+    .card-front .card-rarity{position:absolute;left:15px;bottom:18px;font-weight:1000;font-size:clamp(32px,5vw,52px);color:#fff;text-shadow:0 3px 15px #000a}
+    .card-front .card-label{position:absolute;left:16px;bottom:6px;font-weight:750;font-size:9px;letter-spacing:.12em;color:#fff}
+    .result-card[data-tier="UR"] .card-front{background:linear-gradient(140deg,#65eaff,#8a79ff 30%,#fb8ccd 55%,#ffe57f 76%,#83ffd2);box-shadow:0 0 35px #c47bffdc}
+    .result-card[data-tier="SSR"] .card-front{box-shadow:0 0 30px #ffd580a1}
+    .result-footer{background:#110b1bee;border-top:1px solid #ffffff26;padding:15px 20px max(19px,env(safe-area-inset-bottom));display:grid;justify-items:center;gap:7px}
+    .result-footer p{font-size:11px;color:#c7b7d5;margin:0;text-align:center}
+    .again{min-height:48px;min-width:min(270px,100%);border:1px solid #e7baff;color:#f9e5ff;background:#341a46;border-radius:10px;font-weight:900}
+    @keyframes twinkle{0%{opacity:0;transform:translateY(0)}100%{opacity:.78;transform:translateY(-13px)}}
+    @keyframes beamBreathe{from{opacity:.65}to{opacity:1}}
+    @keyframes float{0%,100%{transform:translateY(0) rotateY(-2deg)}50%{transform:translateY(-17px) rotateY(3deg)}}
+    @keyframes foilGlint{0%,60%{transform:translateX(-70%) rotate(15deg)}100%{transform:translateX(75%) rotate(15deg)}}
+    @keyframes fivePulse{0%,100%{box-shadow:0 0 20px #c995ff70,0 12px 30px #0008}50%{box-shadow:0 0 34px #ffda92b8,0 0 55px #b88cff96,0 12px 30px #0008}}
+    @keyframes buttonSweep{0%,58%{transform:translateX(-135%)}85%,100%{transform:translateX(140%)}}
+    @keyframes packRumble{0%{transform:rotateY(-12deg) rotateZ(-2deg) scale(1)}35%{transform:rotateY(6deg) rotateZ(5deg) scale(1.07)}58%{transform:rotateY(-8deg) rotateZ(-5deg) scale(1.18)}85%,100%{transform:rotateY(0) rotateZ(0) scale(1.6);opacity:0}}
+    @keyframes tearFoil{to{transform:translateY(-70px) rotateZ(-10deg);opacity:0}}
+    @keyframes seamBurst{to{height:8px;opacity:0;box-shadow:0 0 50px #fff}}
+    @keyframes foilRelease{to{opacity:0;filter:brightness(3)}}
+    @keyframes shadowBurst{to{opacity:0;transform:translateX(-50%) scale(2)}}
+    @keyframes openFlash{0%,45%{opacity:0}72%{opacity:.85}100%{opacity:0}}
+    @keyframes introMark{0%{opacity:0;filter:blur(16px);transform:scale(.72)}45%{opacity:1;filter:blur(0);transform:scale(1.06)}100%{opacity:1;filter:blur(0);transform:scale(1)}}
+    @keyframes introHalo{0%{opacity:0;transform:translate(-50%,-50%) scale(.3)}55%{opacity:1}100%{opacity:.6;transform:translate(-50%,-50%) scale(1.3)}}
+    @keyframes curtainLeft{to{transform:translateX(-101%)}}
+    @keyframes curtainRight{to{transform:translateX(101%)}}
+    @keyframes introFade{to{opacity:0;filter:blur(12px);transform:scale(1.5)}}
+    @keyframes introEnd{0%,72%{background:#030207}100%{background:#03020700}}
+    @media(max-width:650px){
+      .stage-title{top:clamp(74px,13vh,112px);font-size:11px;letter-spacing:.3em}
+      .pack-float{width:clamp(148px,min(39vw,32vh),207px)}
+      .pack-monogram{font-size:clamp(55px,16vw,82px)}
+      .pack-name{font-size:7px}
+      .actions{bottom:calc(32px + env(safe-area-inset-bottom));gap:9px;width:calc(100% - 28px)}
+      .action{min-height:66px;font-size:16px;border-radius:12px}
+      .beam{width:110vw}
+      .beam.secondary,.beam.tertiary{display:none}
+      .result-cards{gap:14px;padding:16px 16px 32px}
+      .result-card{flex-basis:clamp(132px,45vw,200px)}
+      .result-top{padding:16px;padding-top:max(16px,env(safe-area-inset-top))}
+    }
+    @media(max-height:650px){
+      .stage-title{top:58px}
+      .pack-float{width:clamp(112px,min(21vw,30vh),190px)}
+      .actions{bottom:calc(14px + env(safe-area-inset-bottom))}
+      .action{min-height:55px}
+      .result-card{flex-basis:clamp(110px,22vh,170px)}
+    }
+    @media(prefers-reduced-motion:reduce){
+      .particle,.beam,.pack-float,.pack-face:after,.action.five,.action.five:before{animation:none!important}
+      .card-body{transition:none}
+    }
+  </style>
+</head>
+<body>
+  <div class="experience not-ready" id="experience">
+    <div class="theatre" aria-hidden="true">
+      <div class="back-wall"></div><div class="light-source"></div>
+      <div class="beam"></div><div class="beam secondary"></div><div class="beam tertiary"></div>
+      <div class="floor"></div><div class="particles" id="particles"></div>
+    </div>
+    <a class="utility back-home" href="./" aria-label="기존 ITM으로 돌아가기" title="기존 ITM으로 돌아가기">‹</a>
+    <button class="utility replay" type="button" id="replay" aria-label="진입 연출 다시 보기" title="진입 연출 다시 보기">↻</button>
+    <main class="stage">
+      <div class="stage-title" aria-label="IDOL THE MOMENT"><b>ITM</b> &nbsp;·&nbsp; IDOL THE MOMENT</div>
+      <div class="pack-zone" aria-label="스포트라이트 아래 놓인 ITM 카드팩">
+        <div class="pack-shadow"></div>
+        <div class="pack-float">
+          <div class="pack-object" id="pack">
+            <div class="pack-face">
+              <div class="pack-inset">
+                <span class="pack-star">✧ ✦ ✧</span>
+                <span class="pack-monogram">ITM</span>
+                <span class="pack-rule"></span>
+                <span class="pack-name">IDOL : THE MOMENT</span>
+                <span class="pack-edition">DEBUT COLLECTION</span>
+              </div>
+            </div>
+            <div class="pack-crimp top"></div>
+            <div class="pack-seam"></div>
+            <div class="pack-crimp bottom"></div>
+          </div>
+        </div>
+      </div>
+      <div class="actions" aria-label="뽑기 선택">
+        <button class="action one" id="drawOne" type="button">1회 뽑기</button>
+        <button class="action five" id="drawFive" type="button"><strong>5회 뽑기</strong></button>
+      </div>
+    </main>
+    <div class="flash" aria-hidden="true"></div>
+  </div>
+
+  <section class="intro-overlay" id="intro" aria-label="ITM 진입 연출">
+    <div class="intro-halo" aria-hidden="true"></div>
+    <div class="intro-curtain left" aria-hidden="true"></div>
+    <div class="intro-curtain right" aria-hidden="true"></div>
+    <div class="intro-logo" aria-hidden="true"><span class="big">ITM</span><span class="small">IDOL : THE MOMENT</span></div>
+    <button class="skip-intro" id="skipIntro" type="button">SKIP ›</button>
+  </section>
+
+  <section class="result-screen" id="resultScreen" role="dialog" aria-modal="true" aria-label="카드 공개 테스트" hidden>
+    <header class="result-top">
+      <div class="result-headline" id="resultTitle">카드 공개</div>
+      <button type="button" class="close-result" id="closeResult" aria-label="무대로 돌아가기">×</button>
+    </header>
+    <div class="result-center">
+      <div class="result-cards" id="resultCards" aria-label="뽑은 카드 목록"></div>
+    </div>
+    <footer class="result-footer">
+      <p>테스트 연출입니다 · 실제 계정 및 도감에는 저장되지 않습니다.</p>
+      <button type="button" class="again" id="again">무대로 돌아가기</button>
+    </footer>
+  </section>
+
+  <script>
+    (() => {
+      'use strict';
+      const $ = id => document.getElementById(id);
+      const root = $('experience'), intro = $('intro'), results = $('resultScreen'), rail = $('resultCards');
+      const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const TIERS = [
+        {name:'N', label:'NORMAL', colors:['#e1e5ed','#7d899e'],weight:55},
+        {name:'R', label:'RARE', colors:['#82d5ff','#286bd4'],weight:28},
+        {name:'SR',label:'SUPER RARE',colors:['#d5a0ff','#7b45cc'],weight:12},
+        {name:'SSR',label:'SPECIAL SUPER RARE',colors:['#ffeda5','#dd9a27'],weight:4},
+        {name:'UR',label:'ULTRA RARE',colors:['#6ae9ff','#a06afe','#ff8bcf','#ffe68d','#77ffd6'],weight:1}
+      ];
+      let runId = 0, opening = false, timeouts = [];
+      function schedule(fn,ms){
+        const timer = setTimeout(fn,ms);
+        timeouts.push(timer);
+        return timer;
+      }
+      function clearTimers(){for(const timer of timeouts)clearTimeout(timer);timeouts=[]}
+      function makeParticles(){
+        const fragment = document.createDocumentFragment();
+        for(let i=0;i<44;i++){
+          const dot=document.createElement('span');
+          dot.className='particle';
+          const r=(n)=>((i*73+n*41)%97)/97;
+          dot.style.setProperty('--x',(8+r(1)*84).toFixed(1)+'%');
+          dot.style.setProperty('--y',(7+r(2)*76).toFixed(1)+'%');
+          dot.style.setProperty('--s',i%4===0?'2px':'1px');
+          dot.style.setProperty('--dur',(2+r(3)*3).toFixed(2)+'s');
+          dot.style.setProperty('--delay',(r(4)*4).toFixed(2)+'s');
+          fragment.append(dot);
+        }
+        $('particles').append(fragment);
+      }
+      function endIntro(id){
+        if(id!==runId)return;
+        intro.hidden=true;
+        intro.classList.remove('intro-active','intro-opening');
+        root.classList.remove('not-ready');
+        $('drawOne').focus({preventScroll:true});
+      }
+      function skipIntro(){runId++;clearTimers();endIntro(runId)}
+      function playIntro(){
+        if(opening||!results.hidden)return;
+        runId++;clearTimers();
+        const id=runId;
+        root.classList.add('not-ready');
+        intro.hidden=false;intro.className='intro-overlay';
+        void intro.offsetWidth;
+        if(reduced){endIntro(id);return;}
+        intro.classList.add('intro-active');
+        schedule(()=>{if(id===runId)intro.classList.add('intro-opening')},1900);
+        schedule(()=>endIntro(id),3250);
+      }
+      function drawTier(){
+        let n=crypto.getRandomValues(new Uint32Array(1))[0]/4294967296*100;
+        for(const tier of TIERS){n-=tier.weight;if(n<0)return tier}
+        return TIERS[0];
+      }
+      function packResult(tier,i){
+        const card=document.createElement('button');
+        card.type='button';card.className='result-card';
+        card.dataset.tier=tier.name;
+        card.setAttribute('aria-label',tier.name+' 카드 뒤집기');
+        const colors=tier.colors.join(',');
+        card.style.setProperty('--tier1',tier.colors[0]);
+        card.style.setProperty('--tier2',tier.colors[1]);
+        const body=document.createElement('span');body.className='card-body';
+        const back=document.createElement('span');back.className='card-side card-back';
+        const img=document.createElement('img');
+        img.src='./assets/itm-card-back.png';img.alt='ITM 카드 뒷면';img.loading='eager';
+        back.append(img);
+        const front=document.createElement('span');front.className='card-side card-front';
+        front.style.background='linear-gradient(135deg,'+colors+')';
+        const brand=document.createElement('span');brand.className='card-brand';brand.textContent='ITM';
+        const rarity=document.createElement('span');rarity.className='card-rarity';rarity.textContent=tier.name;
+        const label=document.createElement('span');label.className='card-label';label.textContent=tier.label;
+        front.append(brand,rarity,label);body.append(back,front);card.append(body);
+        card.addEventListener('click',()=>card.classList.add('flipped'));
+        schedule(()=>card.classList.add('flipped'),600+i*280);
+        return card;
+      }
+      function showResult(count){
+        rail.replaceChildren();
+        const tiers=count===5?[...TIERS].sort(()=>Math.random()-.5):[drawTier()];
+        tiers.forEach((tier,i)=>rail.append(packResult(tier,i)));
+        rail.classList.toggle('single',count===1);
+        $('resultTitle').textContent=count+'회 뽑기';
+        results.hidden=false;
+        $('closeResult').focus({preventScroll:true});
+      }
+      function closeResult(){
+        if(results.hidden)return;
+        clearTimers();results.hidden=true;
+        root.classList.remove('pack-opening','is-five');
+        opening=false;
+        $('drawFive').focus({preventScroll:true});
+      }
+      function openPack(count){
+        if(opening||!intro.hidden)return;
+        opening=true;clearTimers();
+        root.classList.add('pack-opening');
+        root.classList.toggle('is-five',count===5);
+        schedule(()=>showResult(count),reduced?180:1740);
+      }
+      makeParticles();
+      $('drawOne').addEventListener('click',()=>openPack(1));
+      $('drawFive').addEventListener('click',()=>openPack(5));
+      $('skipIntro').addEventListener('click',skipIntro);
+      $('replay').addEventListener('click',playIntro);
+      $('closeResult').addEventListener('click',closeResult);
+      $('again').addEventListener('click',closeResult);
+      window.addEventListener('keydown',e=>{
+        if(e.key==='Escape'&&!results.hidden)closeResult();
+        else if(e.key==='Escape'&&!intro.hidden)skipIntro();
+      });
+      playIntro();
+    })();
+  </script>
+</body>
+</html>
