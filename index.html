@@ -8,6 +8,7 @@
   <title>ITM — IDOL : THE MOMENT</title>
   <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="./style.css" />
+  <link rel="stylesheet" href="./pack-opening.css" />
   <script src="./config.js"></script>
   <script type="module" src="./app.js"></script>
 </head>
@@ -60,8 +61,8 @@
       <section class="control-zone">
         <div class="control-left"><span class="section-number">02 / MAKE IT YOURS</span><div class="control-heading" id="controlHeading">어떤 순간을 열어볼까?</div></div>
         <div class="draw-actions" id="drawActions">
-          <button id="drawOne" class="btn secondary"><span class="btn-count">01</span><span>1 CARD PACK</span><span>↗</span></button>
-          <button id="drawFive" class="btn primary"><span class="btn-count">05</span><span>5 CARD PACK</span><span>✦</span></button>
+          <button id="drawOne" class="btn secondary"><span class="btn-count">01</span><span>1 CARD PACK · RANDOM</span><span>↗</span></button>
+          <button id="drawFive" class="btn primary"><span class="btn-count">05</span><span>5 CARD PACK · ALL TIERS</span><span>✦</span></button>
           <button id="revealNext" class="btn secondary" hidden>다음 카드 공개 <span id="revealCounter"></span> →</button>
           <button id="revealAll" class="btn primary" hidden>모두 공개 ✦</button>
           <button id="nextPack" class="btn primary" hidden>다음 팩 열기 ↗</button>
@@ -69,7 +70,7 @@
       </section>
       <section class="bottom-info">
         <div><b>FREE FANMADE CONCEPT</b><span>금전 결제와 실제 상품은 없습니다.</span></div>
-        <div><b>ORIGINAL PLACEHOLDER ART</b><span>샘플 아트와 가상 아이돌로 구현한 데모입니다.</span></div>
+        <div><b>5-TIER TEST PACKS</b><span>N · R · SR · SSR · UR 체험용 카드가 각 1장씩 들어 있습니다.</span></div>
         <div><b>PERFORMANCE READY</b><span>실시간 3D · 수집 기록 · 모바일 지원</span></div>
       </section>
     </main>
@@ -81,7 +82,7 @@
       <div class="modal-top"><div><div class="eyebrow">THE MEMORY ARCHIVE</div><h2>MY COLLECTION <span class="pink">✦</span></h2><p>빛나는 순간을 하나씩 기록해봐.</p></div><button class="close" id="collectionClose" aria-label="도감 닫기">×</button></div>
       <div class="collection-summary" id="collectionSummary"></div>
       <div class="collection-grid" id="collectionGrid"></div>
-      <div class="collection-footer" id="collectionFooter">서버 연결 시 계정별로 자동 저장됩니다. 다른 기기에서는 ITM 복구 코드로 같은 도감을 불러올 수 있어요.</div>
+      <div class="collection-footer" id="collectionFooter">테스트 팩으로 수집한 카드는 이 브라우저에만 저장됩니다. 서버 도감과는 아직 연동되지 않습니다.</div>
     </div>
   </div>
   <div class="overlay" id="accountOverlay" aria-hidden="true">
@@ -116,7 +117,30 @@
       </div>
     </div>
   </div>
-  <div class="overlay" id="oddsOverlay" aria-hidden="true"><div class="odds-modal"><button class="close" id="oddsClose">×</button><h2>PACK ODDS</h2><p>기획 단계의 데모 확률입니다.</p><div id="oddsRows"></div></div></div>
+  <div class="overlay" id="oddsOverlay" aria-hidden="true"><div class="odds-modal"><button class="close" id="oddsClose">×</button><h2>PACK ODDS</h2><p>1장 팩의 테스트 확률입니다. 5장 팩은 각 등급 1장씩 확정으로 등장합니다.</p><div id="oddsRows"></div></div></div>
+  <section class="pack-reveal-stage" id="packRevealStage" role="dialog" aria-modal="true" aria-label="ITM 카드팩 개봉" aria-hidden="true" hidden>
+    <div class="stage-top">
+      <div class="stage-brand"><img src="./assets/itm-logo.png" alt="ITM" /><div><strong>IDOL : THE MOMENT</strong><span>DEBUT COLLECTION · TEST OPENING</span></div></div>
+      <span class="stage-progress" id="stageProgress">0 / 5 REVEALED</span>
+      <button class="stage-close" id="stageClose" aria-label="개봉 화면 닫기">×</button>
+    </div>
+    <div class="stage-main">
+      <div class="stage-kicker">THE MOMENT IS YOURS</div>
+      <h2 class="stage-headline">YOUR CARD REVEAL</h2>
+      <div class="stage-card-rail" id="stageCardRail" aria-label="개봉된 카드"></div>
+      <div class="stage-hint" id="stageHint" role="status" aria-live="polite">카드를 눌러 등급을 확인해 보세요.</div>
+    </div>
+    <div class="stage-footer">
+      <div class="stage-footer-note"><b>✦ FIRST SHOWCASE / TEST PACK</b>가상 아이돌 카드 5종 · 카드 이미지는 임시 아트입니다.</div>
+      <div class="stage-controls">
+        <button class="stage-btn" id="stageRevealNext">다음 카드 공개 →</button>
+        <button class="stage-btn primary" id="stageRevealAll">모두 공개 ✦</button>
+        <button class="stage-btn primary" id="stageFinish" hidden>개봉 완료 · 돌아가기 ↗</button>
+      </div>
+    </div>
+    <div class="stage-burst" id="stageBurst" aria-hidden="true"></div>
+    <div class="stage-rarity-banner" id="stageRarityBanner" aria-hidden="true"></div>
+  </section>
   <button class="odds-link" id="oddsOpen">ⓘ 등급별 확률</button>
 </body>
 </html>
