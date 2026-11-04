@@ -41,7 +41,12 @@ async function check(name,device){
     report.checks.sound=audioStats;
     await page.locator('#audioToggle').click();
     await page.locator('#drawFive').click({timeout:12000});
-    await page.waitForTimeout(5800);
+    // A GPU-heavy arena can delay rendering slightly; verify the actual result,
+    // not whether it had appeared at an arbitrary 5.8 second mark.
+    await page.waitForFunction(()=>{
+      const stage=document.getElementById('packRevealStage');
+      return stage&&!stage.hidden&&document.querySelectorAll('#stageCardTrack .stage-card-button').length===5;
+    },null,{timeout:22000});
     report.checks.open=await page.evaluate(()=>({
       reveal:!document.getElementById('packRevealStage').hidden,
       actualCards:document.querySelectorAll('#stageCardTrack .stage-card-button').length
@@ -62,3 +67,4 @@ try{
 }
 if(report.consoleErrors.some(x=>/Uncaught|TypeError|ReferenceError|Failed to resolve module/i.test(x)))process.exitCode=1;
 if(!report.checks.desktop?.webgl||!report.checks.mobile?.webgl)process.exitCode=1;
+if(!report.checks.open?.reveal||report.checks.open?.actualCards!==5)process.exitCode=1;
