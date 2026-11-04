@@ -82,7 +82,7 @@
       <div class="modal-top"><div><div class="eyebrow">THE MEMORY ARCHIVE</div><h2>MY COLLECTION <span class="pink">✦</span></h2><p>빛나는 순간을 하나씩 기록해봐.</p></div><button class="close" id="collectionClose" aria-label="도감 닫기">×</button></div>
       <div class="collection-summary" id="collectionSummary"></div>
       <div class="collection-grid" id="collectionGrid"></div>
-      <div class="collection-footer" id="collectionFooter">테스트 팩으로 수집한 카드는 이 브라우저에만 저장됩니다. 서버 도감과는 아직 연동되지 않습니다.</div>
+      <div class="collection-footer" id="collectionFooter">게스트 기록은 이 브라우저에만 저장돼. 로그인하면 서버 도감이 표시돼.</div>
     </div>
   </div>
   <div class="overlay" id="accountOverlay" aria-hidden="true">
@@ -92,28 +92,57 @@
         <button class="close" id="accountClose" aria-label="ITM ID 닫기">×</button>
       </div>
       <div class="account-body">
-        <div class="identity-bar"><span class="identity-dot"></span><div><strong id="accountStatus">게스트 계정 연결 중…</strong><small id="accountPlayerId">게임 서버와 연결하고 있어요.</small></div><button class="account-retry" id="accountRetry" hidden>다시 연결</button></div>
-        <div class="account-columns">
-          <section class="account-section">
-            <div class="account-number">01 / BACK UP</div><h3>내 도감 복구 코드 발급</h3>
-            <p>처음 사용하는 기기에서도 지금까지 모은 카드를 불러오려면 이 코드를 따로 보관해 줘.</p>
-            <button class="account-action" id="issueRecoveryCode">✦ 새 복구 코드 발급</button>
-            <div class="code-box" id="issuedCodeBox" hidden>
-              <span>단 한 번 표시되는 코드</span><code id="issuedCode"></code>
-              <button class="code-copy" id="copyRecoveryCode">복구 코드 복사</button>
+        <section class="account-entry" id="accountEntry">
+          <p class="account-intro">아이디와 비밀번호만으로 나만의 도감을 저장하고, PC와 휴대폰에서 이어서 수집할 수 있어.</p>
+          <div class="account-tabs" role="group" aria-label="로그인 방식">
+            <button type="button" id="accountTabLogin" class="selected" aria-pressed="true">로그인</button>
+            <button type="button" id="accountTabSignup" aria-pressed="false">회원가입</button>
+          </div>
+          <form id="accountForm" class="account-form" autocomplete="on">
+            <label for="accountUsername">아이디</label>
+            <input id="accountUsername" type="text" required minlength="4" maxlength="20"
+              pattern="[a-zA-Z][a-zA-Z0-9_]{3,19}" autocomplete="username"
+              placeholder="영문·숫자·밑줄 4~20자" spellcheck="false" autocapitalize="none" />
+            <label for="accountPassword">비밀번호</label>
+            <input id="accountPassword" type="password" required autocomplete="current-password"
+              placeholder="비밀번호 입력" />
+            <p class="account-password-note" id="accountPasswordNote" hidden>영문과 숫자를 포함해 10자 이상으로 설정해 줘. 이메일 없이 만드는 계정이어서 비밀번호를 잊으면 재설정이 어려울 수 있어.</p>
+            <button id="accountSubmit" type="submit" class="account-action">내 도감 불러오기 →</button>
+          </form>
+          <div class="account-guest-choice">
+            <button type="button" id="guestPlay" class="account-action secondary">로그인 없이 게스트 플레이</button>
+            <p><strong>게스트 수집 기록은 이 브라우저에만 저장돼.</strong> 브라우저 데이터 삭제, 기기 변경, 시크릿 모드 종료 시 기록을 잃을 수 있어. 회원가입하면 기존 게스트 카드도 계정으로 가져올 수 있어.</p>
+          </div>
+        </section>
+        <section class="account-profile" id="accountProfile" hidden>
+          <div class="identity-bar"><span class="identity-dot"></span><div><strong id="accountStatus">로그인된 도감</strong><small id="accountPlayerId"></small></div><button type="button" class="account-retry" id="accountRetry" hidden>다시 연결</button></div>
+          <p class="account-profile-note">수집 기록이 ITM Supabase 서버에 저장돼. 동일한 아이디와 비밀번호로 다른 기기에서 로그인하면 도감이 이어져.</p>
+          <button type="button" class="account-action secondary" id="accountLogout">로그아웃</button>
+          <details class="account-legacy">
+            <summary>기존 ITM 복구 코드 사용 (이전 버전 도감)</summary>
+            <div class="account-columns">
+              <section class="account-section">
+                <div class="account-number">BACK UP</div><h3>복구 코드 발급</h3>
+                <p>이전 버전의 복구 코드 방식도 계속 지원해.</p>
+                <button type="button" class="account-action" id="issueRecoveryCode">새 복구 코드 발급</button>
+                <div class="code-box" id="issuedCodeBox" hidden>
+                  <span>단 한 번 표시되는 코드</span><code id="issuedCode"></code>
+                  <button type="button" class="code-copy" id="copyRecoveryCode">복구 코드 복사</button>
+                </div>
+                <small class="account-warning">새 코드를 발급하면 이전 코드는 무효화돼. 다른 사람에게 코드를 공유하지 마.</small>
+              </section>
+              <section class="account-section">
+                <div class="account-number">RESTORE</div><h3>기존 도감 연결</h3>
+                <p>기존 기기에서 발급받은 코드를 사용해 해당 도감을 연결할 수 있어.</p>
+                <label for="recoveryCodeInput">ITM RECOVERY CODE</label>
+                <input id="recoveryCodeInput" type="text" placeholder="IT-XXXX-XXXX-XXXX-..." autocomplete="off" maxlength="60" />
+                <button type="button" class="account-action secondary" id="restoreRecoveryCode">기존 도감 연결하기 →</button>
+                <small class="account-warning">기존 도감과 현재 도감은 자동으로 합쳐지지 않아.</small>
+              </section>
             </div>
-            <small class="account-warning">코드는 비밀번호와 같아. 타인에게 알려주지 말고 안전한 곳에 저장해 줘. 새 코드를 발급하면 이전 코드는 무효화돼.</small>
-          </section>
-          <section class="account-section">
-            <div class="account-number">02 / RESTORE</div><h3>다른 기기의 도감 불러오기</h3>
-            <p>이전에 저장해 둔 복구 코드를 입력하면 현재 기기에서도 같은 도감을 사용할 수 있어.</p>
-            <label for="recoveryCodeInput">ITM RECOVERY CODE</label>
-            <input id="recoveryCodeInput" type="text" placeholder="IT-XXXX-XXXX-XXXX-..." autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="60" />
-            <button class="account-action secondary" id="restoreRecoveryCode">기존 도감 연결하기 →</button>
-            <small class="account-warning">다른 도감을 연결해도 현재 기기의 기존 수집 기록은 별도로 남아 있어. 자동 합쳐지지는 않아.</small>
-          </section>
-        </div>
-        <div class="account-message" id="accountMessage" role="status" aria-live="polite">복구 코드 발급은 선택 사항이지만, 발급하지 않으면 브라우저 데이터 삭제 시 도감을 복원하기 어려울 수 있어.</div>
+          </details>
+        </section>
+        <div class="account-message" id="accountMessage" role="status" aria-live="polite">로그인하거나, 게스트로 바로 시작할 수 있어.</div>
       </div>
     </div>
   </div>
