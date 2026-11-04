@@ -15,14 +15,15 @@ export function createConcertStage({THREE,scene,renderer,oldBeams=[]}){
   };
   let rank='DEFAULT',accent=new THREE.Color('#d277ed'),accentTarget=accent.clone();
   let lastLed=0,level=0,fireworks=[],fireworkElapsed=0;
-  const glows=[],bars=[],batons=[],spots=[];
-  const ledCanvas=document.createElement('canvas');ledCanvas.width=1000;ledCanvas.height=490;
+  const glows=[],bars=[],batons=[],spots=[],lightBeams=[];
+  let openingSequence=null,openingStart=0,openingDark=false,openingFire=false;
+  const ledCanvas=document.createElement('canvas');ledCanvas.width=1100;ledCanvas.height=470;
   const ctx=ledCanvas.getContext('2d',{alpha:false});
   const ledTexture=new THREE.CanvasTexture(ledCanvas);
   ledTexture.colorSpace=THREE.SRGBColorSpace;
   ledTexture.anisotropy=Math.min(renderer.capabilities.getMaxAnisotropy(),4);
   const ledMaterial=new THREE.MeshBasicMaterial({map:ledTexture,side:THREE.DoubleSide,toneMapped:false});
-  const ledGeom=new THREE.PlaneGeometry(24,12,96,22);
+  const ledGeom=new THREE.PlaneGeometry(24,7.25,96,22);
   // Gently wrap the LED panels around the performance area.
   const ledPositions=ledGeom.attributes.position;
   for(let i=0;i<ledPositions.count;i++){
@@ -31,7 +32,7 @@ export function createConcertStage({THREE,scene,renderer,oldBeams=[]}){
   }
   ledGeom.computeVertexNormals();
   const led=new THREE.Mesh(ledGeom,ledMaterial);
-  led.position.set(0,.45,-8.4);group.add(led);
+  led.position.set(0,.65,-8.7);group.add(led);
 
   function material(color,opacity=1){return new THREE.MeshBasicMaterial({color,transparent:opacity<1,opacity,side:THREE.DoubleSide,depthWrite:opacity>=1,toneMapped:false})}
   function phys(color,metalness=.65,roughness=.32){return new THREE.MeshStandardMaterial({color,metalness,roughness})}
@@ -83,8 +84,8 @@ export function createConcertStage({THREE,scene,renderer,oldBeams=[]}){
     glows.push(light);
   }
   // Modern glossy ring stage, sized beneath the existing sealed 3D pack.
-  const discMaterial=phys(0x34223b,.82,.25);
-  const rimMaterial=phys(0x9b639e,.85,.22);
+  const discMaterial=phys(0x583254,.64,.25);
+  const rimMaterial=phys(0xc17bb5,.76,.16);
   const disc=new THREE.Mesh(new THREE.CylinderGeometry(3.5,3.73,.18,88),discMaterial);
   disc.position.set(0,-2.42,.08);group.add(disc);
   const top=new THREE.Mesh(new THREE.CylinderGeometry(3.22,3.25,.095,88),rimMaterial);
@@ -104,7 +105,7 @@ export function createConcertStage({THREE,scene,renderer,oldBeams=[]}){
     spots.push(spot);
   }
   for(const beam of oldBeams){if(beam?.material)beam.material.opacity=Math.min(beam.material.opacity,.009)}
-  const beamMaterial=new THREE.MeshBasicMaterial({color:0xf5bcec,transparent:true,opacity:.012,side:THREE.DoubleSide,depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false});
+  const beamMaterial=new THREE.MeshBasicMaterial({color:0xf5bcec,transparent:true,opacity:.033,side:THREE.DoubleSide,depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false});
   for(const [sx,sy,sz,tx,ty,tz,color] of [
     [-6.0,5.7,-2.0,-.7,-1.1,0,0xffa8d3],
     [6.0,5.7,-2.0,.7,-1.1,0,0xbbb3ff],
@@ -116,6 +117,7 @@ export function createConcertStage({THREE,scene,renderer,oldBeams=[]}){
       cone.position.copy(from).add(to).multiplyScalar(.5);
       cone.quaternion.setFromUnitVectors(new THREE.Vector3(0,-1,0),displacement.normalize());
       group.add(cone);
+      lightBeams.push({cone,from,to:to.clone()});
   }
   // Concert audience silhouettes along left/right sides, glowsticks wave subtly.
   const crowdColor=new THREE.MeshBasicMaterial({color:0x0a0812,transparent:true,opacity:.84,depthWrite:false});
@@ -175,41 +177,80 @@ export function createConcertStage({THREE,scene,renderer,oldBeams=[]}){
   function drawLED(t){
     const w=ledCanvas.width,h=ledCanvas.height;
     const palette=COLOURS[rank]||COLOURS.DEFAULT;
-    const rainbow=rank==='UR';
-    const grad=ctx.createLinearGradient(0,0,w,h);
-    if(rainbow){
-      ['#2b2059','#6e438d','#2d9dbb','#c16aab','#efc477','#40326e'].forEach((s,i)=>grad.addColorStop(i/5,s));
+    const dark=openingDark;
+    const base=ctx.createLinearGradient(0,0,w,0);
+    if(dark){
+      base.addColorStop(0,'#07050c');base.addColorStop(.5,'#100a17');base.addColorStop(1,'#07050c');
+    }else if(rank==='UR'){
+      ['#6e3177','#bc6393','#8762b9','#5094c6','#8a68a9','#e49a72','#863b8b'].forEach((c,i)=>base.addColorStop(i/6,c));
+    }else if(rank==='WHITE'){
+      base.addColorStop(0,'#323242');base.addColorStop(.45,'#9485aa');base.addColorStop(1,'#312539');
     }else{
-      grad.addColorStop(0,palette[0]);grad.addColorStop(.45,palette[1]);grad.addColorStop(1,palette[0]);
+      base.addColorStop(0,palette[0]);base.addColorStop(.25,palette[1]);base.addColorStop(.62,palette[2]);base.addColorStop(1,palette[0]);
     }
-    ctx.fillStyle=grad;ctx.fillRect(0,0,w,h);
-    const shade=ctx.createRadialGradient(w*.54,h*.4,0,w*.54,h*.5,w*.67);
-    shade.addColorStop(0,'#ffffff2e');shade.addColorStop(.7,'#0000001c');shade.addColorStop(1,'#00000085');
-    ctx.fillStyle=shade;ctx.fillRect(0,0,w,h);
-    ctx.save();ctx.globalAlpha=.38;
-    for(let y=8;y<h;y+=12)for(let x=8;x<w;x+=12){
-      const alpha=.24+.24*Math.sin((x*.017+y*.014)+t*.7);
-      ctx.fillStyle='rgba(255,218,250,'+alpha.toFixed(3)+')';
-      ctx.beginPath();ctx.arc(x,y,3.15,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle=base;ctx.fillRect(0,0,w,h);
+    if(dark){
+      ctx.fillStyle='#05030c99';ctx.fillRect(0,0,w,h);
+    }else{
+      const orb=ctx.createRadialGradient(w*.55,h*.36,1,w*.55,h*.36,w*.62);
+      orb.addColorStop(0,rank==='SSR'?'#ffe19d80':rank==='SR'?'#f0c1ff70':'#ffcef36e');
+      orb.addColorStop(.6,'#ffffff06');orb.addColorStop(1,'#00000070');
+      ctx.fillStyle=orb;ctx.fillRect(0,0,w,h);
+      const stripe=ctx.createLinearGradient(0,0,w,h);
+      stripe.addColorStop(0,'#ffffff00');
+      stripe.addColorStop(.32,'#ffd3f018');
+      stripe.addColorStop(.45,'#eaa8e037');
+      stripe.addColorStop(.55,'#ffffff08');
+      stripe.addColorStop(.72,'#ffacff2e');
+      stripe.addColorStop(1,'#ffffff00');
+      ctx.fillStyle=stripe;ctx.fillRect(0,0,w,h);
     }
-    ctx.restore();
-    // Sweeping orbit motifs feel like an idol concert screen, not a theatre backdrop.
-    ctx.strokeStyle=rainbow?'#ffdbff73':'#ffceee5e';ctx.lineWidth=5;
-    ctx.beginPath();ctx.ellipse(w*.53,h*.48,w*.41,h*.28,-.37,Math.PI*.1,Math.PI*1.67);ctx.stroke();
-    ctx.strokeStyle='#ffffff28';ctx.lineWidth=1.5;
-    ctx.beginPath();ctx.ellipse(w*.55,h*.49,w*.47,h*.36,-.45,.4,Math.PI*1.89);ctx.stroke();
-    ctx.textAlign='center';ctx.fillStyle='#ffffff36';
-    ctx.shadowColor='#ffbfff';ctx.shadowBlur=14;
-    ctx.font='italic 900 125px Georgia,serif';ctx.fillText('ITM',w/2,h*.59);
-    ctx.font='700 20px Arial,sans-serif';ctx.fillText('I D O L   ·   T H E   M O M E N T',w/2,h*.68);
-    ctx.shadowBlur=0;
+    // A real matrix of emissive LED dots with slow fluid waves in brightness and hue.
+    for(let y=5,iy=0;y<h;y+=11,iy++){
+      for(let x=6,ix=0;x<w;x+=11,ix++){
+        const ridge=Math.sin(ix*.16-t*1.1+Math.sin(iy*.22+t*.31)*2.3);
+        const wave=Math.sin(ix*.055+iy*.115+t*.56)*.5+.5;
+        const pulse=Math.max(0,(ridge+1)*.5);
+        const sweep=Math.pow(Math.max(0,Math.sin(ix*.028+iy*.018-t*.8)),8);
+        const strength=dark?.06:Math.min(.96,.22+pulse*.38+wave*.14+sweep*.3);
+        const radius=dark?1.5:3.25+(pulse*.35);
+        let color;
+        if(rank==='UR'){
+          const hue=(ix*.0065+Math.sin(iy*.12+t*.43)*.12+t*.045)%1;
+          color='hsla('+Math.round(hue*360)+',100%,85%,'+strength.toFixed(2)+')';
+        }else if(rank==='SSR'){
+          color='rgba(255,232,175,'+strength.toFixed(2)+')';
+        }else if(rank==='SR'){
+          color='rgba(238,181,255,'+strength.toFixed(2)+')';
+        }else{
+          color='rgba(255,199,235,'+strength.toFixed(2)+')';
+        }
+        ctx.fillStyle=color;
+        ctx.beginPath();ctx.arc(x,y,radius,0,Math.PI*2);ctx.fill();
+      }
+    }
+    if(!dark){
+      // Slender flowing ribbon on the video wall; distinct from the physical spotlight beams.
+      ctx.save();
+      const k=(t*.11)%1;
+      ctx.lineWidth=3.5;ctx.strokeStyle=rank==='UR'?'#e8faff8c':'#ffd0f285';
+      ctx.shadowBlur=11;ctx.shadowColor=rank==='SSR'?'#ffd88b':'#ff9de9';
+      ctx.beginPath();
+      ctx.moveTo(-90,h*.72);
+      ctx.bezierCurveTo(w*.12,h*.54+40*Math.sin(t*.46),w*.38,h*.13,w*.64,h*.40);
+      ctx.bezierCurveTo(w*.82,h*.63,w*.91,h*.1,w+90,h*.19);
+      ctx.stroke();
+      ctx.restore();
+      ctx.fillStyle='#fff9ff26';ctx.textAlign='center';
+      ctx.font='italic 900 138px Georgia,serif';ctx.fillText('ITM',w*.5,h*.59);
+    }
     ledTexture.needsUpdate=true;
   }
   drawLED(0);
   function setRarity(tier){
-    rank=COLOURS[tier]?tier:'DEFAULT';
-    const p=COLOURS[rank];
-    accentTarget.set(rank==='SSR'?'#e5b652':rank==='UR'?'#d296ed':p[1]);
+    rank=(tier==='WHITE'||COLOURS[tier])?tier:'DEFAULT';
+    const p=COLOURS[rank]||COLOURS.DEFAULT;
+    accentTarget.set(rank==='SSR'?'#e5b652':rank==='UR'?'#d296ed':rank==='WHITE'?'#eee4ff':p[1]);
     lastLed=-100;
     // Flash and fireworks are reserved for an actual UR reveal, not an unopened pack.
   }
@@ -225,10 +266,39 @@ export function createConcertStage({THREE,scene,renderer,oldBeams=[]}){
   function update(t,dt){
     const motion=Math.min(dt,.06);
     accent.lerp(accentTarget,Math.min(1,motion*3));
+    if(openingSequence){
+      const elapsed=performance.now()*.001-openingStart;
+      const tier=openingSequence;
+      let next='WHITE',dark=false;
+      if(tier==='UR'){
+        dark=elapsed>=.70&&elapsed<1.58;
+        next=elapsed>=1.58?'UR':'WHITE';
+        if(elapsed>=1.82&&!openingFire){openingFire=true;burst('UR')}
+      }else if(tier==='SSR'){
+        next=elapsed>=1.52?'SSR':elapsed>=.81?'SR':'WHITE';
+      }else if(tier==='SR'){
+        next=elapsed>=1.25?'SR':'WHITE';
+      }
+      if(next!==rank||dark!==openingDark){
+        rank=next;openingDark=dark;
+        accentTarget.set(dark?'#07030b':next==='SSR'?'#ffe0a0':next==='SR'?'#cba2ff':next==='UR'?'#f19ede':'#fff6ff');
+        lastLed=-100;
+      }
+    }
     if(lastLed===-100 || t-lastLed>(mobile()?.22:.14)){drawLED(t);lastLed=t}
     for(let i=0;i<spots.length;i++){
-      spots[i].intensity=([4.2,4.0,5.5][i])*(1+.035*Math.sin(t*.85+i));
-      spots[i].color.lerp(i===2?new THREE.Color('#ffe7e6'):accent,.015);
+      spots[i].intensity=(openingDark?.15:[7.3,7.2,8.3][i])*(1+.08*Math.sin(t*.57+i));
+      spots[i].color.lerp(i===2?new THREE.Color('#ffe7e6'):accent,.03);
+      spots[i].target.position.x=Math.sin(t*.31+i*2.2)*1.4;
+      spots[i].target.updateMatrixWorld();
+    }
+    for(let i=0;i<lightBeams.length;i++){
+      const entry=lightBeams[i];
+      const dest=entry.to.clone();dest.x+=Math.sin(t*.29+i*2.4)*1.1;
+      const axis=dest.sub(entry.from);
+      entry.cone.position.copy(entry.from).addScaledVector(axis,.5);
+      entry.cone.quaternion.setFromUnitVectors(new THREE.Vector3(0,-1,0),axis.normalize());
+      entry.cone.material.opacity=openingDark?.001:.033+.006*Math.sin(t*.8+i*1.7);
     }
     glows.forEach((o,i)=>{if(o.material&&o.material.opacity<.95)o.material.opacity=.23+.1*Math.sin(t*.8+i)});
     const maxMove=mobile()?.22:.28;
@@ -250,28 +320,39 @@ export function createConcertStage({THREE,scene,renderer,oldBeams=[]}){
       if(age>=1.8){fireStart=-1;fire.visible=false;fireMat.opacity=0}
     }
   }
+
   function introPose(progress){
-    // Entrance -> audience left -> packed audience right -> turning back to stage.
-    const v=Math.max(0,Math.min(1,progress));
-    const route=[
-      {at:0,pos:[0,2.7,32],look:[0,-1,2],fov:51},
-      {at:.24,pos:[0,2.7,24],look:[-13,-1.8,22],fov:53},
-      {at:.47,pos:[-1.2,2.8,21],look:[13,-1.5,26],fov:53},
-      {at:.70,pos:[0,2.6,17],look:[0,-.8,0],fov:48},
-      {at:1,pos:[0,.65,mobile()?12.8:10.7],look:[0,-.32,0],fov:42}
-    ];
-    let i=0;while(i<route.length-2&&v>route[i+1].at)i++;
-    const left=route[i],right=route[i+1];
-    const raw=(v-left.at)/(right.at-left.at);
-    const ease=Math.max(0,Math.min(1,raw));
-    const k=ease*ease*(3-2*ease);
-    const lerp=(a,b)=>a+(b-a)*k;
-    return {
-      pos:new THREE.Vector3(lerp(left.pos[0],right.pos[0]),lerp(left.pos[1],right.pos[1]),lerp(left.pos[2],right.pos[2])),
-      look:new THREE.Vector3(lerp(left.look[0],right.look[0]),lerp(left.look[1],right.look[1]),lerp(left.look[2],right.look[2])),
-      fov:lerp(left.fov,right.fov)
-    };
+    // One uninterrupted 360° camera sweep. Yaw never jumps between look-at targets.
+    const v=Math.max(0,Math.min(1,progress)),orbitEnd=.77;
+    const approach=Math.max(0,Math.min(1,(v-orbitEnd)/(1-orbitEnd)));
+    const smooth=x=>x*x*(3-2*x);
+    const orbit=smooth(Math.min(1,v/orbitEnd)),final=smooth(approach);
+    const yaw=orbit*Math.PI*2;
+    const mobileCamera=mobile();
+    const zOrbit=26.5-(orbit*11.2);
+    const xOrbit=Math.sin(orbit*Math.PI)*1.25;
+    const eye=new THREE.Vector3(
+      xOrbit*(1-final),
+      2.45+(Math.sin(orbit*Math.PI*2)*.16)*(1-final)-final*1.8,
+      zOrbit*(1-final)+(mobileCamera?12.8:10.7)*final
+    );
+    // During the sweep, show the stadium grandstands, then settle to the cardpack.
+    const pitch=-.08*(1-final)-final*.09;
+    const direction=new THREE.Vector3(Math.sin(yaw)*(1-final),pitch,-Math.cos(yaw)*(1-final)-final);
+    direction.normalize();
+    const look=eye.clone().addScaledVector(direction,17);
+    return {pos:eye,look,fov:50-orbit*2-final*6};
+  }
+  function beginOpening(tier){
+    openingSequence=tier||'N';
+    openingStart=performance.now()*.001;
+    openingDark=false;openingFire=false;
+    rank='WHITE';accentTarget.set('#fff0fa');lastLed=-100;
+  }
+  function endOpening(){
+    openingSequence=null;openingDark=false;
+    if(rank==='WHITE')setRarity('DEFAULT');
   }
   function reset(){setRarity('DEFAULT');fireStart=-1;fire.visible=false}
-  return {setRarity,reset,update,burst,introPose};
+  return {setRarity,reset,update,burst,introPose,beginOpening,endOpening};
 }
