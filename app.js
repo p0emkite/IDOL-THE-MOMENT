@@ -415,8 +415,11 @@ function makePackPartGeometry(height,uvStart,uvSize){
 }
 function initScene(){
   const canvas=$('threeCanvas');renderer=new THREE.WebGLRenderer({canvas,alpha:true,antialias:true,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.7));renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.12;
-  scene=new THREE.Scene();scene.fog=new THREE.FogExp2(0x0d061a,.045);camera=new THREE.PerspectiveCamera(42,1,.1,100);camera.position.set(0,.65,10.7);camera.lookAt(0,-.32,0);
-  scene.add(new THREE.AmbientLight(0xb5a0e8,1.08));
+  scene=new THREE.Scene();scene.fog=new THREE.FogExp2(0x0d061a,.017);camera=new THREE.PerspectiveCamera(42,1,.1,100);camera.position.set(0,.65,10.7);camera.lookAt(0,-.32,0);
+  scene.add(new THREE.AmbientLight(0xb5a0e8,1.37));
+   scene.add(new THREE.HemisphereLight(0xffc8eb,0x2b0b31,1.3));
+   const stageKeyLight=new THREE.DirectionalLight(0xffd9ed,.9);
+   stageKeyLight.position.set(-1,8,5);scene.add(stageKeyLight);
   const p1=new THREE.PointLight(0xff78c3,27,13);p1.position.set(-4,4,4);scene.add(p1);const p2=new THREE.PointLight(0x9470ff,25,13);p2.position.set(4,2,2);scene.add(p2);
   const p3=new THREE.PointLight(0xf9f2ff,12,15);p3.position.set(0,4,8);scene.add(p3);
   const floor=new THREE.Mesh(new THREE.PlaneGeometry(32,22),new THREE.MeshPhongMaterial({color:0x18102a,transparent:true,opacity:.27,shininess:95,side:THREE.DoubleSide}));floor.rotation.x=-Math.PI/2;floor.position.y=-3.8;scene.add(floor);
