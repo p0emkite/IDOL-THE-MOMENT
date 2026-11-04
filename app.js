@@ -192,7 +192,7 @@ function flash(rarity){const f=$('flash');f.style.background=`radial-gradient(el
 let toastTimer;
 function toast(msg){const t=$('toast');t.textContent=msg;t.classList.add('visible');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('visible'),2900)}
 function chime(freq=523,intensity=.13){if(!state.audio)return;try{audioContext ||= new(window.AudioContext||window.webkitAudioContext)();audioContext.resume();const now=audioContext.currentTime;[1,1.498,2].forEach((factor,i)=>{const o=audioContext.createOscillator(),g=audioContext.createGain();o.type=i===0?'sine':'triangle';o.frequency.value=freq*factor;g.gain.setValueAtTime(0,now+i*.07);g.gain.linearRampToValueAtTime(intensity/(i+1),now+i*.07+.02);g.gain.exponentialRampToValueAtTime(.0001,now+i*.07+.48);o.connect(g).connect(audioContext.destination);o.start(now+i*.07);o.stop(now+i*.07+.5)})}catch{}}
-function toggleAudio(){state.audio=!state.audio;$('audioToggle').textContent=state.audio?'♫ SOUND ON':'♪ SOUND OFF';$('audioToggle').setAttribute('aria-pressed',String(state.audio));if(state.audio)chime()}
+function toggleAudio(){audioPreferenceSet=true;setSound(!state.audio);if(state.audio)chime()}
 // All cards use generated fictional/sample illustration. Real artist pictures can replace this asset layer.
 const artCache=new Map();
 function makeCardArt(card){
@@ -290,11 +290,11 @@ function makePackPartGeometry(height,uvStart,uvSize){
   return geometry;
 }
 function initScene(){
-  const canvas=$('threeCanvas');renderer=new THREE.WebGLRenderer({canvas,alpha:true,antialias:true,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.7));renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.55;
-  scene=new THREE.Scene();scene.fog=new THREE.FogExp2(0x0d061a,.045);camera=new THREE.PerspectiveCamera(42,1,.1,100);camera.position.set(0,.2,10.7);
-  scene.add(new THREE.AmbientLight(0xb5a0e8,1.7));
-  const p1=new THREE.PointLight(0xff78c3,55,13);p1.position.set(-4,4,4);scene.add(p1);const p2=new THREE.PointLight(0x9470ff,50,13);p2.position.set(4,2,2);scene.add(p2);
-  const p3=new THREE.PointLight(0xf9f2ff,21,15);p3.position.set(0,4,8);scene.add(p3);
+  const canvas=$('threeCanvas');renderer=new THREE.WebGLRenderer({canvas,alpha:true,antialias:true,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.7));renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.12;
+  scene=new THREE.Scene();scene.fog=new THREE.FogExp2(0x0d061a,.045);camera=new THREE.PerspectiveCamera(42,1,.1,100);camera.position.set(0,.65,10.7);camera.lookAt(0,-.32,0);
+  scene.add(new THREE.AmbientLight(0xb5a0e8,1.08));
+  const p1=new THREE.PointLight(0xff78c3,27,13);p1.position.set(-4,4,4);scene.add(p1);const p2=new THREE.PointLight(0x9470ff,25,13);p2.position.set(4,2,2);scene.add(p2);
+  const p3=new THREE.PointLight(0xf9f2ff,12,15);p3.position.set(0,4,8);scene.add(p3);
   const floor=new THREE.Mesh(new THREE.PlaneGeometry(32,22),new THREE.MeshPhongMaterial({color:0x18102a,transparent:true,opacity:.27,shininess:95,side:THREE.DoubleSide}));floor.rotation.x=-Math.PI/2;floor.position.y=-3.8;scene.add(floor);
   for(let i=0;i<4;i++){let ring=new THREE.Mesh(new THREE.TorusGeometry(2+i*.53,.008,5,128),new THREE.MeshBasicMaterial({color:i%2?0xc283f9:0xec81ba,transparent:true,opacity:.22-i*.035,depthWrite:false}));ring.rotation.x=-Math.PI/2;ring.position.y=-3.69+i*.002;scene.add(ring)}
   for(let i=0;i<4;i++){let cone=new THREE.Mesh(new THREE.ConeGeometry(2,10,32,1,true),new THREE.MeshBasicMaterial({color:i%2?0xd576ff:0xff86bf,transparent:true,opacity:.04,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending}));cone.position.set(-4+i*2.65,3.4,-4);cone.rotation.z=.1+(i-2)*.14;cone.rotation.x=Math.PI;scene.add(cone);stageLights.push(cone)}
@@ -316,7 +316,7 @@ function initScene(){
   const raycaster=new THREE.Raycaster(),pointer=new THREE.Vector2();canvas.addEventListener('pointerdown',(e)=>{if(state.phase!=='reveal')return;const b=canvas.getBoundingClientRect();pointer.x=((e.clientX-b.left)/b.width)*2-1;pointer.y=-((e.clientY-b.top)/b.height)*2+1;raycaster.setFromCamera(pointer,camera);const hit=raycaster.intersectObjects(cardMeshes);if(hit.length)revealIndex(hit[0].object.userData.index)});
   renderer.setAnimationLoop(frame);state.three=true;
 }
-function resizeScene(){if(!renderer)return;const r=$('sceneWrap').getBoundingClientRect();const w=Math.max(250,Math.round(r.width)),h=Math.max(260,Math.round(r.height));renderer.setSize(w,h,false);camera.aspect=w/h;camera.position.z=window.innerWidth<780?12.8:10.7;camera.updateProjectionMatrix()}
+function resizeScene(){if(!renderer)return;const r=$('sceneWrap').getBoundingClientRect();const w=Math.max(250,Math.round(r.width)),h=Math.max(260,Math.round(r.height));renderer.setSize(w,h,false);camera.aspect=w/h;camera.position.z=window.innerWidth<780?12.8:10.7;camera.lookAt(0,-.32,0);camera.updateProjectionMatrix()}
 function frame(now){
   const t=now*.001,delta=Math.min(.05,t-lastTime||.016);lastTime=t;
   const ready=state.phase==='ready',opening=state.phase==='opening';
@@ -340,7 +340,7 @@ function frame(now){
     }
   }
   
-if(dust){dust.rotation.y+=delta*.015;dust.rotation.z+=delta*.01}stageLights.forEach((cone,i)=>cone.rotation.z=Math.sin(t*.4+i)*.23);
+if(dust){dust.rotation.y+=delta*.015;dust.rotation.z+=delta*.01}stageLights.forEach((cone,i)=>cone.rotation.z=Math.sin(t*.4+i)*.23);concertStage?.update(t,delta);
   const n=cardMeshes.length;cardMeshes.forEach((mesh,i)=>{const revealed=state.revealed.has(i);const mobile=window.innerWidth<780;const spread=n===1?0:(mobile?1.18:1.47);const targetX=(i-(n-1)/2)*spread;const targetY=.14+Math.sin(t*1.3+i)*.055;mesh.position.x+=(targetX-mesh.position.x)*Math.min(1,delta*4.2);mesh.position.y+=(targetY-mesh.position.y)*Math.min(1,delta*4.2);mesh.position.z+=(0-mesh.position.z)*Math.min(1,delta*3);const targetR=revealed?Math.PI*2:Math.PI;mesh.rotation.y+=(targetR-mesh.rotation.y)*Math.min(1,delta*(revealed?3.2:4.8));mesh.rotation.z=((i-(n-1)/2)*(mobile?-.035:-.043))+Math.sin(t*.7+i)*.012;const targetScale=(revealed&&['SSR','UR'].includes(state.cards[i].rarity))?1.07:1;mesh.scale.lerp(new THREE.Vector3(targetScale,targetScale,targetScale),Math.min(1,delta*3))});
   renderer.render(scene,camera)}
 function addCards(){cardMeshes.forEach(mesh=>{scene.remove(mesh);mesh.geometry.dispose();mesh.material.forEach(m=>{if(m.map && m.map!==backTexture)m.map.dispose();m.dispose()})});cardMeshes=[];
@@ -690,6 +690,12 @@ async function init3D(){
   try{
     THREE=await import('https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js');
     initScene();$('canvasFallback').hidden=true;syncCanvasPointerEvents();
+    try{
+      const mod=await import('./concert-stage.js');
+      concertStage=mod.createConcertStage({THREE,scene,renderer,oldBeams:stageLights});
+      concertStage.reset();
+    }catch(err){console.warn('Concert stage enhancement unavailable',err)}
+    resizeScene();
     if(state.phase==='reveal'&&state.cards.length)addCards();
   }catch(err){
     console.warn('3D unavailable: ',err);
