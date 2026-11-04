@@ -1,3 +1,4 @@
+import {mountAudioPanel} from './audio-manager.js';
 /* ITM — IDOL : THE MOMENT | Standalone, fan-made 3D prototype
    3D library is loaded from a pinned public ESM CDN; there is no build step.
    Offline demo cards are mock identities and stored only in localStorage.
@@ -66,11 +67,13 @@ function guestChosen(){try{return localStorage.getItem(ENTRY_KEY)==='guest'}catc
 function syncCanvasPointerEvents(){const canvas=$('threeCanvas');if(canvas)canvas.classList.toggle('itm-canvas-interactive',state.phase==='reveal');}
 let scene,renderer,camera,pack,packRim,packParts,packTop,packBottom,packSeam,openingCard,cardMeshes=[],dust,halos,stageLights=[],THREE,clock,lastTime=0,openingAt=0,audioContext=null;
 
+let soundManager=null;
 let concertStage=null,hoverChimeAt=0,splashTimer=null,urCoverTimer=null,audioPreferenceSet=false,introShown=false,introTimers=[],introCameraActive=false,introCameraStart=0;
 const RARITY_CLASSES=['rarity-n','rarity-r','rarity-sr','rarity-ssr','rarity-ur'];
 function setSound(on){
   state.audio=on;
-  $('audioToggle').textContent=on?'♫ SOUND ON':'♪ SOUND OFF';
+  soundManager?.setEnabled(on);
+  $('audioToggle').innerHTML=(on?'♫ SOUND ON':'♪ SOUND OFF')+' <span aria-hidden="true">▾</span>';
   $('audioToggle').setAttribute('aria-pressed',String(on));
 }
 function firstPackSound(){
@@ -118,13 +121,14 @@ function showConcertIntro(force=false){
   const reduced=matchMedia('(prefers-reduced-motion:reduce)').matches;
   if(reduced){closeConcertIntro();return}
   introCameraActive=!!concertStage;
+  if(state.audio)soundManager?.initialPlay();
   document.body.classList.add('itm-intro-active');
   introCameraStart=performance.now();
   void el.offsetWidth;
   // Curtains open, then actual WebGL camera travels through audience and back.
-  introTimers.push(setTimeout(()=>el.classList.add('opening'),420));
-  introTimers.push(setTimeout(()=>{el.hidden=true},1530));
-  introTimers.push(setTimeout(closeConcertIntro,7400));
+  introTimers.push(setTimeout(()=>el.classList.add('opening'),260));
+  introTimers.push(setTimeout(()=>{el.hidden=true},700));
+  introTimers.push(setTimeout(closeConcertIntro,3900));
 }
 function setConcertRarity(rarity){
   const stage=$('packRevealStage');
@@ -222,8 +226,8 @@ function makeTierEdgeTexture(rarity){
 function flash(rarity){const f=$('flash');f.style.background=`radial-gradient(ellipse at center,#fff 0%,${tone(rarity)}b9 13%,#b76aff53 34%,transparent 68%)`;f.classList.add('active');setTimeout(()=>f.classList.remove('active'),rarity==='UR'?650:270)}
 let toastTimer;
 function toast(msg){const t=$('toast');t.textContent=msg;t.classList.add('visible');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('visible'),2900)}
-function chime(freq=523,intensity=.13){if(!state.audio)return;try{audioContext ||= new(window.AudioContext||window.webkitAudioContext)();audioContext.resume();const now=audioContext.currentTime;[1,1.498,2].forEach((factor,i)=>{const o=audioContext.createOscillator(),g=audioContext.createGain();o.type=i===0?'sine':'triangle';o.frequency.value=freq*factor;g.gain.setValueAtTime(0,now+i*.07);g.gain.linearRampToValueAtTime(intensity/(i+1),now+i*.07+.02);g.gain.exponentialRampToValueAtTime(.0001,now+i*.07+.48);o.connect(g).connect(audioContext.destination);o.start(now+i*.07);o.stop(now+i*.07+.5)})}catch{}}
-function toggleAudio(){audioPreferenceSet=true;setSound(!state.audio);if(state.audio)chime()}
+function chime(freq=523,intensity=.13){if(!state.audio)return;intensity*=(soundManager?.getSfxGain()??.62);if(intensity<.0005)return;try{audioContext ||= new(window.AudioContext||window.webkitAudioContext)();audioContext.resume();const now=audioContext.currentTime;[1,1.498,2].forEach((factor,i)=>{const o=audioContext.createOscillator(),g=audioContext.createGain();o.type=i===0?'sine':'triangle';o.frequency.value=freq*factor;g.gain.setValueAtTime(0,now+i*.07);g.gain.linearRampToValueAtTime(intensity/(i+1),now+i*.07+.02);g.gain.exponentialRampToValueAtTime(.0001,now+i*.07+.48);o.connect(g).connect(audioContext.destination);o.start(now+i*.07);o.stop(now+i*.07+.5)})}catch{}}
+function toggleAudio(){if(!soundManager){audioPreferenceSet=true;setSound(!state.audio);if(state.audio)chime()}}
 // All cards use generated fictional/sample illustration. Real artist pictures can replace this asset layer.
 const artCache=new Map();
 function makeCardArt(card){
@@ -413,8 +417,26 @@ function makePackPartGeometry(height,uvStart,uvSize){
   for(let i=0;i<uv.count;i++)uv.setY(i,uv.getY(i)*uvSize+uvStart);
   return geometry;
 }
+
+function makeSculptedFoilGeometry(){
+  const geo=new THREE.BoxGeometry(2.55,3.83,.23,30,44,2);
+  const p=geo.attributes.position;
+  for(let i=0;i<p.count;i++){
+    const x=p.getX(i),y=p.getY(i),z=p.getZ(i);
+    const edge=Math.pow(Math.abs(x)/1.275,3);
+    const top=Math.pow(Math.abs(y)/1.915,5);
+    const crease=Math.sin(y*11.5+x*6.8)*.024+Math.sin(y*21-x*8.5)*.012;
+    const diagonal=Math.sin(x*4.1+y*3.4)*.017;
+    const deformation=(crease+diagonal)*(.3+.7*edge)+top*.014*Math.sin(x*14);
+    if(Math.abs(z)>.09){
+      p.setXYZ(i,x+(edge*.015*Math.sin(y*13+x*5)),y,z+(z>0?1:-.5)*deformation);
+    }
+  }
+  p.needsUpdate=true;geo.computeVertexNormals();return geo;
+}
+
 function initScene(){
-  const canvas=$('threeCanvas');renderer=new THREE.WebGLRenderer({canvas,alpha:true,antialias:true,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.7));renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.12;
+  const canvas=$('threeCanvas');renderer=new THREE.WebGLRenderer({canvas,alpha:true,antialias:true,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,window.innerWidth<760?1.45:2));renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.12;
   scene=new THREE.Scene();scene.fog=new THREE.FogExp2(0x0d061a,.017);camera=new THREE.PerspectiveCamera(42,1,.1,100);camera.position.set(0,.65,10.7);camera.lookAt(0,-.32,0);
   scene.add(new THREE.AmbientLight(0xb5a0e8,1.37));
    scene.add(new THREE.HemisphereLight(0xffc8eb,0x2b0b31,1.3));
@@ -427,8 +449,8 @@ function initScene(){
   for(let i=0;i<4;i++){let cone=new THREE.Mesh(new THREE.ConeGeometry(2,10,32,1,true),new THREE.MeshBasicMaterial({color:i%2?0xd576ff:0xff86bf,transparent:true,opacity:.04,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending}));cone.position.set(-4+i*2.65,3.4,-4);cone.rotation.z=.1+(i-2)*.14;cone.rotation.x=Math.PI;scene.add(cone);stageLights.push(cone)}
   const points=1200,positions=new Float32Array(points*3),colors=new Float32Array(points*3);for(let i=0;i<points;i++){positions[i*3]=(rand()-.5)*27;positions[i*3+1]=(rand()-.5)*19;positions[i*3+2]=(rand()-.5)*21-5;const p=new THREE.Color().setHSL(.78+rand()*.17,.65,.55+rand()*.4);colors.set([p.r,p.g,p.b],i*3)}const geom=new THREE.BufferGeometry();geom.setAttribute('position',new THREE.BufferAttribute(positions,3));geom.setAttribute('color',new THREE.BufferAttribute(colors,3));dust=new THREE.Points(geom,new THREE.PointsMaterial({size:.036,vertexColors:true,transparent:true,opacity:.75,depthWrite:false,blending:THREE.AdditiveBlending}));scene.add(dust);
   backTexture=texture(loaded(brandCardBack)?brandCardBack:makeBackTexture());packTexture=texture(makePackTexture());
-  const face=new THREE.MeshPhysicalMaterial({map:packTexture,metalness:.25,roughness:.25,clearcoat:1,clearcoatRoughness:.12,side:THREE.DoubleSide});const side=new THREE.MeshPhysicalMaterial({color:0xe9a0e0,metalness:.78,roughness:.24,clearcoat:1});
-  pack=new THREE.Mesh(new THREE.BoxGeometry(2.55,3.83,.23),[side,side,side,side,face,face]);pack.rotation.y=-.32;scene.add(pack);
+  const face=new THREE.MeshPhysicalMaterial({map:packTexture,metalness:.43,roughness:.21,clearcoat:1,clearcoatRoughness:.1,envMapIntensity:1.65,side:THREE.DoubleSide});const side=new THREE.MeshPhysicalMaterial({color:0xf7a8dc,metalness:.86,roughness:.22,clearcoat:1,envMapIntensity:1.8});
+  pack=new THREE.Mesh(makeSculptedFoilGeometry(),[side,side,side,side,face,face]);pack.rotation.y=-.32;scene.add(pack);
   // Split the foil using top and bottom meshes with independently cropped UVs.
   packParts=new THREE.Group();
   const cutHeight=.95,bottomHeight=3.83-cutHeight,bottomUv=bottomHeight/3.83;
@@ -499,7 +521,7 @@ function frame(now){
 if(dust){dust.rotation.y+=delta*.015;dust.rotation.z+=delta*.01}stageLights.forEach((cone,i)=>cone.rotation.z=Math.sin(t*.4+i)*.23);concertStage?.update(t,delta);
   const n=cardMeshes.length;cardMeshes.forEach((mesh,i)=>{const revealed=state.revealed.has(i);const mobile=window.innerWidth<780;const spread=n===1?0:(mobile?1.18:1.47);const targetX=(i-(n-1)/2)*spread;const targetY=.14+Math.sin(t*1.3+i)*.055;mesh.position.x+=(targetX-mesh.position.x)*Math.min(1,delta*4.2);mesh.position.y+=(targetY-mesh.position.y)*Math.min(1,delta*4.2);mesh.position.z+=(0-mesh.position.z)*Math.min(1,delta*3);const targetR=revealed?Math.PI*2:Math.PI;mesh.rotation.y+=(targetR-mesh.rotation.y)*Math.min(1,delta*(revealed?3.2:4.8));mesh.rotation.z=((i-(n-1)/2)*(mobile?-.035:-.043))+Math.sin(t*.7+i)*.012;const targetScale=(revealed&&['SSR','UR'].includes(state.cards[i].rarity))?1.07:1;mesh.scale.lerp(new THREE.Vector3(targetScale,targetScale,targetScale),Math.min(1,delta*3))});
   if(introCameraActive&&concertStage?.introPose){
-    const progress=clamp((performance.now()-introCameraStart)/7100,0,1);
+    const progress=clamp((performance.now()-introCameraStart)/3650,0,1);
     const pose=concertStage.introPose(progress);
     camera.position.copy(pose.pos);
     camera.lookAt(pose.look);
@@ -880,7 +902,7 @@ async function init3D(){
     THREE=await import('https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js');
     initScene();$('canvasFallback').hidden=true;syncCanvasPointerEvents();
     try{
-      const mod=await import('./concert-stage.js');
+      const mod=await import('./premium-stage.js');
       concertStage=mod.createConcertStage({THREE,scene,renderer,oldBeams:stageLights});
       concertStage.reset();
       // Backend login can finish before the WebGL module loads.
@@ -899,7 +921,10 @@ function accountClose(){
   $('issuedCode').textContent='';$('issuedCodeBox').hidden=true;
 }
 function bind(){
-  $('audioToggle').onclick=toggleAudio;
+  soundManager=mountAudioPanel({
+    initialEnabled:state.audio,
+    onToggle:(enabled)=>{audioPreferenceSet=true;setSound(enabled);}
+  });
   $('drawOne').onclick=()=>openPack(1);$('drawFive').onclick=()=>openPack(5);
   $('stageRevealAll').onclick=revealAll;
   $('stageFinish').onclick=reset;$('stageClose').onclick=reset;
