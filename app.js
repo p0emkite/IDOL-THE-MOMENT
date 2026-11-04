@@ -294,7 +294,100 @@ function logoForPack(){
   while(head<tail){const i=queue[head++],x=i%w,y=(i/w)|0,k=i*4;p[k+3]=0;if(x>0)add(i-1);if(x<w-1)add(i+1);if(y>0)add(i-w);if(y<h-1)add(i+w)}
   ctx.putImageData(im,0,0);return c;
 }
-function makePackTexture(){const c=document.createElement('canvas');c.width=1024;c.height=1580;const g=c.getContext('2d');g.scale(2,2);const b=g.createLinearGradient(0,0,512,790);b.addColorStop(0,'#422361');b.addColorStop(.2,'#ea7bcc');b.addColorStop(.42,'#8064d5');b.addColorStop(.62,'#282044');b.addColorStop(.79,'#ce84d6');b.addColorStop(1,'#5e2c84');g.fillStyle=b;g.fillRect(0,0,512,790);for(let i=-12;i<24;i++){g.strokeStyle=`rgba(255,255,255,${.035+(i%4)*.015})`;g.lineWidth=8;g.beginPath();g.moveTo(i*38,0);g.lineTo(i*38+250,790);g.stroke()}g.strokeStyle='#fff6';g.lineWidth=3;g.strokeRect(22,20,468,750);g.strokeStyle='#f8d2fb';g.lineWidth=1;g.strokeRect(31,30,450,732);let bloom=g.createRadialGradient(256,335,0,256,360,240);bloom.addColorStop(0,'#fff9');bloom.addColorStop(.35,'#fc93f77a');bloom.addColorStop(1,'#dd88fe00');g.fillStyle=bloom;g.fillRect(0,100,512,500);g.textAlign='center';g.fillStyle='#fff';g.font='bold 17px system-ui';g.fillText('✦   THE FIRST SHOWCASE   ✦',256,93);g.font='130px Georgia';g.font='900 72px system-ui';g.fillText('ITM',256,492);g.font='bold 18px system-ui';g.fillText('IDOL : THE MOMENT',256,535);g.font='bold 19px system-ui';g.fillText('DEBUT COLLECTION',256,654);g.font='11px monospace';g.fillText('ONE UNFORGETTABLE MOMENT AWAITS',256,702);if(loaded(brandLogo)){const logo=logoForPack();g.save();g.shadowColor='#ff8bdf';g.shadowBlur=20;g.drawImage(logo,116,260,280,280);g.restore()}return c}
+function makePackTexture(){
+  // Foil pouch, not a cardboard box: holographic metallized film, heat-sealed ribs,
+  // specular ribbons and soft printed ITM branding.
+  const c=document.createElement('canvas');c.width=1024;c.height=1580;
+  const g=c.getContext('2d'),w=c.width,h=c.height;
+  const bg=g.createLinearGradient(0,0,w,h);
+  const stops=[[0,'#531879'],[.11,'#ed8fcd'],[.21,'#954fbd'],[.35,'#48206d'],[.5,'#dc75c0'],[.65,'#59227b'],[.81,'#efa4d5'],[1,'#773497']];
+  stops.forEach(([t,v])=>bg.addColorStop(t,v));
+  g.fillStyle=bg;g.fillRect(0,0,w,h);
+  g.save();g.globalCompositeOperation='screen';
+  const prismatic=g.createLinearGradient(90,170,890,1430);
+  [['#ffffff00',0],['#b9f7ff66',.24],['#eac4ff12',.42],['#ffc9e36b',.67],['#ffffff00',1]].forEach(([v,t])=>prismatic.addColorStop(t,v));
+  g.fillStyle=prismatic;g.fillRect(0,0,w,h);
+  for(let i=-15;i<36;i++){
+    const gradient=g.createLinearGradient(i*45,0,i*45+360,h);
+    gradient.addColorStop(0,'#ffffff00');
+    gradient.addColorStop(.38,i%4===0?'#ffdcff3f':'#ffffff0c');
+    gradient.addColorStop(.7,i%4===0?'#ffbcff2d':'#ffffff05');
+    gradient.addColorStop(1,'#ffffff00');
+    g.strokeStyle=gradient;g.lineWidth=i%5===0?19:5;
+    g.beginPath();g.moveTo(i*59,-30);g.lineTo(i*59+460,h+40);g.stroke();
+  }
+  // High-angle reflective folds that follow the flexible plastic pouch.
+  for(let i=0;i<17;i++){
+    const t=i/16,x=80+t*880;
+    g.strokeStyle=i%3===0?'#ffffff43':'#edb9f11a';
+    g.lineWidth=2+(i%4)*2;
+    g.beginPath();g.moveTo(x,-20);
+    g.bezierCurveTo(x-34,350,x+55,890,x-17,1600);g.stroke();
+  }
+  g.lineWidth=60;g.shadowBlur=22;g.shadowColor='#ffe5ff58';
+  for(const [x1,y1,c1,c2] of [
+    [30,350,'#fff9ff9c','#ffafdd00'],
+    [880,170,'#e5faff70','#ffffff00'],
+    [150,1180,'#f7eaff52','#ffffff00']]){
+    const shine=g.createLinearGradient(x1-260,y1-320,x1+260,y1+320);
+    shine.addColorStop(0,'#ffffff00');shine.addColorStop(.48,c1);shine.addColorStop(1,c2);
+    g.strokeStyle=shine;
+    g.beginPath();g.moveTo(x1-280,y1-320);g.bezierCurveTo(x1+30,y1,x1-60,y1+250,x1+300,y1+360);g.stroke();
+  }
+  g.shadowBlur=0;g.restore();
+  // Heat-sealed crimp bands with alternating metallic corrugation.
+  for(const [start,top] of [[0,true],[1446,false]]){
+    const y=start;
+    const foil=g.createLinearGradient(0,y,0,y+135);
+    foil.addColorStop(0,'#e1a0e7');foil.addColorStop(.18,'#ffe0fc');
+    foil.addColorStop(.45,'#b65bb9');foil.addColorStop(.65,'#6b287d');
+    foil.addColorStop(.81,'#ffc6eb');foil.addColorStop(1,'#a657ad');
+    g.fillStyle=foil;g.fillRect(0,y,w,135);
+    for(let x=0;x<w;x+=18){
+      g.fillStyle=(x/18)%2?'#ffffff42':'#4010485a';
+      g.fillRect(x,y,5,135);
+      g.fillStyle='#fff5ff45';g.fillRect(x+9,y,2,135);
+    }
+    const horizontal=g.createLinearGradient(0,y+48,0,y+94);
+    horizontal.addColorStop(0,'#ffffff54');horizontal.addColorStop(.48,'#37124a50');horizontal.addColorStop(1,'#ffffff54');
+    g.fillStyle=horizontal;g.fillRect(0,y+48,w,46);
+  }
+  g.fillStyle='#ffe4f8ce';g.fillRect(0,136,w,8);g.fillRect(0,1437,w,9);
+  // Holographic encapsulated border.
+  g.save();g.strokeStyle='#ffe5ffbb';g.lineWidth=12;g.strokeRect(54,175,w-108,1220);
+  g.strokeStyle='#dcb3ffc7';g.lineWidth=3;g.strokeRect(82,204,w-164,1166);g.restore();
+  const halo=g.createRadialGradient(w/2,722,4,w/2,725,415);
+  halo.addColorStop(0,'#fff7ffd2');halo.addColorStop(.23,'#fdd1f867');halo.addColorStop(.55,'#de8de541');halo.addColorStop(1,'#ffffff00');
+  g.fillStyle=halo;g.fillRect(65,310,900,810);
+  const gl=logoForPack();
+  if(gl){
+    const size=565;
+    g.save();g.shadowColor='#ffdcffcc';g.shadowBlur=28;
+    g.drawImage(gl,(w-size)/2,510,size,size);g.restore();
+  }else{
+    g.save();g.textAlign='center';g.fillStyle='#fff8ff';g.shadowColor='#e0acff';g.shadowBlur=18;
+    g.font='italic 900 238px Georgia,serif';g.fillText('ITM',w/2,845);g.restore();
+  }
+  g.textAlign='center';g.fillStyle='#fff1ff';
+  g.shadowColor='#c175f7';g.shadowBlur=15;
+  g.font='900 34px Arial,sans-serif';g.fillText('IDOL : THE MOMENT',w/2,1105);
+  g.lineWidth=3;g.strokeStyle='#ffe2ffbd';g.beginPath();g.roundRect(w/2-178,1167,356,59,30);g.stroke();
+  g.font='800 25px Arial,sans-serif';g.fillText('LIVE CARD PACK',w/2,1207);
+  g.font='700 26px Arial,sans-serif';g.fillText('DEBUT COLLECTION',w/2,1332);
+  g.shadowBlur=0;
+  // Printed foil sparkle detail. No color glyphs or emoji are used in the texture.
+  g.save();g.globalCompositeOperation='screen';
+  for(let i=0;i<88;i++){
+    const x=((i*191)%860)+84,y=((i*277)%1195)+172;
+    const rad=i%11===0?11:i%5===0?5:2;
+    g.strokeStyle=i%3===0?'#fffdff':'#ffe1ff';
+    g.globalAlpha=i%9===0?.8:.28;
+    g.lineWidth=1.4;
+    g.beginPath();g.moveTo(x-rad,y);g.lineTo(x+rad,y);g.moveTo(x,y-rad);g.lineTo(x,y+rad);g.stroke();
+  }
+  g.restore();
+  return c;
+}
 function texture(c){const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=Math.min(renderer.capabilities.getMaxAnisotropy(),8);return t}
 let backTexture,packTexture;
 function makePackPartGeometry(height,uvStart,uvSize){
@@ -313,7 +406,7 @@ function initScene(){
   for(let i=0;i<4;i++){let cone=new THREE.Mesh(new THREE.ConeGeometry(2,10,32,1,true),new THREE.MeshBasicMaterial({color:i%2?0xd576ff:0xff86bf,transparent:true,opacity:.04,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending}));cone.position.set(-4+i*2.65,3.4,-4);cone.rotation.z=.1+(i-2)*.14;cone.rotation.x=Math.PI;scene.add(cone);stageLights.push(cone)}
   const points=1200,positions=new Float32Array(points*3),colors=new Float32Array(points*3);for(let i=0;i<points;i++){positions[i*3]=(rand()-.5)*27;positions[i*3+1]=(rand()-.5)*19;positions[i*3+2]=(rand()-.5)*21-5;const p=new THREE.Color().setHSL(.78+rand()*.17,.65,.55+rand()*.4);colors.set([p.r,p.g,p.b],i*3)}const geom=new THREE.BufferGeometry();geom.setAttribute('position',new THREE.BufferAttribute(positions,3));geom.setAttribute('color',new THREE.BufferAttribute(colors,3));dust=new THREE.Points(geom,new THREE.PointsMaterial({size:.036,vertexColors:true,transparent:true,opacity:.75,depthWrite:false,blending:THREE.AdditiveBlending}));scene.add(dust);
   backTexture=texture(loaded(brandCardBack)?brandCardBack:makeBackTexture());packTexture=texture(makePackTexture());
-  const face=new THREE.MeshPhysicalMaterial({map:packTexture,metalness:.12,roughness:.3,clearcoat:1,clearcoatRoughness:.13,side:THREE.DoubleSide});const side=new THREE.MeshPhysicalMaterial({color:0xe9a0e0,metalness:.78,roughness:.24,clearcoat:1});
+  const face=new THREE.MeshPhysicalMaterial({map:packTexture,metalness:.25,roughness:.25,clearcoat:1,clearcoatRoughness:.12,side:THREE.DoubleSide});const side=new THREE.MeshPhysicalMaterial({color:0xe9a0e0,metalness:.78,roughness:.24,clearcoat:1});
   pack=new THREE.Mesh(new THREE.BoxGeometry(2.55,3.83,.23),[side,side,side,side,face,face]);pack.rotation.y=-.32;scene.add(pack);
   // Split the foil using top and bottom meshes with independently cropped UVs.
   packParts=new THREE.Group();
