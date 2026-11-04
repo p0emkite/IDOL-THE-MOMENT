@@ -51,7 +51,16 @@ const PACK_OPEN_DURATION = 2650;
 function readDemoInventory(){try{return JSON.parse(localStorage.getItem('itm-test-pack-inventory-v1')||'{}')||{}}catch{return {}}}
 function writeDemoInventory(){try{localStorage.setItem('itm-test-pack-inventory-v1',JSON.stringify(state.demoInventory))}catch{}}
 
-const state = {phase:'ready',cards:[],revealed:new Set(),inventory:readLocal(),demoInventory:readDemoInventory(),supabase:null,user:null,playerId:null,hasRecovery:false,authError:null,backendReady:false,accountBusy:false,issuedRecovery:null,three:false,audio:false,busy:false};
+const state = {phase:'ready',cards:[],revealed:new Set(),inventory:readLocal(),demoInventory:readDemoInventory(),remoteDemoInventory:{},supabase:null,user:null,accountName:null,accountMode:'login',entryRequired:false,playerId:null,hasRecovery:false,authError:null,backendReady:false,accountBusy:false,issuedRecovery:null,three:false,audio:false,busy:false};
+const ENTRY_KEY='itm-entry-choice-v1';
+const ACCOUNT_PATTERN=/^[a-z][a-z0-9_]{3,19}$/;
+const accountEmail=name=>'itm.'+name+'@accounts.itm.example';
+const accountNameOf=user=>{const m=String(user?.email||'').match(/^itm\.([a-z][a-z0-9_]{3,19})@accounts\.itm\.example$/);return m?m[1]:null;};
+const isNamedAccount=()=>!!(state.accountName&&state.playerId);
+const visibleInventory=()=>isNamedAccount()?state.remoteDemoInventory:state.demoInventory;
+function saveEntryChoice(value){try{localStorage.setItem(ENTRY_KEY,value)}catch{}}
+function guestChosen(){try{return localStorage.getItem(ENTRY_KEY)==='guest'}catch{return false}}
+function syncCanvasPointerEvents(){const canvas=$('threeCanvas');if(canvas)canvas.classList.toggle('itm-canvas-interactive',state.phase==='reveal');}
 let scene,renderer,camera,pack,packRim,packParts,packTop,packBottom,packSeam,cardMeshes=[],dust,halos,stageLights=[],THREE,clock,lastTime=0,openingAt=0,audioContext=null;
 const EASE = t => 1-Math.pow(1-Math.min(1,Math.max(0,t)),3);
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
@@ -158,7 +167,7 @@ function initScene(){
   const raycaster=new THREE.Raycaster(),pointer=new THREE.Vector2();canvas.addEventListener('pointerdown',(e)=>{if(state.phase!=='reveal')return;const b=canvas.getBoundingClientRect();pointer.x=((e.clientX-b.left)/b.width)*2-1;pointer.y=-((e.clientY-b.top)/b.height)*2+1;raycaster.setFromCamera(pointer,camera);const hit=raycaster.intersectObjects(cardMeshes);if(hit.length)revealIndex(hit[0].object.userData.index)});
   renderer.setAnimationLoop(frame);state.three=true;
 }
-function resizeScene(){if(!renderer)return;const r=$('sceneWrap').getBoundingClientRect(),full=document.body.classList.contains('pack-cinematic');const w=Math.max(250,r.width*(full?1:1.36)),h=Math.max(260,r.height*(full?1:1.3));renderer.setSize(w,h,false);camera.aspect=w/h;camera.position.z=window.innerWidth<780?12.8:10.7;camera.updateProjectionMatrix()}
+function resizeScene(){if(!renderer)return;const r=$('sceneWrap').getBoundingClientRect();const w=Math.max(250,Math.round(r.width)),h=Math.max(260,Math.round(r.height));renderer.setSize(w,h,false);camera.aspect=w/h;camera.position.z=window.innerWidth<780?12.8:10.7;camera.updateProjectionMatrix()}
 function frame(now){
   const t=now*.001,delta=Math.min(.05,t-lastTime||.016);lastTime=t;
   const ready=state.phase==='ready',opening=state.phase==='opening';
@@ -189,7 +198,7 @@ function addCards(){cardMeshes.forEach(mesh=>{scene.remove(mesh);mesh.geometry.d
   const n=state.cards.length;state.cards.forEach((c,i)=>{const front=texture(makeCardArt(c));const edge=new THREE.MeshPhysicalMaterial({color:new THREE.Color(tone(c.rarity)),metalness:.65,roughness:.2});const card=new THREE.Mesh(new THREE.BoxGeometry(1.56,2.3,.04),[edge,edge,edge,edge,new THREE.MeshBasicMaterial({map:front}),new THREE.MeshBasicMaterial({map:backTexture})]);card.position.set((i-(n-1)/2)*.25,-4,-i*.07);card.rotation.y=Math.PI;card.userData.index=i;cardMeshes.push(card);scene.add(card)})}
 function clearCards(){cardMeshes.forEach(mesh=>{scene.remove(mesh);mesh.geometry.dispose();mesh.material.forEach(m=>{if(m.map&&m.map!==backTexture)m.map.dispose();m.dispose()})});cardMeshes=[]}
 function showControls(which){['drawOne','drawFive','revealNext','revealAll','nextPack'].forEach(id=>$(id).hidden=!which.includes(id))}
-function updateCounts(){let total=Object.values(state.demoInventory).reduce((a,n)=>a+Number(n||0),0);$('collectionCount').textContent=total}
+function updateCounts(){let total=Object.values(visibleInventory()).reduce((a,n)=>a+Number(n||0),0);$('collectionCount').textContent=total}
 // Immersive reveal UI: real interactive, keyboard-accessible flip cards.
 function renderRevealStage(){
   const stage=$('packRevealStage'),rail=$('stageCardRail');
@@ -234,17 +243,28 @@ function stageBurst(card){
   banner.textContent=card.rarity==='UR'?'ULTRA RARE':card.rarity==='SSR'?'SPECIAL SUPER RARE':card.rarity==='SR'?'SUPER RARE':'RARE';
   banner.className='stage-rarity-banner '+klass+' active';
 }
-function openPack(count){
-  if(state.busy||state.phase!=='ready')return;
-  // Deliberate isolated QA mode. Never call the legacy Supabase pack RPC:
-  // the old server card pool does not yet have the new N/R/SR/SSR/UR catalog.
+async function openPack(count){
+  if(state.busy||state.phase!=='ready'||state.entryRequired)return;
   state.busy=true;$('drawOne').disabled=$('drawFive').disabled=true;
-  const rolled=drawDemo(count);
-  if(!rolled.length){state.busy=false;toast('테스트 카드풀이 비어 있어.');return}
+  let rolled=[];
+  try{
+    if(isNamedAccount()){
+      const {data,error}=await state.supabase.rpc('itm_open_demo_pack',{p_count:count});
+      if(error)throw error;
+      rolled=(data||[]).map(x=>byId.get(x.id)).filter(Boolean);
+      if(rolled.length!==count)throw Error('서버 카드 결과를 확인할 수 없어.');
+      await syncRemote();
+    }else{
+      rolled=drawDemo(count);
+      for(const card of rolled)state.demoInventory[card.id]=(state.demoInventory[card.id]||0)+1;
+      writeDemoInventory();updateCounts();
+    }
+  }catch(err){
+    state.busy=false;$('drawOne').disabled=$('drawFive').disabled=false;
+    toast('카드팩 개봉 실패: '+(err?.message||String(err)));return;
+  }
   state.cards=rolled;state.revealed=new Set();
-  for(const card of rolled)state.demoInventory[card.id]=(state.demoInventory[card.id]||0)+1;
-  writeDemoInventory();updateCounts();
-  state.phase='opening';openingAt=performance.now()*.001;
+  state.phase='opening';syncCanvasPointerEvents();openingAt=performance.now()*.001;
   document.body.classList.add('pack-cinematic');requestAnimationFrame(resizeScene);
   showControls([]);$('controlHeading').textContent='봉인을 해제하고 있어요…';
   $('sceneHeading').textContent='02 — BREAK THE SEAL';
@@ -253,7 +273,7 @@ function openPack(count){
   setTimeout(()=>{
     if(state.phase!=='opening')return;
     document.body.classList.remove('pack-cinematic');requestAnimationFrame(resizeScene);
-    state.phase='reveal';state.busy=false;
+    state.phase='reveal';syncCanvasPointerEvents();state.busy=false;
     if(state.three)addCards();else renderFallbackCards();
     $('controlHeading').textContent='한 장씩 뒤집어 카드의 등급을 확인해 봐.';
     $('sceneHeading').textContent='03 — YOUR CARDS AWAIT';
@@ -305,7 +325,7 @@ function reset(){
   const stage=$('packRevealStage');stage.hidden=true;stage.setAttribute('aria-hidden','true');
   $('stageBurst').className='stage-burst';$('stageRarityBanner').className='stage-rarity-banner';
   requestAnimationFrame(resizeScene);
-  state.phase='ready';state.cards=[];state.revealed.clear();state.busy=false;
+  state.phase='ready';syncCanvasPointerEvents();state.cards=[];state.revealed.clear();state.busy=false;
   clearCards();if(!state.three)resetFallback();
   showControls(['drawOne','drawFive']);$('drawOne').disabled=$('drawFive').disabled=false;
   $('controlHeading').textContent='어떤 순간을 열어볼까?';
@@ -317,7 +337,7 @@ function resetFallback(){const f=$('canvasFallback');f.style.flexDirection='colu
 function renderFallbackCards(){const f=$('canvasFallback');f.innerHTML='';f.style.flexDirection='row';f.style.flexWrap='wrap';state.cards.forEach((c,i)=>{const el=document.createElement('img');el.src=state.revealed.has(i)?makeCardArt(c).toDataURL():(loaded(brandCardBack)?brandCardBack.src:makeBackTexture().toDataURL());el.alt=state.revealed.has(i)?c.name:'뒷면';el.style.cssText='width:clamp(70px,15%,130px);aspect-ratio:1/1.48;object-fit:cover;box-shadow:0 4px 25px #000a;cursor:pointer';el.onclick=()=>revealIndex(i);f.appendChild(el)})}
 function openModal(id){$(id).classList.add('active');$(id).setAttribute('aria-hidden','false')}
 function closeModal(id){$(id).classList.remove('active');$(id).setAttribute('aria-hidden','true')}
-function renderCollection(){const ids=Object.entries(state.demoInventory).filter(([id,q])=>Number(q)>0&&byId.has(id));const unique=ids.length;$('collectionSummary').textContent=`DISCOVERED ${unique} / ${POOL.length}   •   OWNED ${ids.reduce((sum,[,q])=>sum+Number(q),0)} CARDS`;const grid=$('collectionGrid');grid.replaceChildren();if(!ids.length){const p=document.createElement('p');p.className='collection-empty';p.textContent='아직 수집한 카드가 없어. 첫 번째 팩을 열어봐 ✦';grid.append(p)}ids.sort((a,b)=>POOL.findIndex(c=>c.id===a[0])-POOL.findIndex(c=>c.id===b[0])).forEach(([id,qty])=>{let card=byId.get(id),box=document.createElement('div');box.className='col-item';let img=document.createElement('img');img.src=makeCardArt(card).toDataURL();img.alt=`${card.group} ${card.name}`;let q=document.createElement('span');q.className='qty';q.textContent='×'+qty;let title=document.createElement('strong');title.textContent=card.group+' · '+card.name;let sub=document.createElement('small');sub.style.color=tone(card.rarity);sub.textContent=card.rarity;box.append(img,q,title,sub);grid.append(box)})}
+function renderCollection(){const ids=Object.entries(visibleInventory()).filter(([id,q])=>Number(q)>0&&byId.has(id));const unique=ids.length;$('collectionSummary').textContent=`DISCOVERED ${unique} / ${POOL.length}   •   OWNED ${ids.reduce((sum,[,q])=>sum+Number(q),0)} CARDS`;const grid=$('collectionGrid');grid.replaceChildren();if(!ids.length){const p=document.createElement('p');p.className='collection-empty';p.textContent='아직 수집한 카드가 없어. 첫 번째 팩을 열어봐 ✦';grid.append(p)}ids.sort((a,b)=>POOL.findIndex(c=>c.id===a[0])-POOL.findIndex(c=>c.id===b[0])).forEach(([id,qty])=>{let card=byId.get(id),box=document.createElement('div');box.className='col-item';let img=document.createElement('img');img.src=makeCardArt(card).toDataURL();img.alt=`${card.group} ${card.name}`;let q=document.createElement('span');q.className='qty';q.textContent='×'+qty;let title=document.createElement('strong');title.textContent=card.group+' · '+card.name;let sub=document.createElement('small');sub.style.color=tone(card.rarity);sub.textContent=card.rarity;box.append(img,q,title,sub);grid.append(box)})}
 async function syncRemote(){
   if(!state.supabase||!state.playerId)return false;
   const {data,error}=await state.supabase.from('user_inventory').select('card_id,quantity');
