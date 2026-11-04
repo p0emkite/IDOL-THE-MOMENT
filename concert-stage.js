@@ -41,7 +41,8 @@ export function createConcertStage({THREE,scene,renderer,oldBeams=[]}){
     a.position.set(x,y,z);group.add(a);return a;
   }
   // Backstage steel truss and lighting bars, like an arena concert rig (no curtains).
-  const truss=phys(0x484158,.8,.36);
+  const truss=phys(0x797186,.35,.41);
+  truss.emissive=new THREE.Color(0x211429);truss.emissiveIntensity=.32;
   const trussLight=material(0xe9a3ff,.66);
   const trussBar=(x1,y1,x2,y2,z,width=.045)=>{
     const start=new THREE.Vector3(x1,y1,z),end=new THREE.Vector3(x2,y2,z);
@@ -50,26 +51,26 @@ export function createConcertStage({THREE,scene,renderer,oldBeams=[]}){
     rod.position.copy(mid);rod.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),end.clone().sub(start).normalize());group.add(rod);
   };
   for(const y of [4.55,4.98]){
-    trussBar(-11.3,y,11.3,y,-5.7,.08);
+    trussBar(-9.7,y,9.7,y,-5.7,.08);
   }
   for(let i=0;i<23;i++){
-    const x=-11+i;
+    const x=-9.4+i*.85;
     trussBar(x,4.55,x,4.98,-5.7,.025);
-    if(i<22)trussBar(x,4.55,x+1,4.98,-5.7,.024);
+    if(i<22)trussBar(x,4.55,x+.85,4.98,-5.7,.024);
   }
   for(const sign of [-1,1]){
     for(let j=0;j<3;j++){
-      trussBar(sign*11.1,-3.5+j*2.6,sign*11.1,-.9+j*2.6,-5.65,.055);
-      trussBar(sign*10.76,-3.5+j*2.6,sign*11.4,-.9+j*2.6,-5.65,.018);
+      trussBar(sign*9.55,-3.5+j*2.6,sign*9.55,-.9+j*2.6,-5.65,.068);
+      trussBar(sign*9.25,-3.5+j*2.6,sign*9.87,-.9+j*2.6,-5.65,.029);
     }
   }
   // Curved overhead arena rig, stage-facing fixtures and spot beams.
   for(let j=0;j<30;j++){
     const a=(Math.PI*.07)+(Math.PI*.86)*(j/29);
-    const x=Math.cos(a)*10.9,y=5.8+Math.sin(a)*.6,z=-3.9;
+    const x=Math.cos(a)*9.25,y=4.8+Math.sin(a)*.78,z=-3.9;
     if(j>0){
       const p=(Math.PI*.07)+(Math.PI*.86)*((j-1)/29);
-      trussBar(Math.cos(p)*10.9,5.8+Math.sin(p)*.6,x,y,z,.065);
+      trussBar(Math.cos(p)*9.25,4.8+Math.sin(p)*.78,x,y,z,.07);
     }
     if(j%3===0){
       const fixture=box(x,y-.20,z+.16,.52,.23,.43,phys(0x231426,.6,.36));
@@ -78,14 +79,16 @@ export function createConcertStage({THREE,scene,renderer,oldBeams=[]}){
   }
   // Stage LED light fixtures; restrained emissive strips.
   for(let i=0;i<13;i++){
-    const x=(i-6)*1.45;
-    const panel=box(x,4.72,-5.25,.64,.115,.27,material(0x81528c,.82));
-    const light=box(x,4.62,-5.06,.49,.065,.03,material(0xe1aaff,.56));
+    const x=(i-6)*1.35;
+    box(x,4.72,-5.25,.64,.16,.37,phys(0x261728,.48,.3));
+    const light=box(x,4.60,-5.02,.44,.09,.055,material(i%4===0?0xffd4ed:0xf3a2e4,.83));
     glows.push(light);
+    const halo=box(x,4.56,-4.97,.68,.17,.014,material(i%4===0?0xffe1f1:0xe9b2f9,.14));
+    glows.push(halo);
   }
   // Modern glossy ring stage, sized beneath the existing sealed 3D pack.
-  const discMaterial=phys(0x583254,.64,.25);
-  const rimMaterial=phys(0xc17bb5,.76,.16);
+  const discMaterial=phys(0x6d3b68,.55,.26);discMaterial.emissive=new THREE.Color(0x532348);discMaterial.emissiveIntensity=.35;
+  const rimMaterial=phys(0xd698d2,.6,.2);rimMaterial.emissive=new THREE.Color(0xa45a87);rimMaterial.emissiveIntensity=.3;
   const disc=new THREE.Mesh(new THREE.CylinderGeometry(3.5,3.73,.18,88),discMaterial);
   disc.position.set(0,-2.42,.08);group.add(disc);
   const top=new THREE.Mesh(new THREE.CylinderGeometry(3.22,3.25,.095,88),rimMaterial);
@@ -93,8 +96,45 @@ export function createConcertStage({THREE,scene,renderer,oldBeams=[]}){
   const inner=new THREE.Mesh(new THREE.CylinderGeometry(2.94,3.0,.04,88),discMaterial);
   inner.position.set(0,-2.224,.08);group.add(inner);
   for(const [radius,height,col,opacity] of [[3.56,-2.35,0xe2b3fb,.66],[3.18,-2.23,0xffc4ec,.53],[2.83,-2.19,0x9178e0,.33]]){
-    const ring=new THREE.Mesh(new THREE.TorusGeometry(radius,.022,6,140),material(col,opacity));
+    const ring=new THREE.Mesh(new THREE.TorusGeometry(radius,.045,8,140),material(col,Math.min(1,opacity*1.35)));
     ring.rotation.x=-Math.PI/2;ring.position.set(0,height,.08);group.add(ring);glows.push(ring);
+  }
+  // Pink-polished arena floor with deliberately restrained faux reflections.
+  const floorCanvas=document.createElement('canvas');
+  floorCanvas.width=1024;floorCanvas.height=1024;
+  const fg=floorCanvas.getContext('2d',{alpha:false});
+  const floorGrad=fg.createLinearGradient(0,0,1024,1024);
+  floorGrad.addColorStop(0,'#130d23');floorGrad.addColorStop(.18,'#3c2348');
+  floorGrad.addColorStop(.42,'#68345f');floorGrad.addColorStop(.71,'#27132d');
+  floorGrad.addColorStop(1,'#090711');
+  fg.fillStyle=floorGrad;fg.fillRect(0,0,1024,1024);
+  for(let i=0;i<26;i++){
+    const x=32+i*43;
+    const g=fg.createLinearGradient(x-36,0,x+60,1024);
+    g.addColorStop(0,'#ffffff00');g.addColorStop(.48,i%4===0?'#ffacfa2b':'#e2b9fc0b');g.addColorStop(1,'#ffffff00');
+    fg.fillStyle=g;fg.fillRect(x,0,24+i%3*7,1024);
+  }
+  const reflection=fg.createRadialGradient(512,240,8,512,380,540);
+  reflection.addColorStop(0,'#ffb3e9b2');reflection.addColorStop(.42,'#e48bd54c');reflection.addColorStop(1,'#e578cf00');
+  fg.fillStyle=reflection;fg.fillRect(0,0,1024,1024);
+  const floorTexture=new THREE.CanvasTexture(floorCanvas);
+  floorTexture.colorSpace=THREE.SRGBColorSpace;
+  const floorOverlay=new THREE.Mesh(new THREE.PlaneGeometry(60,60),new THREE.MeshBasicMaterial({map:floorTexture,transparent:true,opacity:.83,side:THREE.DoubleSide,depthWrite:false}));
+  floorOverlay.rotation.x=-Math.PI/2;floorOverlay.position.set(0,-3.68,-3.2);group.add(floorOverlay);
+  // Additional light pools align with the overhead concert rig and shimmer on the floor.
+  const poolGeo=new THREE.CircleGeometry(2.6,64);
+  for(const [x,z,c,o] of [[-6,-5,0xff8fc6,.10],[6,-5,0xeb9aff,.11],[-3,-1,0xff9be8,.065],[3,-1,0xffd2dd,.065]]){
+    const p=new THREE.Mesh(poolGeo,material(c,o));
+    p.rotation.x=-Math.PI/2;p.position.set(x,-3.658,z);group.add(p);
+  }
+  // Square-frame strip lights on the massive curved display wings.
+  for(const sign of [-1,1]){
+    const x=sign*9.65;
+    for(let j=0;j<4;j++){
+      const fixture=box(x,3.45-j*1.8,-5.46,.12,1.32,.2,material(0x301327,.95));
+      const lens=box(x,3.45-j*1.8,-5.19,.07,.97,.07,material(j%2?0xe58dff:0xffabd7,.67));
+      glows.push(lens);
+    }
   }
   // Upper-focused lights use physically bounded intensity rather than giant white cones.
   for(const [x,y,z,col,intensity] of [[-4.6,5.35,2.5,0xe8a7fa,4.2],[4.6,5.35,2.5,0xc1b8fa,4.0],[0,6.6,1,0xffeddd,5.5]]){
@@ -300,7 +340,7 @@ export function createConcertStage({THREE,scene,renderer,oldBeams=[]}){
       entry.cone.quaternion.setFromUnitVectors(new THREE.Vector3(0,-1,0),axis.normalize());
       entry.cone.material.opacity=openingDark?.001:.033+.006*Math.sin(t*.8+i*1.7);
     }
-    glows.forEach((o,i)=>{if(o.material&&o.material.opacity<.95)o.material.opacity=.23+.1*Math.sin(t*.8+i)});
+    glows.forEach((o,i)=>{if(o.material&&o.material.opacity<.95)o.material.opacity=.42+.08*Math.sin(t*.82+i*.61)});
     const maxMove=mobile()?.22:.28;
     for(let i=0;i<count;i++){
       const b=batons[i];
