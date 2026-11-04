@@ -371,8 +371,12 @@ function renderRevealStage(){
     const badge=document.createElement('span');badge.className='stage-card-badge';badge.textContent=TIERS.find(t=>t.key===card.rarity)?.label||card.rarity;
     button.append(inner,badge);
     button.addEventListener('click',()=>revealIndex(i));
+    button.addEventListener('pointerenter',()=>{if(state.revealed.has(i))hoverRaritySound(card)});
+    button.addEventListener('focus',()=>{if(state.revealed.has(i))hoverRaritySound(card)});
     rail.append(button);
   });
+  fillConcertCrowd();
+  setConcertRarity('DEFAULT');
   stage.hidden=false;stage.setAttribute('aria-hidden','false');document.body.classList.add('pack-revealing');
   $('stageHint').textContent='카드를 눌러 어떤 등급이 나왔는지 확인해 보세요.';
   updateStageProgress();
@@ -415,6 +419,8 @@ async function openPack(count){
     toast('카드팩 개봉 실패: '+(err?.message||String(err)));return;
   }
   state.cards=rolled;state.revealed=new Set();
+  firstPackSound();
+  setConcertRarity('DEFAULT');
   state.phase='opening';syncCanvasPointerEvents();openingAt=performance.now()*.001;
   document.body.classList.add('pack-cinematic');requestAnimationFrame(resizeScene);
   showControls([]);$('controlHeading').textContent='봉인을 해제하고 있어요…';
@@ -453,8 +459,10 @@ function revealIndex(i,silent=false){
   }
   if(!silent){
     const freq={N:440,R:523,SR:659,SSR:784,UR:1047}[card.rarity]||523;
-    chime(freq,card.rarity==='UR'?.26:card.rarity==='SSR'?.19:.09);
+    chime(freq,card.rarity==='UR'?.18:card.rarity==='SSR'?.14:.075);
+    setConcertRarity(card.rarity);
     stageBurst(card);
+    queueRaritySplash(card);
   }
   $('stageHint').textContent=(tier?.label||card.rarity)+' · '+card.group+' '+card.name+' 발견!';
   $('revealCounter').textContent=state.revealed.size+' / '+state.cards.length;
@@ -475,9 +483,15 @@ function revealAll(){
   state.cards.forEach((_,i)=>{if(!state.revealed.has(i))revealIndex(i,true)});
   const rank={N:0,R:1,SR:2,SSR:3,UR:4};
   const highest=hidden.reduce((a,b)=>(!a||rank[b.rarity]>rank[a.rarity])?b:a,null);
-  if(highest){chime(highest.rarity==='UR'?1047:784,.2);stageBurst(highest)}
+  if(highest){
+    chime(highest.rarity==='UR'?1047:784,.16);
+    setConcertRarity(highest.rarity);
+    stageBurst(highest);
+    queueRaritySplash(highest);
+  }
 }
 function reset(){
+  closeRaritySplash();setConcertRarity('DEFAULT');
   document.body.classList.remove('pack-cinematic','pack-revealing');
   const stage=$('packRevealStage');stage.hidden=true;stage.setAttribute('aria-hidden','true');
   $('stageBurst').className='stage-burst';$('stageRarityBanner').className='stage-rarity-banner';
@@ -543,6 +557,7 @@ function chooseGuest(){
   closeModal('accountOverlay');
   updateCounts();updateLogin();
   toast('게스트 모드 · 수집 기록은 이 브라우저에만 저장됩니다.');
+  showConcertIntro(true);
 }
 async function activateNamedUser(user){
   if(!user||!accountNameOf(user))throw Error('ITM 계정 정보를 확인할 수 없어.');
@@ -570,10 +585,12 @@ async function initBackend(){
     if(user&&accountNameOf(user)&&!user.is_anonymous){
       await activateNamedUser(user);
       saveEntryChoice('account');
+      showConcertIntro();
     }else{
       state.accountName=null;state.playerId=null;state.user=null;
       updateCounts();updateLogin();
       if(!guestChosen())accountOpen(true);
+      else showConcertIntro();
     }
   }catch(err){
     state.authError=err?.message||String(err);
@@ -616,6 +633,7 @@ async function submitAccount(event){
     $('accountPassword').value='';
     state.entryRequired=false;saveEntryChoice('account');updateLogin();
     closeModal('accountOverlay');
+    showConcertIntro(true);
     toast(signup?(imported?'회원가입 완료! 게스트 도감도 이전했어.':'ITM 계정 생성 완료!'):'로그인 성공! 클라우드 도감을 불러왔어.');
   }catch(err){
     setAccountMessage('계정 처리 실패: '+(err?.message||String(err)));
@@ -713,6 +731,8 @@ function bind(){
   $('revealNext').onclick=revealNext;$('revealAll').onclick=revealAll;$('nextPack').onclick=reset;
   $('stageRevealNext').onclick=revealNext;$('stageRevealAll').onclick=revealAll;
   $('stageFinish').onclick=reset;$('stageClose').onclick=reset;
+  $('splashClose').onclick=closeRaritySplash;
+  $('concertIntroSkip').onclick=closeConcertIntro;
   $('collectionOpen').onclick=async()=>{if(isNamedAccount())await syncRemote();renderCollection();openModal('collectionOverlay')};
   $('collectionClose').onclick=()=>closeModal('collectionOverlay');
   $('oddsOpen').onclick=()=>openModal('oddsOverlay');$('oddsClose').onclick=()=>closeModal('oddsOverlay');
@@ -729,6 +749,8 @@ function bind(){
   }));
   document.addEventListener('keydown',e=>{
     if(e.key==='Escape'){
+      if(!$('concertIntro').hidden){closeConcertIntro();return}
+      if(!$('raritySplash').hidden){closeRaritySplash();return}
       if(!$('packRevealStage').hidden){reset();return}
       closeModal('collectionOverlay');closeModal('oddsOverlay');accountClose();
     }
