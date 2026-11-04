@@ -1,92 +1,64 @@
-# ITM — IDOL : THE MOMENT · v0.4
+# ITM — IDOL : THE MOMENT
 
-An independent, fan-made idol photocard pack-opening webgame prototype. Built separately from RTM and its database.
+A fan-made idol photocard pack-opening browser game. The current N/R/SR/SSR/UR cards are fictional demo content. ITM uses its own GitHub repository and Supabase project, separate from RTM.
 
-**Latest update:** ITM rebranding, replacing all on-screen ENCORE branding including 3D textures, recovery-code issuance and UI; server ID and all existing collections stay unchanged. Guest identity and cross-device recovery work without Google sign-in when Anonymous Sign-Ins are enabled.
+## Current features (November 4, 2026)
 
-**Branding note:** The current Supabase dashboard name is still `ENCORE-IDOL-CARDS` (project ID `isyrthdznnbxjyoliwgf`). The connector cannot rename the Supabase project display name, but UI/game identities are now ITM; renaming the dashboard project to `IDOL-THE-MOMENT` is cosmetic and must not create a new project. `EN-...` recovery codes issued under the old brand remain valid; new codes use `IT-...`. The existing local-only demo inventory key remains readable so the rebrand does not lose test cards.
+- Three.js interactive pack opening (2D fallback), 1-card and 5-card test packs, flip reveals, collection.
+- First-visit account gate: **Login**, **Sign up**, or **Guest play**.
+- **Guest:** stores test-card collection only in the current browser's `localStorage` (`itm-test-pack-inventory-v1`). No server registration and no cross-device recovery. Private/incognito windows have separate, short-lived storage.
+- **Named account:** uses username + password with Supabase Auth. An Edge Function creates a confirmed, internal non-deliverable email alias from the username. Supabase Auth stores salted password **hashes**, never plaintext passwords in GitHub or game tables.
+- **Registered collection:** server-owned `public.itm_demo_inventory` keyed to `private.player_accounts`, RLS for the current named user; server RPC handles 1/5-card draws.
+- **Guest-to-account conversion:** on first sign-up, the current browser's demo inventory is imported once to the registered player's cloud inventory. Subsequent logins use cloud data and do not silently overwrite it with a guest cache.
+- **Logout:** clears the named Auth session; guest inventory in the same browser remains separate.
+- Previous ITM recovery-code feature is still available under the signed-in account's advanced section, for older server-linked collections (not a password reset system).
+- Improved 3D canvas bounds: no oversized canvas outside the scene wrapper, clipping enabled, pack buttons above the scene and pointer events active only during reveal.
 
-## Currently implemented
+### Username and password rules
 
-- Cinematic stage layout with experimental Three.js pack/card rendering and a 2D fallback if the external 3D dependency cannot load
-- 1-card / 5-card pack openings, card flip reveals, rarity effects, pack odds, collection, original synthetic card art
-- Supabase project `ENCORE-IDOL-CARDS` in the same organization (`p0emkite`) as RTM but with a **separate project, database, Auth system and collection**
-- Automatic anonymous guest identity at first visit (requires enabling Supabase Anonymous Sign-Ins)
-- Player collection independent of the browser's anonymous Auth user ID
-- 128-bit randomly generated, one-time-displayed IT-prefixed recovery code, stored as a SHA-256 hash on the server
-- Restore on another device with that code; existing collections are **not automatically merged**
-- Server-authoritative pack drawing, 2-second rate limit between openings per player, owner-only collection reads with RLS, private elevated functions and public invoker wrappers
-- No `service_role`/secret key in public code; only Supabase publishable key in `config.js`
+Username: 4–20 lowercase ASCII letters, digits or underscores; must start with a letter (uppercase input is normalized). Password: 10–72 characters, including at least one letter and digit.
 
-## Supabase project
+Named accounts use internal aliases like `itm.<username>@accounts.itm.example`. **These are deliberately not real inboxes. Password reset by email is unavailable.** Users should store passwords safely. A dedicated recovery or email-verification flow should be built before a large public launch.
 
-- **Current Supabase display name:** `ENCORE-IDOL-CARDS` (technical alias until renamed in dashboard)
-- **ID:** `isyrthdznnbxjyoliwgf`
-- **Organization:** `p0emkite`
-- **Region:** Tokyo (`ap-northeast-1`)
-- **Dashboard:** https://supabase.com/dashboard/project/isyrthdznnbxjyoliwgf
-- **Schema:** three migrations have been **applied successfully** to this project; initial 16 fictional cards retained
-- Existing `RKBO-ONLINE` project and RTM code have **not** been edited.
+### Key architecture
 
-### One required Supabase dashboard setting
+| Source | Purpose |
+|---|---|
+| `index.html` | Home screen, first-visit account modal, collection |
+| `style.css` | Responsive layout, canvas clipping, account UI |
+| `app.js` | Three.js effects, guest/local inventory, Supabase Auth and cloud inventory |
+| `pack-opening.css` | Pack/cinematic styling |
+| `config.js` | Publishable Supabase project URL and key only |
+| `supabase/functions/itm-register/index.ts` | Edge Function for secure named account creation |
+| `supabase/itm_named_accounts_demo_inventory.sql` | Database migration for named demo collection and protections |
+| `supabase/guest_recovery_migration.sql` | Earlier anonymous guest and recovery-code model (kept for compatibility) |
+| `supabase/itm_branding_migration.sql` | IT-prefixed recovery code migration |
 
-Open **Authentication → Providers → Anonymous Sign-Ins** and enable it for this NEW project:
+### Supabase
 
-https://supabase.com/dashboard/project/isyrthdznnbxjyoliwgf/auth/providers
+ITM-only project: `isyrthdznnbxjyoliwgf` (dashboard display name may still be ENCORE-IDOL-CARDS).
+Dashboard: https://supabase.com/dashboard/project/isyrthdznnbxjyoliwgf
 
-This provider switch is **not exposed** by the connected Supabase management tools in this chat, so it has not been confirmed enabled. Until it is enabled, a new browser cannot create the guest Auth session that makes cloud collection synchronization possible. The UI displays a connection error with the relevant explanation rather than claiming cloud sync works.
+The account API endpoint is `https://isyrthdznnbxjyoliwgf.supabase.co/functions/v1/itm-register`.
 
-For a public release, enable anti-bot/CAPTCHA protections and monitor anonymous-sign-in quotas and costs. Never enable paid options without reviewing the charges.
+**Security notes:** `SUPABASE_SERVICE_ROLE_KEY` is used only inside the deployed Edge Function. The client is configured with a publishable key and uses Supabase Auth sessions. The database exposes read-only inventory to authenticated named account owners, and writes occur only through authenticated server RPCs. Registration requests are rate-limited per client, with an origin allowlist; CAPTCHA and additional abuse prevention are advisable for scale. Older Auth anonymous sessions are not treated as the new browser-only guest mode.
 
-### How guest recovery works
+The previous anonymous-sign-in option is not necessary for the **new local guest** experience. Do not re-run earlier destructive migrations on a database containing production users.
 
-1. Launch the website. The client requests a Supabase anonymous sign-in and creates a private player ID.
-2. Packs are drawn on the server and stored under that player ID. Browser reloads keep the anonymous session until its local credentials are lost.
-3. Open **ITM ID → 새 복구 코드 발급**, copy the entire code and store it somewhere secure. **The raw code appears only once.**
-4. On a new browser/device, open **ITM ID**, enter the same code and select **기존 도감 연결하기**. This new anonymous session becomes linked to the original player ID and sees the original collection.
-5. Existing local collections are not merged. A device's existing collection is left in its original player account when switched; it can be recovered only if it has its own valid recovery code or retained session.
-6. A newly issued recovery code invalidates the previous recovery code but **does not revoke devices already linked** to that player. Device revocation is a future feature.
+### Deploy and verify
 
-**Security:** Anyone who obtains the code can access the account's collection. Treat it like a password; do not post it online. Losing both the code and all signed-in devices can cause permanent loss of access. Server backups and operational policies matter: storage is not an unconditional lifetime guarantee.
+GitHub Pages can serve `index.html` directly from the `main` branch. No package build is needed for the main UI. Confirm that the live hostname is allowed by the registration Edge Function. After deployment, check:
 
-### Deployment to GitHub Pages
+1. New browser: account-choice modal opens; guest path explicitly warns about local-only collection.
+2. Guest: open a pack, refresh the same browser, confirm collection remains; incognito should not inherit it.
+3. Guest with cards: create username/password account, confirm imported cards appear in cloud collection.
+4. Different device/browser: sign in using same username/password; confirm collection and quantities match.
+5. Log out: named cards disappear, browser guest inventory remains.
+6. Pack buttons remain clickable; the scene is clipped and 3D cards are clickable only in reveal.
+7. No secrets or plaintext passwords are printed in client code, logs or files.
 
-1. Use the existing repository `p0emkite/IDOL-THE-MOMENT`. The GitHub connector in this environment can update files in existing repositories but does not expose the create-repository action.
-2. Upload all files at the root of this ZIP to the repository's main branch. Enable **GitHub Pages → Deploy from a branch** (or set up a CI-based static deployment).
-3. Activate Supabase Anonymous Sign-Ins from the link above. **Google OAuth is not needed.**
-4. Visit the deployed URL, issue a code on one device, open a pack, and restore the account on another device to validate real end-to-end cloud synchronization.
+### Verification status
 
-To run locally, serve the directory over HTTP rather than opening `index.html` as a local file:
+Source JS parsed successfully; DOM ID bindings checked. Supabase tables, functions, RLS and the registration Edge Function deployment were confirmed through the linked project. **Live browser end-to-end account signup/sign-in and cross-device behavior have not yet been exercised.** The previous mocked guest-recovery test predates the named account flow and must not be taken as proof of the new signup UI.
 
-```bash
-python -m http.server 8000
-```
-
-Then visit http://localhost:8000/ . External Three.js and Supabase JS modules require internet access; the 2D fallback displays if 3D cannot load.
-
-### Development files
-
-```text
-index.html                           page, scene, modals
-style.css                            layout, cards, account UI, mobile responsiveness
-app.js                               effects, collection, auth and recovery code
-config.js                            publishable-only Supabase client configuration
-assets/favicon.svg                  original favicon
-supabase/schema.sql                 first migration, initial sample catalog
-supabase/guest_recovery_migration.sql second migration, current guest identity model
-supabase/itm_branding_migration.sql   third migration, IT-prefixed recovery codes / legacy EN compatible
-tests/test_guest_flow.py            offline/mocked cross-device UI integration test
-```
-
-**SQL caution:** The recovery migration drops the original demo-only inventory and roll tables and should not be applied to any pre-existing production database with user data. It has **already been applied** to the new ITM project; do not run it again. Do not apply it to RTM.
-
-## Testing and limitations
-
-- JavaScript syntax checked.
-- Offline browser integration test (mocked Supabase) passed: new guest → issue code → 5-card pack → reveal → collection → new independent browser → restore → matching collection, no uncaught JS errors.
-- Remote database schema, policies and function privileges checked via connected Supabase. Table access uses RLS. The security advisor reports informational notices for deliberately policy-free private tables; no high severity findings were reported.
-- **True, live client-to-Supabase anonymous sign-in and recovery across physical devices have not yet been verified**, because Anonymous Sign-Ins may need to be enabled in the dashboard and no public website has been deployed.
-- The three-dimensional WebGL effect has not been verified in the offline test environment. The tested browser flow used the 2D fallback. Dedicated pack models, custom particle shaders, lighting, sound design and real licensed idol artwork are future work.
-- The demo uses fictional groups/artwork. Do not insert copyrighted celebrity photos, logos, or music into a public website without the necessary rights.
-
-**Brand naming:** `RTM` (RKBO THE MOMENT) and `ITM` (IDOL : THE MOMENT) share a brand family, not a database, account or cloud bucket. GitHub repository suggested: `p0emkite/IDOL-THE-MOMENT` (create it first).
+This prototype is free, uses demo art and is not affiliated with any artist, agency or official card product.
