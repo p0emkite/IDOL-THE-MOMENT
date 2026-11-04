@@ -207,7 +207,7 @@ export function createConcertStage({THREE,scene,renderer,oldBeams=[]}) {
 
   // Physically placed fan bodies and glowsticks form diagonal V-shaped stands
   // around the stage, leaving the centre aisle clear throughout the flythrough.
-  const total=isMobile()?310:850;
+  const total=isMobile()?1050:2250;
   const glowGeometry=new THREE.CylinderGeometry(.032,.040,.37,7);
   const glowMaterial=new THREE.MeshBasicMaterial({color:0xffffff,toneMapped:false,transparent:true,opacity:.74,
     depthWrite:false,blending:THREE.AdditiveBlending});
@@ -224,19 +224,18 @@ export function createConcertStage({THREE,scene,renderer,oldBeams=[]}) {
   const dummy=new THREE.Object3D();
   const palette=['#ff83d4','#be8aff','#fce1a6','#91d4ff','#c7f9ef','#f5a4ef'];
   for(let i=0;i<total;i++){
-    const side=(i&1)?1:-1,r=prng(i+4),s=prng(i*7+3);
-    const back=i>=total*.70;
-    const front=i<total*.28;
-    const z=back?12.1+prng(i*9+11)*18:
-      front?6.4+prng(i*6+15)*3.0:2.7+prng(i*6+15)*5.2;
-    const x=back?side*(3.5+prng(i*9+7)*13.8):
-      front?side*(1.02+(10.7-z)*.26+prng(i*11+8)*2.6):
-      side*(2.10+(z-2.5)*.24+prng(i*11+8)*4.2);
-    // Elevated diagonal spectator banks keep heads visible above the venue floor.
-    const y=back?-2.28+Math.min(2.35,(z-11)*.095)+prng(i*3)*.23:
-      front?-2.65+(z-6.4)*.34+prng(i*4+5)*.32:
-      -2.85+(z-2.7)*.20+prng(i*4+5)*.35;
-    const k=back?.65+prng(i*5)*.28:front?1.18+prng(i*5)*.42:.77+prng(i*5)*.43;
+    const side=(i&1)?1:-1;
+    const back=i>=total*.56;
+    const near=i<total*.33;
+    const z=back?11.0+prng(i*9+11)*35:
+      near?6.4+prng(i*6+15)*4.4:2.4+prng(i*6+15)*7.3;
+    const x=back?side*(2.9+prng(i*9+7)*17.5):
+      near?side*(1.06+(10.8-z)*.31+prng(i*11+8)*4.0):
+      side*(2.02+(z-2.4)*.30+prng(i*11+8)*5.4);
+    const y=back?-2.40+Math.min(3.1,(z-11)*.115)+prng(i*3)*.3:
+      near?-2.67+(z-6.4)*.25+prng(i*4+5)*.38:
+      -2.95+(z-2.4)*.18+prng(i*4+5)*.40;
+    const k=back?.62+prng(i*5)*.35:near?1.09+prng(i*5)*.48:.80+prng(i*5)*.48;
     batons.push({x,y,z,k,phase:prng(i*2+1)*Math.PI*2,side});
     dummy.position.set(x,y-.52*k,z);dummy.scale.set(.96*k,.75*k,.66*k);
     dummy.rotation.set(0,0,0);dummy.updateMatrix();bodies.setMatrixAt(i,dummy.matrix);
@@ -381,16 +380,18 @@ export function createConcertStage({THREE,scene,renderer,oldBeams=[]}) {
   }
   function introPose(progress){
     const t=clamp(progress);
-    // One continuous camera rotation with no left/right/centre discontinuities.
-    const angle=2*Math.PI*(t-.09*Math.sin(2*Math.PI*t)/(2*Math.PI));
-    const advance=smooth(clamp((t-.56)/.44));
+    // Exactly one uninterrupted 360-degree sweep followed by a short approach.
+    // Yaw completes once and remains fixed while advancing toward the pack.
+    const sweep=smooth(clamp(t/.80));
+    const approach=smooth(clamp((t-.80)/.20));
+    const yaw=2*Math.PI*sweep;
     const eye=new THREE.Vector3(
-      .38*Math.sin(t*Math.PI)* (1-advance),
-      mix(2.02,.65,advance),
-      mix(17.5,10.7,advance)
+      .27*Math.sin(sweep*Math.PI)*(1-approach),
+      mix(2.10,.65,approach),
+      mix(18.4,10.7,approach)
     );
-    const dir=new THREE.Vector3(Math.sin(angle),mix(-.055,-.11,advance),-Math.cos(angle)).normalize();
-    return {pos:eye,look:eye.clone().addScaledVector(dir,25),fov:mix(51,42,advance)};
+    const forward=new THREE.Vector3(Math.sin(yaw),mix(-.065,-.11,approach),-Math.cos(yaw)).normalize();
+    return {pos:eye,look:eye.clone().addScaledVector(forward,27),fov:mix(53,42,approach)};
   }
   function reset(){opening=null;blackout=false;boomAt=-1;particles.visible=false;setRarity('DEFAULT');}
   drawLED(0);
