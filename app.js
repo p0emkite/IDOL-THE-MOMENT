@@ -66,7 +66,7 @@ function guestChosen(){try{return localStorage.getItem(ENTRY_KEY)==='guest'}catc
 function syncCanvasPointerEvents(){const canvas=$('threeCanvas');if(canvas)canvas.classList.toggle('itm-canvas-interactive',state.phase==='reveal');}
 let scene,renderer,camera,pack,packRim,packParts,packTop,packBottom,packSeam,openingCard,cardMeshes=[],dust,halos,stageLights=[],THREE,clock,lastTime=0,openingAt=0,audioContext=null;
 
-let concertStage=null,hoverChimeAt=0,splashTimer=null,audioPreferenceSet=false,introShown=false,introTimers=[],introCameraActive=false,introCameraStart=0;
+let concertStage=null,hoverChimeAt=0,splashTimer=null,urCoverTimer=null,audioPreferenceSet=false,introShown=false,introTimers=[],introCameraActive=false,introCameraStart=0;
 const RARITY_CLASSES=['rarity-n','rarity-r','rarity-sr','rarity-ssr','rarity-ur'];
 function setSound(on){
   state.audio=on;
@@ -100,6 +100,7 @@ function fillConcertCrowd(){
 function closeConcertIntro(){
   introTimers.forEach(clearTimeout);introTimers=[];
   introCameraActive=false;
+  document.body.classList.remove('itm-intro-active');
   const el=$('concertIntro');
   if(el){el.hidden=true;el.classList.remove('opening')}
   if(camera){
@@ -117,6 +118,7 @@ function showConcertIntro(force=false){
   const reduced=matchMedia('(prefers-reduced-motion:reduce)').matches;
   if(reduced){closeConcertIntro();return}
   introCameraActive=!!concertStage;
+  document.body.classList.add('itm-intro-active');
   introCameraStart=performance.now();
   void el.offsetWidth;
   // Curtains open, then actual WebGL camera travels through audience and back.
@@ -138,8 +140,11 @@ function hoverRaritySound(card){
   chime({SR:784,SSR:988,UR:1175}[card.rarity],.053);
 }
 function closeRaritySplash(){
-  clearTimeout(splashTimer);splashTimer=null;
+  clearTimeout(splashTimer);clearTimeout(urCoverTimer);
+  splashTimer=null;urCoverTimer=null;
   $('raritySplash').hidden=true;
+  const cover=$('urScreenTransition');
+  if(cover){cover.hidden=true;cover.classList.remove('playing')}
 }
 function showRaritySplash(card){
   if(!card||card.rarity!=='UR')return;
@@ -172,12 +177,19 @@ function showRaritySplash(card){
 }
 function queueRaritySplash(card){
   if(!card||card.rarity!=='UR')return;
-  clearTimeout(splashTimer);
+  clearTimeout(splashTimer);clearTimeout(urCoverTimer);
+  const cover=$('urScreenTransition');
+  if(!cover){showRaritySplash(card);return}
+  cover.hidden=false;cover.classList.remove('playing');
+  void cover.offsetWidth;cover.classList.add('playing');
+  // At the exact-black frame, introduce the full-bleed art behind the cover.
   splashTimer=setTimeout(()=>{
     if(state.phase==='reveal')showRaritySplash(card);
-  },560);
+  },780);
+  urCoverTimer=setTimeout(()=>{
+    cover.hidden=true;cover.classList.remove('playing');
+  },2150);
 }
-
 const EASE = t => 1-Math.pow(1-Math.min(1,Math.max(0,t)),3);
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 function readLocal(){try{return JSON.parse(localStorage.getItem('itm-inventory-v1')||localStorage.getItem('encore-inventory-v1'))||{}}catch{return {}}}
@@ -543,14 +555,13 @@ function updateStageProgress(){
   $('stageFinish').hidden=done!==total;
 }
 function stageBurst(card){
-  if(!card||card.rarity==='N')return;
+  if(!card||card.rarity==='N'||card.rarity==='UR')return;
+  // SR and SSR only get understated card-level rarity accents.
   const klass='rarity-'+card.rarity.toLowerCase(),fx=$('stageBurst'),banner=$('stageRarityBanner');
   fx.className='stage-burst';banner.className='stage-rarity-banner';
-  void fx.offsetWidth; // replay CSS animation for each newly revealed card
-  fx.className='stage-burst '+klass+' active';
-  banner.textContent=card.rarity==='UR'?'ULTRA RARE':card.rarity==='SSR'?'SPECIAL SUPER RARE':card.rarity==='SR'?'SUPER RARE':'RARE';
+  void banner.offsetWidth;
+  banner.textContent=card.rarity==='SSR'?'SPECIAL SUPER RARE':card.rarity==='SR'?'SUPER RARE':'RARE';
   banner.className='stage-rarity-banner '+klass+' active';
-  if(card.rarity==='UR')concertStage?.burst('UR');
 }
 async function openPack(count){
   if(state.busy||state.phase!=='ready'||state.entryRequired||!state.backendReady)return;
@@ -893,7 +904,8 @@ function bind(){
   $('revealNext').onclick=revealNext;$('revealAll').onclick=revealAll;$('nextPack').onclick=reset;
   $('stageRevealNext').onclick=revealNext;$('stageRevealAll').onclick=revealAll;
   $('stageFinish').onclick=reset;$('stageClose').onclick=reset;
-  $('splashClose').onclick=closeRaritySplash;
+  $('splashClose').onclick=(event)=>{event.stopPropagation();closeRaritySplash()};
+  $('raritySplash').addEventListener('click',()=>{if(!$('raritySplash').hidden)closeRaritySplash()});
   $('concertIntroSkip').onclick=closeConcertIntro;
   $('collectionOpen').onclick=async()=>{if(isNamedAccount())await syncRemote();renderCollection();openModal('collectionOverlay')};
   $('collectionClose').onclick=()=>closeModal('collectionOverlay');
