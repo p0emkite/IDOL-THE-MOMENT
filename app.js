@@ -66,7 +66,7 @@ function guestChosen(){try{return localStorage.getItem(ENTRY_KEY)==='guest'}catc
 function syncCanvasPointerEvents(){const canvas=$('threeCanvas');if(canvas)canvas.classList.toggle('itm-canvas-interactive',state.phase==='reveal');}
 let scene,renderer,camera,pack,packRim,packParts,packTop,packBottom,packSeam,cardMeshes=[],dust,halos,stageLights=[],THREE,clock,lastTime=0,openingAt=0,audioContext=null;
 
-let concertStage=null,hoverChimeAt=0,splashTimer=null,audioPreferenceSet=false,introShown=false,introTimers=[];
+let concertStage=null,hoverChimeAt=0,splashTimer=null,audioPreferenceSet=false,introShown=false,introTimers=[],introCameraActive=false,introCameraStart=0;
 const RARITY_CLASSES=['rarity-n','rarity-r','rarity-sr','rarity-ssr','rarity-ur'];
 function setSound(on){
   state.audio=on;
@@ -93,18 +93,30 @@ function fillConcertCrowd(){
 }
 function closeConcertIntro(){
   introTimers.forEach(clearTimeout);introTimers=[];
+  introCameraActive=false;
   const el=$('concertIntro');
   if(el){el.hidden=true;el.classList.remove('opening')}
+  if(camera){
+    camera.fov=42;
+    camera.position.set(0,.65,window.innerWidth<780?12.8:10.7);
+    camera.lookAt(0,-.32,0);camera.updateProjectionMatrix();
+  }
 }
 function showConcertIntro(force=false){
   if(introShown&&!force)return;
   introShown=true;
+  closeConcertIntro();
   const el=$('concertIntro');if(!el)return;
-  closeConcertIntro();el.hidden=false;
-  if(matchMedia('(prefers-reduced-motion:reduce)').matches){closeConcertIntro();return}
+  el.hidden=false;
+  const reduced=matchMedia('(prefers-reduced-motion:reduce)').matches;
+  if(reduced){closeConcertIntro();return}
+  introCameraActive=!!concertStage;
+  introCameraStart=performance.now();
   void el.offsetWidth;
-  introTimers.push(setTimeout(()=>el.classList.add('opening'),770));
-  introTimers.push(setTimeout(closeConcertIntro,2250));
+  // Curtains open, then actual WebGL camera travels through audience and back.
+  introTimers.push(setTimeout(()=>el.classList.add('opening'),420));
+  introTimers.push(setTimeout(()=>{el.hidden=true},1530));
+  introTimers.push(setTimeout(closeConcertIntro,7400));
 }
 function setConcertRarity(rarity){
   const stage=$('packRevealStage');
@@ -131,9 +143,10 @@ function showRaritySplash(card){
   $('splashGrade').textContent=card.rarity;
   $('splashSeries').textContent=card.group+' · '+card.edition;
   $('splashName').textContent=card.name;
-  $('splashCaption').textContent=card.rarity==='UR'?'A LEGENDARY MOMENT':'A SPECIAL MOMENT';
-  const source=card.full_art_url||card.image_url||makeCardArt(card).toDataURL('image/png');
+  $('splashCaption').textContent='A LEGENDARY MOMENT';
+  const source=card.full_art_url||card.image_url||'./assets/itm-ur-performance.svg';
   $('splashArt').src=source;
+  $('splashArt').onerror=()=>{$('splashArt').onerror=null;$('splashArt').src=makeCardArt(card).toDataURL('image/png')};
   $('splashArt').alt=card.rarity+' '+card.name+' 전체 화면 아트';
   $('splashBlur').style.backgroundImage='url("'+source+'")';
   const fireworks=$('splashFireworks'),fragment=document.createDocumentFragment();
@@ -356,6 +369,7 @@ function renderRevealStage(){
   const track=document.createElement('div');
   track.id='stageCardTrack';track.className='stage-card-track';
   rail.appendChild(track);
+  $('stagePackLabel').textContent=state.cards.length+'회 뽑기';
   state.cards.forEach((card,i)=>{
     const button=document.createElement('button');
     button.type='button';button.className='stage-card-button rarity-'+card.rarity.toLowerCase();
@@ -382,9 +396,9 @@ function renderRevealStage(){
   fillConcertCrowd();
   setConcertRarity('DEFAULT');
   stage.hidden=false;stage.setAttribute('aria-hidden','false');document.body.classList.add('pack-revealing');
-  $('stageHint').textContent='카드를 눌러 어떤 등급이 나왔는지 확인해 보세요.';
+  $('stageHint').textContent='카드를 터치해서 한 장씩 확인하세요.';
   updateStageProgress();
-  $('stageRevealNext').focus({preventScroll:true});
+  track.firstElementChild?.focus({preventScroll:true});
 }
 function updateStageProgress(){
   const total=state.cards.length,done=state.revealed.size;
@@ -401,6 +415,7 @@ function stageBurst(card){
   fx.className='stage-burst '+klass+' active';
   banner.textContent=card.rarity==='UR'?'ULTRA RARE':card.rarity==='SSR'?'SPECIAL SUPER RARE':card.rarity==='SR'?'SUPER RARE':'RARE';
   banner.className='stage-rarity-banner '+klass+' active';
+  if(card.rarity==='UR')concertStage?.burst('UR');
 }
 async function openPack(count){
   if(state.busy||state.phase!=='ready'||state.entryRequired||!state.backendReady)return;
@@ -439,7 +454,8 @@ async function openPack(count){
     if(state.phase!=='opening')return;
     document.body.classList.remove('pack-cinematic');requestAnimationFrame(resizeScene);
     state.phase='reveal';syncCanvasPointerEvents();state.busy=false;
-    if(state.three)addCards();else renderFallbackCards();
+    if(state.three&&!document.body.classList.contains('itm-concert'))addCards();
+    else if(!state.three)renderFallbackCards();
     $('controlHeading').textContent='한 장씩 뒤집어 카드의 등급을 확인해 봐.';
     $('sceneHeading').textContent='03 — YOUR CARDS AWAIT';
     $('centerHint').innerHTML='<span>✧</span> TAP A CARD TO REVEAL';
