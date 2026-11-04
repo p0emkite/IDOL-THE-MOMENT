@@ -244,7 +244,7 @@ function stageBurst(card){
   banner.className='stage-rarity-banner '+klass+' active';
 }
 async function openPack(count){
-  if(state.busy||state.phase!=='ready'||state.entryRequired)return;
+  if(state.busy||state.phase!=='ready'||state.entryRequired||!state.backendReady)return;
   state.busy=true;$('drawOne').disabled=$('drawFive').disabled=true;
   let rolled=[];
   try{
@@ -550,7 +550,7 @@ function bind(){
   $('revealNext').onclick=revealNext;$('revealAll').onclick=revealAll;$('nextPack').onclick=reset;
   $('stageRevealNext').onclick=revealNext;$('stageRevealAll').onclick=revealAll;
   $('stageFinish').onclick=reset;$('stageClose').onclick=reset;
-  $('collectionOpen').onclick=()=>{renderCollection();openModal('collectionOverlay')};
+  $('collectionOpen').onclick=async()=>{if(isNamedAccount())await syncRemote();renderCollection();openModal('collectionOverlay')};
   $('collectionClose').onclick=()=>closeModal('collectionOverlay');
   $('oddsOpen').onclick=()=>openModal('oddsOverlay');$('oddsClose').onclick=()=>closeModal('oddsOverlay');
   $('loginButton').onclick=()=>accountOpen(false);$('accountClose').onclick=accountClose;
