@@ -1,0 +1,272 @@
+/* ITM — live concert interface v1
+   Replaces only the visual presentation. Account, collection and pack odds remain intact. */
+body.itm-concert{overflow:hidden;background:#070610}
+body.itm-concert .noise,
+body.itm-concert .ambient,
+body.itm-concert .hero-copy,
+body.itm-concert .side-panel,
+body.itm-concert .top-eyebrow,
+body.itm-concert .scene-heading,
+body.itm-concert .scene-floor-label,
+body.itm-concert .center-hint,
+body.itm-concert .bottom-info,
+body.itm-concert .footer,
+body.itm-concert .control-left{display:none!important}
+body.itm-concert .app-shell{max-width:none;width:100%;padding:0;margin:0;min-height:100dvh}
+body.itm-concert .topbar{
+  position:fixed;left:0;right:0;top:0;z-index:45;
+  height:76px;width:100%;
+  display:flex;flex-wrap:nowrap;align-items:center;gap:14px;
+  padding:12px clamp(17px,3.2vw,52px);
+  background:linear-gradient(#090610b8,#09061000);
+  border:0
+}
+body.itm-concert .brand{display:flex;flex:0 1 auto;min-width:0}
+body.itm-concert .brand-logo{max-width:125px;object-fit:contain}
+body.itm-concert .brand-fallback{font-size:21px}
+body.itm-concert .brand-sub{display:inline;font-size:10px;letter-spacing:1.7px;white-space:nowrap}
+body.itm-concert .top-actions{margin-left:auto;gap:clamp(7px,1.1vw,16px)}
+body.itm-concert .nav-button,
+body.itm-concert .account-button{
+  border:1px solid #ffffff4e;
+  border-radius:999px;
+  padding:10px 13px;
+  font-size:11px;
+  white-space:nowrap;
+  background:#0c0816b0;
+  box-shadow:0 4px 20px #0007;
+  backdrop-filter:blur(12px)
+}
+body.itm-concert .account-button{color:#ffe9ff}
+body.itm-concert .nav-button:hover,
+body.itm-concert .account-button:hover{background:#ffffff27}
+body.itm-concert .main{padding:0;position:static}
+body.itm-concert .hero{position:fixed;inset:0;width:100vw;height:100dvh;min-height:0;display:block;overflow:hidden}
+body.itm-concert .scene-wrap{
+  position:absolute!important;inset:0!important;z-index:1!important;
+  margin:0!important;width:100%!important;height:100%!important;
+  overflow:hidden!important;background:#080610;
+}
+body.itm-concert .scene-wrap canvas{
+  position:absolute!important;inset:0!important;
+  display:block!important;width:100%!important;height:100%!important;
+  pointer-events:none!important;touch-action:pan-y
+}
+body.itm-concert .scene-wrap .aura-ring{display:none}
+body.itm-concert .control-zone{
+  position:fixed;bottom:max(35px,env(safe-area-inset-bottom,0px));left:50%;
+  z-index:40;transform:translateX(-50%);
+  display:flex;align-items:center;justify-content:center;
+  width:min(520px,calc(100vw - 32px));padding:0;
+  border:0;background:transparent;pointer-events:none
+}
+body.itm-concert .draw-actions{
+  width:100%;display:flex;justify-content:center;flex-wrap:nowrap;
+  gap:14px;margin:0;pointer-events:auto
+}
+body.itm-concert .draw-actions .btn{
+  display:flex;justify-content:center;align-items:center;
+  height:65px;min-height:0;min-width:0;flex:1 1 0;padding:0 15px;
+  border-radius:999px;white-space:nowrap;
+  font-size:clamp(15px,1.7vw,19px);font-weight:900;
+  letter-spacing:-.4px;
+  transition:transform .2s,box-shadow .2s,filter .2s;
+  isolation:isolate;overflow:hidden;position:relative
+}
+body.itm-concert .btn.secondary{
+  color:#fff;background:#171025de;border:1px solid #dbb9ec7d;
+  box-shadow:0 14px 30px #0009,inset 0 1px 0 #ffffff22;
+  backdrop-filter:blur(12px)
+}
+body.itm-concert .btn.primary{
+  color:#25112b;border:1px solid #fff0be;
+  background:linear-gradient(110deg,#ffe6db,#fcb4e6 28%,#c9a7ff 55%,#ffe3b0 80%,#fff3d8);
+  box-shadow:0 0 17px #d99aff8c,0 0 32px #e2b2fc4d,0 12px 30px #0008
+}
+body.itm-concert .btn.primary:before{
+  content:"";pointer-events:none;position:absolute;inset:0;z-index:-1;
+  background:linear-gradient(105deg,transparent 21%,#ffffffbb 45%,transparent 62%);
+  transform:translateX(-140%);animation:itmButtonGleam 4s ease-in-out infinite
+}
+@keyframes itmButtonGleam{0%,59%{transform:translateX(-140%)}93%,100%{transform:translateX(140%)}}
+body.itm-concert .btn:hover:not(:disabled){transform:translateY(-3px);filter:brightness(1.04)}
+body.itm-concert .odds-link{bottom:12px;right:clamp(16px,3vw,48px);font-size:10px;z-index:39;color:#b6a4c6}
+body.itm-concert .toast{z-index:125}
+body.itm-concert .overlay{z-index:100}
+body.itm-concert .pack-reveal-stage{z-index:72}
+body.itm-concert .control-zone[hidden]{display:none}
+/* Stage-screen reacts to N/R/SR/SSR/UR rarity independently of the WebGL scene. */
+.concert-led-wall{
+  --led-accent:#c980e8;position:absolute;pointer-events:none;
+  left:3%;right:3%;top:11%;height:63%;
+  z-index:0;overflow:hidden;
+  border:1px solid #ffffff11;
+  border-radius:6px;
+  background:linear-gradient(120deg,#140c23e8,#3513479f,#160d28e9);
+  box-shadow:inset 0 0 110px #000b,0 0 40px #cc60ed1a
+}
+.concert-led-wall:before{
+  content:"";position:absolute;inset:0;
+  background:radial-gradient(circle,var(--led-accent) 2.15px,transparent 3.2px) 0 0 / 12px 12px;
+  opacity:.62;
+  -webkit-mask-image:radial-gradient(ellipse at center,#000 29%,transparent 78%);
+  mask-image:radial-gradient(ellipse at center,#000 29%,transparent 78%)
+}
+.concert-led-wall:after{
+  content:"ITM";position:absolute;inset:0;
+  display:grid;place-items:center;
+  font:italic 900 clamp(125px,27vw,400px) Georgia,serif;
+  letter-spacing:-.08em;color:#ffffff09;text-shadow:0 0 60px var(--led-accent);
+}
+.pack-reveal-stage.rarity-n .concert-led-wall{--led-accent:#b7c1d1}
+.pack-reveal-stage.rarity-r .concert-led-wall{--led-accent:#3797ed}
+.pack-reveal-stage.rarity-sr .concert-led-wall{--led-accent:#aa67ec}
+.pack-reveal-stage.rarity-ssr .concert-led-wall{--led-accent:#e8b443}
+.pack-reveal-stage.rarity-ur .concert-led-wall{
+  --led-accent:#d990ff;
+  background:conic-gradient(from 0deg at 50% 50%,#261545,#493485,#165c78,#68266a,#754b29,#261545);
+  background-size:200% 200%;animation:itmPrismWall 7s ease-in-out infinite alternate
+}
+@keyframes itmPrismWall{to{background-position:100% 50%}}
+.pack-reveal-stage.rarity-ssr{--stage-glow:#ffd580}
+.pack-reveal-stage.rarity-ur{--stage-glow:#b991ff}
+/* Only cards themselves scroll; footer stays pinned on iPhone/desktop. */
+body.itm-concert .pack-reveal-stage{background:radial-gradient(ellipse at 50% 43%,#321844 0%,#150b24 57%,#06040e 100%)}
+body.itm-concert .stage-main{z-index:2}
+body.itm-concert .stage-card-rail{z-index:2;position:relative}
+body.itm-concert .stage-footer{z-index:5;background:#130a20e8}
+body.itm-concert .stage-top{z-index:5;background:linear-gradient(#11091cbd,transparent)}
+/* Audience lights are present but deliberately don't obstruct cards or footer. */
+.concert-crowd{
+  position:absolute;bottom:0;left:0;right:0;height:17%;pointer-events:none;
+  overflow:hidden;z-index:1;
+  background:linear-gradient(0deg,#06030bb3,transparent)
+}
+.concert-crowd span{
+  position:absolute;left:var(--x);bottom:var(--bottom);
+  width:var(--width);height:var(--height);
+  border-radius:10px;
+  background:var(--color);
+  opacity:.68;transform:rotate(var(--angle));
+  box-shadow:0 0 9px var(--color);
+  animation:itmAudienceWave var(--speed) ease-in-out infinite alternate
+}
+@keyframes itmAudienceWave{to{transform:rotate(calc(var(--angle) + 15deg)) translateY(-7px)}}
+/* SR/SSR/UR rainbow hover foil: only visible after the card has been unveiled. */
+body.itm-concert .stage-card-button:is(.rarity-sr,.rarity-ssr,.rarity-ur).is-revealed:is(:hover,:focus-visible) .stage-card-front{
+  border:3px solid transparent;
+  background:linear-gradient(#130d25,#130d25) padding-box,
+    conic-gradient(from var(--holo-rotation,0deg),#69eaff,#d788ff,#ff77d4,#ffe19a,#82edcf,#69eaff) border-box;
+  box-shadow:0 0 17px #c79affad,0 0 34px #8dcaff78,0 0 46px #ffdba963;
+  animation:itmHoloGlow 2.3s ease-in-out infinite
+}
+body.itm-concert .stage-card-button:is(.rarity-sr,.rarity-ssr,.rarity-ur).is-revealed:is(:hover,:focus-visible):after{
+  content:"✧";position:absolute;right:-12px;top:-15px;
+  color:#fff7df;font-size:24px;text-shadow:0 0 11px #d9b6ff;
+  pointer-events:none;animation:itmHoloSpark 1.8s linear infinite
+}
+@keyframes itmHoloGlow{0%,100%{filter:brightness(1)}50%{filter:brightness(1.17)}}
+@keyframes itmHoloSpark{0%,100%{opacity:.3;transform:rotate(-30deg) scale(.7)}50%{opacity:1;transform:rotate(40deg) scale(1.25)}}
+/* Premium top rarity full-screen artwork; no baked text, replace art URL later. */
+.rarity-splash[hidden]{display:none!important}
+.rarity-splash{
+  --splash-main:#db9aff;
+  position:fixed;inset:0;z-index:155;
+  overflow:hidden;isolation:isolate;
+  display:block;color:#fff;
+  background:radial-gradient(ellipse at 62% 37%,#62417a,#1e0e32 56%,#07040f 94%)
+}
+.rarity-splash.rarity-ssr{--splash-main:#ffdb85}
+.rarity-splash.rarity-ur{--splash-main:#ce9eff}
+.rarity-splash .splash-blur{
+  position:absolute;inset:-15%;opacity:.4;
+  background-size:cover;background-position:center;
+  filter:blur(35px) brightness(.56) saturate(1.5);
+  transform:scale(1.12)
+}
+.rarity-splash .splash-radiance{
+  position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(ellipse at 67% 43%,transparent 15%,#0b061a77 72%),
+    linear-gradient(90deg,#100719d9 0%,#1007194c 43%,transparent 78%);
+  z-index:2
+}
+.rarity-splash .splash-art{
+  position:absolute;right:3%;top:2%;
+  display:block;width:min(72vw,1040px);height:100%;object-fit:contain;
+  object-position:center center;
+  filter:drop-shadow(0 0 30px var(--splash-main));
+  animation:itmSplashArt 1.2s cubic-bezier(.1,.8,.2,1) both
+}
+@keyframes itmSplashArt{from{opacity:0;transform:translateX(15%) scale(1.2);filter:blur(15px)}to{opacity:1;transform:translateX(0) scale(1);filter:drop-shadow(0 0 28px var(--splash-main))}}
+.rarity-splash .splash-copy{
+  position:absolute;z-index:5;left:clamp(25px,6vw,110px);top:50%;transform:translateY(-40%);
+  text-shadow:0 4px 40px #0b061abf
+}
+.splash-grade{
+  display:block;font:italic 900 clamp(100px,17vw,250px)/.85 Georgia,serif;
+  color:var(--splash-main);letter-spacing:-.07em;
+  filter:drop-shadow(0 0 15px var(--splash-main))
+}
+.rarity-splash.rarity-ur .splash-grade{
+  background:linear-gradient(105deg,#8feaff,#b08cff,#f792e5,#ffe4a0,#9df7c5);
+  background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent
+}
+.splash-series{display:block;font-size:clamp(10px,1.2vw,15px);letter-spacing:.45em;font-weight:900;margin:22px 0 10px;color:#f4d9f5}
+.splash-name{display:block;font:italic 900 clamp(55px,8vw,125px)/1 Georgia,serif;letter-spacing:-.04em}
+.splash-caption{font-size:12px;letter-spacing:.2em;color:#dfcbe7;margin-top:20px}
+.splash-demo{margin-top:12px;font-size:11px;color:#e6d3ed9e}
+.splash-close{position:absolute;z-index:8;top:max(23px,env(safe-area-inset-top));right:clamp(20px,3vw,50px);width:47px;height:47px;border-radius:50%;border:1px solid #ffffff65;background:#190c2cb9;color:#fff;font-size:28px}
+.splash-prisms{position:absolute;inset:0;z-index:3;pointer-events:none;background:
+  linear-gradient(117deg,transparent 22%,#8cdfff20 31%,transparent 45%,#ff9eea23 53%,transparent 62%,#ffdb8b1d 79%,transparent 91%);
+  background-size:200% 200%;animation:itmPrismSweep 4s linear infinite}
+@keyframes itmPrismSweep{to{background-position:100% 50%}}
+.splash-fireworks{position:absolute;inset:0;z-index:4;pointer-events:none}
+.splash-fireworks i{
+  position:absolute;left:var(--sx);top:var(--sy);
+  width:var(--fs);height:var(--fs);border:1px solid var(--fc);
+  border-radius:50%;opacity:0;box-shadow:0 0 11px var(--fc);
+  animation:itmFirework 1.8s var(--fd) ease-out both
+}
+@keyframes itmFirework{0%{opacity:0;transform:scale(.1)}24%{opacity:.85}100%{opacity:0;transform:scale(9)}}
+.concert-intro[hidden]{display:none!important}
+.concert-intro{position:fixed;z-index:130;inset:0;background:#080511;overflow:hidden;display:grid;place-items:center}
+.concert-curtain{position:absolute;top:0;bottom:0;width:50.1%;background:repeating-linear-gradient(90deg,#090611 0%,#1f1033 15%,#391d52 27%,#0c0815 43%,#2b1245 62%,#07050d 100%);box-shadow:inset 0 0 80px #000a}
+.concert-curtain.left{left:0}
+.concert-curtain.right{right:0}
+.concert-intro.opening .concert-curtain.left{animation:itmCurtainLeft 1.25s ease-in-out forwards}
+.concert-intro.opening .concert-curtain.right{animation:itmCurtainRight 1.25s ease-in-out forwards}
+@keyframes itmCurtainLeft{to{transform:translateX(-103%)}}
+@keyframes itmCurtainRight{to{transform:translateX(103%)}}
+.concert-intro .concert-intro-brand{position:relative;z-index:2;display:grid;justify-items:center;gap:18px;font-size:clamp(12px,1.8vw,16px);font-weight:800;letter-spacing:.3em;text-shadow:0 0 25px #dda0ff}
+.concert-intro .concert-intro-brand img{display:block;width:min(48vw,400px);max-height:160px;object-fit:contain;filter:drop-shadow(0 0 25px #b17afa)}
+.concert-intro.opening .concert-intro-brand{animation:itmIntroMark .95s ease-out forwards}
+@keyframes itmIntroMark{to{opacity:0;transform:scale(1.15);filter:blur(13px)}}
+.concert-intro .intro-skip{position:absolute;right:clamp(18px,4vw,50px);bottom:max(23px,env(safe-area-inset-bottom));z-index:7;padding:11px;border:0;background:transparent;color:#eddbf7;font-size:12px;letter-spacing:.2em}
+.concert-intro.opening{animation:itmIntroClear 1.3s ease-in-out forwards}
+@keyframes itmIntroClear{0%,68%{background:#080511}100%{background:#08051100}}
+@media(max-width:780px){
+ body.itm-concert .topbar{height:65px;padding:10px 13px}
+ body.itm-concert .brand-logo{width:70px;max-height:40px}
+ body.itm-concert .brand-sub{display:none}
+ body.itm-concert .top-actions{gap:5px}
+ body.itm-concert .nav-button,body.itm-concert .account-button{padding:9px 8px;font-size:9px;letter-spacing:0}
+ body.itm-concert #audioToggle{display:none}
+ body.itm-concert .control-zone{bottom:max(19px,calc(env(safe-area-inset-bottom,0px) + 10px));width:calc(100vw - 26px)}
+ body.itm-concert .draw-actions{gap:9px}
+ body.itm-concert .draw-actions .btn{height:59px;font-size:15px}
+ body.itm-concert .odds-link{display:none}
+ .concert-led-wall{top:9%;height:65%;left:0;right:0}
+ .concert-crowd{height:9%}
+ .rarity-splash .splash-art{right:-18%;top:1%;width:116%;height:82%;opacity:.86}
+ .rarity-splash .splash-radiance{background:linear-gradient(0deg,#080511 0%,#0805119a 18%,transparent 74%),linear-gradient(90deg,#1109179a,transparent)}
+ .rarity-splash .splash-copy{left:25px;right:18px;top:auto;bottom:max(38px,env(safe-area-inset-bottom));transform:none}
+ .splash-grade{font-size:clamp(85px,24vw,140px)}
+ .splash-series{margin:8px 0 6px;font-size:10px;letter-spacing:.2em}
+ .splash-name{font-size:clamp(53px,14vw,85px)}
+ .splash-caption{margin-top:10px}
+}
+@media(prefers-reduced-motion:reduce){
+ .concert-intro.opening,.concert-intro.opening .concert-curtain.left,.concert-intro.opening .concert-curtain.right,
+ .splash-prisms,.splash-fireworks i,.rarity-splash .splash-art,
+ .concert-crowd span,body.itm-concert .btn.primary:before{animation:none!important}
+}
