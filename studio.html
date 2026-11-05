@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="ko"><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<meta name="theme-color" content="#110b21"/>
+<title>ITM — CARD STUDIO</title>
+<link rel="icon" href="./assets/favicon.svg" type="image/svg+xml"/>
+<link rel="stylesheet" href="./studio.css"/>
+<script src="./config.js"></script>
+<script type="module" src="./studio.js"></script>
+</head><body>
+<header class="studio-header">
+  <a class="brand" href="./"><img src="./assets/itm-logo.png" alt="ITM" /> <span>카드 제작 스튜디오 <small>ITM · THE MOMENT</small></span></a>
+  <div class="head-actions"><span class="status" id="accessState">연결 중…</span><a class="soft-btn" href="./">게임으로 돌아가기</a></div>
+</header>
+<main>
+  <section class="intro"><span class="eyebrow">COLLECT THE MOMENTS · CREATE THE CARDS</span>
+    <h1>카드 제작 스튜디오<span> ✦</span></h1>
+    <p>사진과 그룹 로고를 등록하고, 확정된 ITM 프레임에서 크롭을 조절해 보세요. 공개된 카드는 게임의 카드팩과 도감에 연결됩니다.</p>
+  </section>
+  <section class="notice" id="authPanel" aria-live="polite">
+    <div><strong id="authHeadline">관리자 로그인</strong><p id="authNotice">편집은 미리 체험할 수 있으며, 서버 저장과 공개는 ITM 관리자만 할 수 있습니다.</p></div>
+    <form id="studioLogin" class="inline-login">
+      <input id="studioUsername" type="text" placeholder="ITM ID" aria-label="ITM ID" autocomplete="username" maxlength="20" />
+      <input id="studioPassword" type="password" placeholder="비밀번호" aria-label="비밀번호" autocomplete="current-password"/>
+      <button class="action small" type="submit">로그인</button>
+    </form>
+    <button class="soft-btn" id="studioLogout" hidden>로그아웃</button>
+  </section>
+  <section class="tools">
+    <article class="group-section panel">
+      <div class="section-heading"><div><span class="eyebrow">01 / GROUP LIBRARY</span><h2>그룹 및 로고</h2></div><button type="button" id="newGroup" class="soft-btn">+ 새 그룹</button></div>
+      <form id="groupForm" class="group-form">
+        <label>기존 그룹 <select id="groupPicker"><option value="">새 그룹 만들기</option></select></label>
+        <label>그룹 코드 <input id="groupSlug" placeholder="예: ive" maxlength="40" pattern="[a-z0-9][a-z0-9_-]{1,39}" required/></label>
+        <label>그룹명 <input id="groupName" placeholder="그룹명" maxlength="70" required/></label>
+        <label>그룹 로고 (투명 PNG · WebP 권장) <input id="groupLogo" type="file" accept="image/png,image/jpeg,image/webp"/></label>
+        <div class="logo-display"><img id="groupLogoPreview" hidden alt="등록할 그룹 로고"/><span id="groupLogoEmpty">그룹 로고 미등록 — 나중에 추가 가능</span></div>
+        <button class="action" id="saveGroup" type="submit" disabled>그룹 저장</button>
+      </form>
+    </article>
+    <article class="card-section panel">
+      <div class="section-heading"><div><span class="eyebrow">02 / CARD EDITOR</span><h2>카드 정보 및 사진</h2></div><button id="newCard" type="button" class="soft-btn">+ 신규 카드</button></div>
+      <form id="cardForm">
+        <div class="field-row">
+          <label>그룹 <select id="cardGroup" required><option value="">그룹을 선택하세요</option></select></label>
+          <label>등급 <select id="cardRarity"><option>N</option><option>R</option><option>SR</option><option>SSR</option><option>UR</option></select></label>
+        </div>
+        <label>멤버 / 카드명 <input id="cardName" required maxlength="100" placeholder="카드에 기록될 멤버명"/></label>
+        <label>컬렉션 / 시리즈 <input id="cardEdition" maxlength="100" value="DEBUT COLLECTION"/></label>
+        <label>카드 사진 <input id="cardPhoto" type="file" accept="image/jpeg,image/png,image/webp"/></label>
+        <p class="helper">이미지를 올리면 오른쪽 프레임에 실시간으로 합성됩니다. 사진을 드래그해 위치도 바꿀 수 있습니다.</p>
+        <div class="range-controls">
+          <label for="photoZoom">사진 확대 <output id="zoomLabel">100%</output></label>
+          <input id="photoZoom" type="range" min="100" max="300" value="100" step="1"/>
+          <label for="photoX">가로 위치 <output id="xLabel">0</output></label>
+          <input id="photoX" type="range" min="-100" max="100" value="0" step="1"/>
+          <label for="photoY">세로 위치 <output id="yLabel">0</output></label>
+          <input id="photoY" type="range" min="-100" max="100" value="0" step="1"/>
+          <button id="resetCrop" type="button" class="soft-btn">사진 위치 초기화</button>
+        </div>
+        <label>UR 전체 화면 연출용 사진 (선택) <input id="cardFullArt" type="file" accept="image/jpeg,image/png,image/webp"/></label>
+        <p class="helper">UR 획득 시 프레임 없이 표시할 원본 일러스트를 따로 지정할 수 있습니다.</p>
+        <div class="field-row bottom-fields">
+          <label>공개 상태 <select id="cardStatus"><option value="draft">임시 저장 (비공개)</option><option value="published">공개 (팩·도감 반영)</option></select></label>
+          <label>카드 ID <input id="cardId" readonly placeholder="새 카드"/></label>
+        </div>
+        <div class="submit-row"><button id="saveCard" class="action" type="submit" disabled>카드 저장</button><button id="exportPreview" type="button" class="soft-btn">미리보기 PNG</button></div>
+      </form>
+    </article>
+    <aside class="preview-section panel">
+      <div class="section-heading"><div><span class="eyebrow">03 / LIVE PREVIEW</span><h2>완성 이미지 미리보기</h2></div></div>
+      <div class="preview-holder"><canvas id="previewCanvas" width="1024" height="1492" aria-label="완성될 카드 프레임 미리보기"></canvas></div>
+      <div class="rarity-pills" id="previewGrades">
+        <button data-rarity="N" type="button" class="selected">N</button><button data-rarity="R" type="button">R</button>
+        <button data-rarity="SR" type="button">SR</button><button data-rarity="SSR" type="button">SSR</button><button data-rarity="UR" type="button">UR</button>
+      </div>
+      <p class="helper">최종 합성 사이즈 1024 × 1492px · 카드 속 ITM 로고 없음 · 그룹 로고는 우측 하단에 표시됩니다.</p>
+    </aside>
+  </section>
+  <section class="library panel"><div class="section-heading"><div><span class="eyebrow">04 / RELEASE LIBRARY</span><h2>제작 카드 목록 <span id="cardCount">0</span></h2></div><button id="refreshCards" class="soft-btn">목록 새로고침</button></div>
+    <div id="cardLibrary" class="card-library"><p class="empty">아직 등록된 카드가 없습니다.</p></div>
+    <p class="helper">실제 운영은 관리자 권한이 있어야 가능합니다. 공개 카드는 등급 N·R·SR·SSR·UR 각 1장 이상 등록된 뒤 일반 팩에 반영됩니다. 테스트 카드는 그대로 보존됩니다.</p>
+  </section>
+  <p class="studio-toast" id="studioMessage" role="status" aria-live="polite"></p>
+</main>
+</body></html>
