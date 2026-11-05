@@ -294,12 +294,64 @@ export function createConcertStage({THREE,scene,renderer,oldBeams=[]}) {
   const particles=new THREE.Points(fireGeom,fireMaterial);particles.visible=false;particles.frustumCulled=false;venue.add(particles);
   let boomAt=-1;
 
+  function ledWave(style,x,y,t){
+    const r=Math.hypot(x-.51,(y-.51)*1.35);
+    switch(style){
+      case 0: return .5+.5*Math.sin(x*17-t*1.36+Math.sin(y*10+t*.3)*1.5); // left -> right
+      case 1: return .5+.5*Math.sin(x*18+t*1.26+Math.cos(y*9-t*.3)*1.5); // reverse
+      case 2: return .5+.5*Math.sin(r*30-t*1.5); // expanding ring
+      case 3: return .5+.5*Math.sin(r*29+t*1.46); // gathering inward
+      case 4: return .5+.5*Math.sin(y*16-t*.62+x*6)*Math.sin(t*.42+x*5); // soft pulse
+      default: return .5+.5*Math.sin((x+y*.72)*23-t*1.03); // diagonal drift
+    }
+  }
+  function drawOrbitMotif(t,w,h){
+    // The Saturn-like luminous ring and four-point star from the concept stage.
+    // Paint them into the emissive LED texture, always behind the physical pack.
+    g.save();g.globalCompositeOperation='screen';
+    for(let line=0;line<3;line++){
+      const drift=Math.sin(t*.21+line)*7;
+      const grd=g.createLinearGradient(w*.18,h*.65,w*.82,h*.22);
+      grd.addColorStop(0,'#ff86d50a');
+      grd.addColorStop(.32,line===1?'#ffbbf879':'#fcb0f43b');
+      grd.addColorStop(.67,line===1?'#ffe4ff9e':'#fbadf978');
+      grd.addColorStop(1,'#ffffff13');
+      g.strokeStyle=grd;
+      g.lineWidth=line===1?2.8:line===0?8:1.3;
+      g.shadowColor='#ff95e9';g.shadowBlur=line===1?23:9;
+      g.beginPath();
+      g.moveTo(-w*.035,h*(.73+line*.035));
+      g.bezierCurveTo(w*.17,h*.82+drift,w*.41,h*.08+drift,w*.67,h*.37+line*7);
+      g.bezierCurveTo(w*.88,h*.56,w*.91,h*.22,w*1.05,h*.25);
+      g.stroke();
+    }
+    // One elliptical orbit appears to pass around the glowing LED centerpiece.
+    g.lineWidth=1.3;g.shadowBlur=17;g.strokeStyle='#ffcaf88b';
+    g.beginPath();
+    g.ellipse(w*.53,h*.49,w*.36,h*.26,-.24,Math.PI*.13,Math.PI*1.93);
+    g.stroke();
+    const starX=w*.77,starY=h*.335+Math.sin(t*.53)*3;
+    const radius=27+Math.sin(t*1.2)*2.5;
+    const rg=g.createRadialGradient(starX,starY,1,starX,starY,radius*2.6);
+    rg.addColorStop(0,'#ffffffed');rg.addColorStop(.15,'#ffe5ffb8');
+    rg.addColorStop(.42,'#f7b0f758');rg.addColorStop(1,'#ff80df00');
+    g.fillStyle=rg;g.fillRect(starX-radius*3,starY-radius*3,radius*6,radius*6);
+    g.fillStyle='#fff9ff';g.shadowColor='#ffd0ff';g.shadowBlur=19;
+    g.beginPath();
+    g.moveTo(starX,starY-radius*1.52);
+    g.quadraticCurveTo(starX+radius*.18,starY-radius*.17,starX+radius*1.52,starY);
+    g.quadraticCurveTo(starX+radius*.18,starY+radius*.16,starX,starY+radius*1.52);
+    g.quadraticCurveTo(starX-radius*.18,starY+radius*.16,starX-radius*1.52,starY);
+    g.quadraticCurveTo(starX-radius*.18,starY-radius*.18,starX,starY-radius*1.52);
+    g.fill();g.restore();
+  }
   function drawLED(t){
     const w=screenCanvas.width,h=screenCanvas.height;
     const p=C[grade]||C.DEFAULT;
     const base=g.createLinearGradient(0,0,w,h*.3);
-    if(blackout){base.addColorStop(0,'#03030a');base.addColorStop(1,'#08040e');}
-    else if(grade==='UR'){
+    if(blackout){
+      base.addColorStop(0,'#03030a');base.addColorStop(1,'#08040e');
+    }else if(grade==='UR'){
       ['#4b1b78','#914c9b','#a84576','#548ca5','#b46b8e','#6c2b8b'].forEach((v,i)=>base.addColorStop(i/5,v));
     }else{
       base.addColorStop(0,p[0]);base.addColorStop(.39,p[1]);base.addColorStop(.75,p[2]);base.addColorStop(1,p[0]);
@@ -308,35 +360,33 @@ export function createConcertStage({THREE,scene,renderer,oldBeams=[]}) {
     const vignette=g.createRadialGradient(w*.51,h*.45,10,w*.51,h*.45,w*.65);
     vignette.addColorStop(0,'#ffffff10');vignette.addColorStop(.6,'#00000000');vignette.addColorStop(1,'#05010d8d');
     g.fillStyle=vignette;g.fillRect(0,0,w,h);
-    const sx=w/150,sy=h/65;
-    const step=isMobile()?12:11;
+    // Change waveform every ~5 seconds with a crossfade, not a visible jump.
+    const cycle=t/5.2,pattern=Math.floor(cycle)%6;
+    const transition=smooth(clamp((cycle%1-.77)/.23));
+    const step=isMobile()?9:7;
     for(let y=step/2;y<h;y+=step){
       for(let x=step/2;x<w;x+=step){
-        const wave=Math.sin(x*.015-t*.9+Math.sin(y*.023+t*.39)*2.4)*.5+.5;
-        const focus=Math.pow(Math.max(0,Math.sin(x*.004+y*.006+t*.33)),4);
-        const pulse=Math.min(1,.14+wave*.38+focus*.42);
-        const opacity=blackout?.07:pulse;
+        const nx=x/w,ny=y/h;
+        const waveA=ledWave(pattern,nx,ny,t);
+        const waveB=ledWave((pattern+1)%6,nx,ny,t);
+        const wave=mix(waveA,waveB,transition);
+        const ridge=Math.pow(Math.max(0,Math.sin(nx*8.1+ny*5.6+t*.37)),4);
+        const breathing=.87+.13*Math.sin(t*.76);
+        const opacity=blackout?.045:Math.min(.93,(.16+wave*.55+ridge*.16)*breathing);
         let color;
         if(grade==='UR'){
-          const hue=(x/w*.65+t*.05+y/h*.15)%1;
-          color='hsla('+(hue*360).toFixed(0)+',98%,87%,'+opacity.toFixed(2)+')';
+          const hue=(nx*.65+t*.052+ny*.15)%1;
+          color='hsla('+(hue*360).toFixed(0)+',98%,88%,'+opacity.toFixed(2)+')';
         }else if(grade==='SSR')color='rgba(255,225,166,'+opacity.toFixed(2)+')';
         else if(grade==='SR')color='rgba(231,170,255,'+opacity.toFixed(2)+')';
         else if(grade==='WHITE')color='rgba(255,253,255,'+opacity.toFixed(2)+')';
-        else color='rgba(255,176,226,'+opacity.toFixed(2)+')';
-        g.fillStyle=color;g.beginPath();g.arc(x,y,(step*.27),0,Math.PI*2);g.fill();
+        else color='rgba(255,184,229,'+opacity.toFixed(2)+')';
+        g.fillStyle=color;g.beginPath();g.arc(x,y,step*.27,0,Math.PI*2);g.fill();
       }
     }
     if(!blackout){
-      // Soft glowing light ribbon, animated rather than an enormous white wash.
-      g.save();g.globalCompositeOperation='screen';
-      g.lineWidth=isMobile()?2.6:3.5;
-      g.strokeStyle=grade==='UR'?'#e4ffff6b':'#ffcaee79';
-      g.shadowColor=grade==='SSR'?'#ffe6a5':'#f0a0e6';g.shadowBlur=13;
-      g.beginPath();g.moveTo(-w*.07,h*.68);
-      g.bezierCurveTo(w*.1,h*.60+Math.sin(t*.42)*30,w*.39,h*.10,w*.59,h*.42);
-      g.bezierCurveTo(w*.78,h*.70,w*.90,h*.20,w*1.07,h*.29);g.stroke();g.restore();
-      g.fillStyle='#ffffff1a';g.textAlign='center';
+      drawOrbitMotif(t,w,h);
+      g.fillStyle='#fff9ff19';g.textAlign='center';
       g.font='italic 900 '+Math.round(h*.19)+'px Georgia,serif';
       g.fillText('ITM',w*.5,h*.59);
     }
