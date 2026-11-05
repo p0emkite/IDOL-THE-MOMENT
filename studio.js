@@ -193,11 +193,32 @@ function refreshSelectors(){
   $('groupPicker').value=state.groups.some(x=>x.slug===existing)?existing:'';
 }
 
-/* Editions are scoped to their own group, and newly entered album names
-   are registered when the first card of that series is saved. */
-function refreshSeriesOptions(){
+/* Show a real dropdown of series belonging to the selected group. Include
+   editions already used on cards as well as separately registered series. */
+function refreshSeriesOptions(reset=false){
   const slug=$('cardGroup').value;
-  $('groupSeriesList').replaceChildren(...state.series.filter(x=>x.group_slug===slug).map(x=>new Option(x.name,x.name)));
+  const editor=$('cardEdition');
+  if(reset)editor.value='';
+  const names=[...new Set([
+    ...state.series.filter(s=>s.group_slug===slug).map(s=>s.name),
+    ...state.cards.filter(c=>c.group_slug===slug).map(c=>c.edition)
+  ].map(name=>typeof name==='string'?name.trim():'').filter(Boolean))]
+    .sort((a,b)=>a.localeCompare(b,'ko'));
+  const picker=$('cardSeriesPicker');
+  picker.replaceChildren(new Option('＋ 새 컬렉션 / 시리즈 직접 입력',''),
+    ...names.map(name=>new Option(name,name)));
+  const edition=editor.value.trim();
+  const existing=names.includes(edition);
+  picker.value=existing?edition:'';
+  picker.disabled=!slug;
+  $('cardEditionField').hidden=existing;
+}
+function selectCardSeries(){
+  const edition=$('cardSeriesPicker').value;
+  $('cardEdition').value=edition;
+  $('cardEditionField').hidden=Boolean(edition);
+  if(!edition)$('cardEdition').focus();
+  queuePreview();
 }
 function renderChoiceGrid(target,items,selected,formatter){
   const box=$(target);box.replaceChildren();
@@ -318,6 +339,7 @@ function clearCard(){
   $('urNameColor').value='#f0c76d';refreshURColorControls();
   refreshCardMembers('');
   $('cardId').value='';
+  refreshSeriesOptions();
   setTransform({scale:1,x:0,y:0});
   queuePreview();
 }
@@ -325,9 +347,10 @@ async function loadCard(card){
   if(!card)return;
   state.editingId=card.id;state.photoFile=null;state.fullArtFile=null;
   state.imagePath=card.photo_path||null;state.fullArtPath=card.full_art_path||null;
-  $('cardGroup').value=card.group_slug;refreshCardMembers(card.member_id);refreshSeriesOptions();
+  $('cardGroup').value=card.group_slug;refreshCardMembers(card.member_id);
   $('cardName').value=card.display_name;
   $('cardEdition').value=card.edition;
+  refreshSeriesOptions();
   $('cardRarity').value=card.rarity;
   $('urNameColor').value=card.ur_name_color||'#f0c76d';
   refreshURColorControls();
@@ -554,7 +577,8 @@ function bind(){
   $('newCard').onclick=()=>{clearCard();syncLogo()};
   $('memberForm').onsubmit=saveMember;
   $('memberPicker').onchange=()=>refreshMembers($('memberPicker').value);
-  $('cardGroup').onchange=()=>{refreshCardMembers('');refreshSeriesOptions();syncLogo()};
+  $('cardGroup').onchange=()=>{refreshCardMembers('');refreshSeriesOptions(true);syncLogo()};
+  $('cardSeriesPicker').onchange=selectCardSeries;
   $('cardMember').onchange=()=>{
     const member=state.members.find(m=>m.id===$('cardMember').value);
     if(member)$('cardName').value=member.name;
