@@ -272,3 +272,6 @@ body.itm-concert .pack-choice[hidden]{display:none!important}
 body.itm-concert .pack-choice select{min-height:42px;max-width:180px;padding:0 10px;
   background:#170c28ee;color:#fff;border:1px solid #d9a8ee80;border-radius:10px}
 @media(max-width:780px){body.itm-concert .pack-choice select{max-width:125px}}
+
+/* Hidden attribute takes priority over the administrator-only upload label style. */
+#soundPanel #musicUploadLabel[hidden]{display:none!important}
