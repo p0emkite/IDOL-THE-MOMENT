@@ -586,14 +586,14 @@ function frame(now){
     // Micro-tremor, accelerated shake, then a quick physical snap before the tear.
     const charge=opening?EASE(clamp(elapsed/.85,0,1))*(1-EASE(clamp((elapsed-2.38)/.39,0,1))):0;
     const oscillation=19+Math.min(2.4,elapsed)*9;
-    const snap=opening?Math.sin(Math.PI*clamp((elapsed-2.48)/.39,0,1))*.18:0;
+    const snap=opening?Math.sin(Math.PI*clamp((elapsed-2.48)/.39,0,1))*.09:0;
     const floatX=Math.sin(t*.53)*.095+Math.sin(t*.22)*.06;
-    pack.position.set(floatX+(opening?charge*Math.sin(t*12)*.035:0),
+    pack.position.set(floatX+(opening?charge*Math.sin(t*12)*.017:0),
       Math.sin(t*1.06)*.12+(opening?EASE(clamp(elapsed/2.1,0,1))*.18+snap:0),
       Math.cos(t*.37)*.032);
-    pack.rotation.y=-.16+Math.sin(t*.54)*.16+(opening?charge*Math.sin(t*oscillation)*.16:0);
-    pack.rotation.x=Math.sin(t*.66)*.025+(opening?charge*Math.sin(t*23)*.053:0);
-    pack.rotation.z=Math.sin(t*.48)*.02+(opening?charge*Math.sin(t*(oscillation+7))*.13+snap*.24:0);
+    pack.rotation.y=-.16+Math.sin(t*.54)*.16+(opening?charge*Math.sin(t*oscillation)*.075:0);
+    pack.rotation.x=Math.sin(t*.66)*.025+(opening?charge*Math.sin(t*23)*.026:0);
+    pack.rotation.z=Math.sin(t*.48)*.02+(opening?charge*Math.sin(t*(oscillation+7))*.062+snap*.16:0);
     pack.scale.setScalar(opening?1+EASE(clamp(elapsed/2.7,0,1))*.095+snap*.085:1);
     if(packSheen)packSheen.material.opacity=.21+.17*(.5+.5*Math.sin(t*.72+pack.rotation.y*3));
     pack.visible=(ready||opening)&&tear<=.004;
@@ -604,7 +604,7 @@ function frame(now){
       packParts.position.copy(pack.position);packParts.rotation.copy(pack.rotation);
       packParts.scale.copy(pack.scale);
       // Top seal peels off; shell sinks as the holographic card clears the opening.
-      const kick=Math.sin(split*Math.PI)*.24;
+      const kick=Math.sin(split*Math.PI)*.28;
       packTop.position.y=(3.83-.95)/2+split*1.07+kick;
       packTop.position.x=split*.43;
       packTop.position.z=split*.21;
@@ -620,8 +620,8 @@ function frame(now){
       openingCard.visible=opening&&elapsed>2.94&&elapsed<4.6;
       if(openingCard.visible){
         const rise=EASE(emerge);
-        const bounce=Math.sin(Math.PI*clamp((emerge-.65)/.35,0,1))*.08;
-        openingCard.position.set(pack.position.x,pack.position.y-.83+rise*2.18+bounce,.30+rise*.36);
+        const bounce=Math.sin(Math.PI*clamp((emerge-.65)/.35,0,1))*.115;
+        openingCard.position.set(pack.position.x,pack.position.y-.83+rise*2.3+bounce,.30+rise*.36);
         openingCard.rotation.y=-.46*(1-rise)+Math.sin(t*.7)*.035;
         openingCard.rotation.x=.14*(1-rise);
         openingCard.rotation.z=-.13*(1-rise)+Math.sin(t*.85)*.015;
