@@ -107,6 +107,9 @@ async function loadPublishedCatalog(){
     LIVE_POOL.push(card);byId.set(card.id,card);
   }
   LIVE_READY=TIERS.every(t=>LIVE_POOL.some(c=>c.rarity===t.key));
+  if($('oddsDescription'))$('oddsDescription').textContent=LIVE_READY?
+    '실제 카드 팩: 1회·5회 모두 매 카드 독립 추첨이며 아래 확률을 적용합니다. 등급별 공개 카드 중 무작위 선정됩니다.':
+    '테스트 카드팩: 1회는 아래 확률, 5회는 각 등급 1장씩 확정 등장합니다.';
   if($('stageFooterNote')){
     $('stageFooterNote').textContent=LIVE_READY?
       '✦ THE MOMENT COLLECTION · 공개 카드가 팩과 도감에 실시간 반영됩니다.':
@@ -400,7 +403,7 @@ function makeCardArt(card){
   // In production the same renderer composites separately stored media with
   // the single, approved N–UR frame. The output is never pre-flattened.
   const canvas=renderITMCard(card,{photo,groupLogo,photoTransform:card.photo_transform});
-  if(!card.isLive||photo)artCache.set(cacheKey,canvas);
+  if(!card.isLive||(photo&&(!card.group_logo_url||groupLogo)))artCache.set(cacheKey,canvas);
   return canvas;
 }
 function makeBackTexture(){const c=document.createElement('canvas');c.width=512;c.height=746;const g=c.getContext('2d');const b=g.createLinearGradient(0,0,512,746);b.addColorStop(0,'#300d51');b.addColorStop(.5,'#100d2c');b.addColorStop(1,'#68307b');g.fillStyle=b;g.fillRect(0,0,512,746);g.strokeStyle='#e7a3f7';g.lineWidth=8;g.strokeRect(18,18,476,710);g.strokeStyle='#ffffff70';g.lineWidth=1.4;g.strokeRect(34,34,444,678);for(let i=0;i<7;i++){g.save();g.translate(256,360);g.rotate(i*Math.PI/7);g.strokeStyle='#e99cea44';g.beginPath();g.ellipse(0,0,160,250,0,0,Math.PI*2);g.stroke();g.restore()}g.textAlign='center';g.fillStyle='#ffaedc';g.font='120px serif';g.fillStyle='#fff';g.font='900 43px system-ui';g.fillText('ITM',256,457);g.font='bold 15px system-ui';g.fillStyle='#e9badb';g.fillText('IDOL : THE MOMENT',256,493);return c}
@@ -1208,5 +1211,12 @@ function bind(){
   });
   $('oddsRows').innerHTML=TIERS.map(t=>`<div class="odds-row"><div class="odds-tier"><span class="odds-chip ${t.key==='UR'?'holo':''}" style="background:${tierCssGradient(t.key)}">${t.key}</span><strong>${t.label}</strong></div><span>${t.chance}%</span></div>`).join('');
   fillConcertCrowd();showControls(['drawOne','drawFive']);updateCounts();updateLogin();syncCanvasPointerEvents();
+  document.addEventListener('visibilitychange',()=>{
+    if(document.visibilityState==='visible'&&state.supabase){
+      void loadPublishedCatalog().then(()=>{
+        if($('collectionOverlay').classList.contains('active'))renderCollection();
+      }).catch(e=>console.warn('Catalog refresh skipped',e));
+    }
+  });
 }
 bind();init3D();initBackend();
