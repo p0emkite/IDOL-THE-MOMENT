@@ -192,7 +192,7 @@ async function checkFrameTemplates(){
   // Regression capture: bright source photos expose corner-mask smears that
   // cannot be seen against the dark empty-card preview.
   await preview.evaluate(async()=>{
-    const {renderITMCard}=await import('./card-frame.js?v=crisp-corners-20261105');
+    const {renderITMCard}=await import('./card-frame.js?v=crisp-corners-final-20261105');
     const photo=document.createElement('canvas');
     photo.width=720;photo.height=1020;
     const p=photo.getContext('2d');
