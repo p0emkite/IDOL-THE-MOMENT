@@ -1,0 +1,134 @@
+/* ITM UR reveal payoff — additive effects only. Card frames and artwork are untouched. */
+body.itm-concert .pack-reveal-stage.ur-anticipating .stage-headline,
+body.itm-concert .pack-reveal-stage.ur-anticipating .stage-kicker,
+body.itm-concert .pack-reveal-stage.ur-anticipating .stage-card-button:not(.ur-primed){
+  filter:brightness(.32) saturate(.55);
+  transition:filter .12s ease-out;
+}
+body.itm-concert .stage-card-button.ur-primed{
+  z-index:6;
+  filter:brightness(1.20) drop-shadow(0 0 20px #ff89e5);
+  animation:itmURHold .3s ease-in-out both!important;
+}
+@keyframes itmURHold{
+  0%,100%{transform:translateY(0) scale(1)}
+  55%{transform:translateY(-3px) scale(1.055)}
+}
+/* Impact moves the stage a few pixels, not the existing frame geometry. */
+body.itm-concert .pack-reveal-stage.ur-impact .stage-main{
+  animation:itmURStageHit .47s cubic-bezier(.11,.82,.21,1) both;
+}
+@keyframes itmURStageHit{
+  0%{translate:0 0}11%{translate:-6px 4px}25%{translate:5px -3px}
+  43%{translate:-3px 2px}65%{translate:2px -1px}100%{translate:0 0}
+}
+body.itm-concert .stage-card-button.rarity-ur.is-revealed.ur-impact-card{
+  animation:itmURCardHit .75s cubic-bezier(.15,.8,.16,1) both!important;
+}
+@keyframes itmURCardHit{
+  0%{transform:translateY(0) scale(.91)}
+  20%{transform:translateY(-9px) scale(1.15)}
+  52%{transform:translateY(2px) scale(.99)}
+  100%{transform:translateY(0) scale(1)}
+}
+.itm-ur-payoff{
+  position:fixed;inset:0;z-index:7;overflow:hidden;pointer-events:none;
+  opacity:0;isolation:isolate;
+}
+.itm-ur-payoff.active{opacity:1}
+.itm-ur-payoff.active::before{
+  content:"";position:absolute;inset:-12%;
+  background:conic-gradient(from 8deg at var(--origin-x) var(--origin-y),
+    #fff9 0deg,transparent 12deg,#bca8ff72 25deg,transparent 37deg,
+    #ffe4aa66 56deg,transparent 72deg,#ff81e47f 95deg,transparent 110deg,
+    #e4faff80 139deg,transparent 157deg,#fce1ff77 180deg,transparent 204deg,
+    #9deafa79 226deg,transparent 248deg,#ffaffb88 280deg,transparent 304deg,
+    #ffda9d76 332deg,transparent 350deg,#fff9 360deg);
+  mask-image:radial-gradient(ellipse at var(--origin-x) var(--origin-y),#000 0%,transparent 66%);
+  animation:itmURRays 1.15s ease-out both;
+}
+.itm-ur-hit-flash{
+  position:absolute;inset:0;
+  background:radial-gradient(ellipse at var(--origin-x) var(--origin-y),
+    #fff 0%,#fff9 9%,#ffbdef99 21%,#a779ff36 42%,transparent 68%);
+  opacity:0;
+}
+.active .itm-ur-hit-flash{animation:itmURFlash .7s ease-out both}
+.itm-ur-shockwave{
+  position:absolute;left:var(--origin-x);top:var(--origin-y);
+  width:min(68vmin,540px);aspect-ratio:1;border:3px solid #ffeaff;
+  border-radius:50%;box-shadow:0 0 15px #fff,0 0 38px #fc95ef, inset 0 0 28px #9ff4ff;
+  transform:translate(-50%,-50%) scale(.08);opacity:0;
+}
+.active .itm-ur-shockwave{animation:itmURShockwave .9s var(--ring-delay) cubic-bezier(.06,.65,.18,1) both}
+.itm-ur-spark{
+  position:absolute;left:var(--spark-x);top:var(--spark-y);
+  width:clamp(4px,.65vw,9px);aspect-ratio:1;border-radius:50%;
+  background:hsl(var(--spark-hue) 100% 83%);
+  box-shadow:0 0 9px 3px currentColor;
+  color:hsl(var(--spark-hue) 100% 77%);
+  opacity:0;
+}
+.itm-ur-spark.star{width:3px;height:18px;border-radius:8px;rotate:28deg}
+.active .itm-ur-spark{animation:itmURSpark 1.45s var(--spark-delay) cubic-bezier(.15,.55,.34,1) both}
+@keyframes itmURRays{
+  0%{opacity:0;transform:scale(.73) rotate(-8deg)}
+  9%{opacity:.85}
+  100%{opacity:0;transform:scale(1.28) rotate(14deg)}
+}
+@keyframes itmURFlash{0%{opacity:0}6%{opacity:.92}27%{opacity:.43}100%{opacity:0}}
+@keyframes itmURShockwave{
+  0%{opacity:0;transform:translate(-50%,-50%) scale(.08)}
+  12%{opacity:.92}
+  100%{opacity:0;transform:translate(-50%,-50%) scale(3.6)}
+}
+@keyframes itmURSpark{
+  0%{opacity:0;transform:translate(0,0) scale(.1)}
+  13%{opacity:1}
+  70%{opacity:.88}
+  100%{opacity:0;transform:translate(var(--spark-dx),var(--spark-dy)) scale(.45)}
+}
+/* Animated foil on the card FACE, after reveal. Preserve the official UR frame. */
+body.itm-concert .stage-card-button.rarity-ur.is-revealed .stage-card-front{
+  isolation:isolate;
+}
+body.itm-concert .stage-card-button.rarity-ur.is-revealed .stage-card-front::after{
+  content:"";inset:0;z-index:2;transform:none;border-radius:inherit;
+  background:
+    radial-gradient(ellipse at var(--foil-x,50%) var(--foil-y,45%),
+      #f1ffff38 0%,#dba8ff1d 19%,transparent 54%),
+    linear-gradient(110deg,transparent 21%,#66eeff15 34%,#ffffff3a 45%,
+      #ffd4ef19 52%,transparent 64%,#ffeb9e1c 74%,transparent 85%);
+  background-size:100% 100%,275% 275%;
+  mix-blend-mode:screen;
+  opacity:.73;
+  animation:itmURFoilAlive 4.7s ease-in-out infinite;
+  pointer-events:none;
+}
+@keyframes itmURFoilAlive{
+  0%,100%{background-position:0 0,0% 50%;opacity:.38}
+  49%{background-position:0 0,100% 50%;opacity:.83}
+}
+/* Soft prismatic wash on the full-screen art, never a baked-on card frame. */
+body.itm-concert .rarity-splash.rarity-ur .splash-prisms::after{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(118deg,transparent 34%,#c6faff18 45%,#fff5ff25 49%,#fcb9ff13 54%,transparent 65%);
+  background-size:260% 100%;mix-blend-mode:screen;
+  animation:itmURArtGleam 5.2s ease-in-out infinite;
+}
+@keyframes itmURArtGleam{
+  0%,100%{background-position:0% 0%;opacity:.2}
+  50%{background-position:100% 0%;opacity:.85}
+}
+@media(prefers-reduced-motion:reduce){
+  body.itm-concert .pack-reveal-stage.ur-impact .stage-main,
+  body.itm-concert .stage-card-button.ur-primed,
+  body.itm-concert .stage-card-button.ur-impact-card,
+  .itm-ur-payoff,.itm-ur-payoff *{
+    animation:none!important;
+  }
+  body.itm-concert .stage-card-button.rarity-ur.is-revealed .stage-card-front::after,
+  body.itm-concert .rarity-splash.rarity-ur .splash-prisms::after{
+    animation:none!important;
+  }
+}
