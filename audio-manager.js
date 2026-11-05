@@ -14,12 +14,13 @@ export function mountAudioPanel({onToggle,initialEnabled=true}){
   ];
   let tracks=base.slice(),index=0,enabled=!!initialEnabled,bgmGain=.5,fxGain=.5;
   let playerReady=false,playing=false,manualPaused=false,serial=0,failures=0,backend=null,isAdmin=false;
+  let cinematicDuck=1;
   const player=new Audio();
   player.preload='auto';player.loop=false;player.volume=bgmGain;
   const status=msg=>{caption.textContent=msg};
   const describe=()=>status('♪ '+(index+1)+'/'+tracks.length+' · '+tracks[index].title);
   function controls(){
-    player.volume=enabled?bgmGain:0;
+    player.volume=enabled?bgmGain*cinematicDuck:0;
     master.checked=enabled;
     volumeBgm.value=String(Math.round(bgmGain*100));volumeFx.value=String(Math.round(fxGain*100));
     byId('bgmValue').textContent=Math.round(bgmGain*100)+'%';
@@ -58,6 +59,11 @@ export function mountAudioPanel({onToggle,initialEnabled=true}){
     controls();
     if(enabled){manualPaused=false;initialPlay()}
     else{player.pause();playing=false;status('BGM 일시정지')}
+  }
+  // Temporary ducking for UR reveal; leaves the user's BGM slider untouched.
+  function setBgmDucking(level=1){
+    cinematicDuck=Math.max(0,Math.min(1,Number(level)||0));
+    player.volume=enabled?bgmGain*cinematicDuck:0;
   }
   function next(step=1){
     if(!tracks.length)return;
@@ -149,6 +155,6 @@ export function mountAudioPanel({onToggle,initialEnabled=true}){
     }
   });
   controls();loadCurrent();void playCurrent();
-  return {getSfxGain:()=>enabled?fxGain:0,setEnabled,initialPlay,next:()=>next(1),
+  return {getSfxGain:()=>enabled?fxGain:0,setEnabled,setBgmDucking,initialPlay,next:()=>next(1),
     get trackNames(){return tracks.map(t=>t.title)},isEnabled:()=>enabled,setBackend};
 }
