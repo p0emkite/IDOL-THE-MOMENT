@@ -101,6 +101,45 @@ function drawGlass(ctx,finish){
   ctx.restore();
 }
 
+// Reflections sit on top of the foil so its opaque rails do not mask the light.
+function foilLight(ctx,x,y,length,height,angle,color,strength){
+  ctx.save();
+  ctx.translate(x,y);ctx.rotate(angle);ctx.scale(length,height);
+  ctx.globalAlpha=strength;
+  const light=ctx.createRadialGradient(0,0,0,0,0,1);
+  light.addColorStop(0,'#fffdf9');
+  light.addColorStop(.09,'#ffffffe0');
+  light.addColorStop(.25,color+'bc');
+  light.addColorStop(.58,color+'48');
+  light.addColorStop(1,color+'00');
+  ctx.fillStyle=light;ctx.fillRect(-1,-1,2,2);
+  ctx.restore();
+}
+
+function polishFoil(ctx,finish){
+  const color=finish.edge;
+  const strength=[.58,.76,.84,.95,1][finish.index];
+  const spectral=finish.index===4;
+  ctx.save();
+  ctx.globalCompositeOperation='screen';
+  // A broad halo around a sharp bevel makes the star read as cut crystal.
+  foilLight(ctx,138,34,43,21,0,color,strength*.76);
+  foilLight(ctx,138,34,23,1.6,0,finish.light,strength);
+  foilLight(ctx,138,33,1.4,12,0,finish.light,strength*.85);
+  // The arc, badge and vertical rails catch different parts of the same light.
+  foilLight(ctx,14,49,22,6,-.91,color,strength*.85);
+  foilLight(ctx,224,43,40,10,-.02,spectral?'#ffbded':color,strength);
+  foilLight(ctx,224,43,19,1.1,-.02,finish.light,strength);
+  foilLight(ctx,5,182,48,8,Math.PI/2,spectral?'#a6f3ff':color,strength*.78);
+  foilLight(ctx,275,310,48,10,Math.PI/2,color,strength*.85);
+  // Graduated reflections cross the translucent ribbon at grazing angles.
+  foilLight(ctx,182,406,51,9,-.48,spectral?'#92eaff':color,strength*.86);
+  foilLight(ctx,262,352,30,6,-1.05,finish.light,strength*.78);
+  foilLight(ctx,87,468,43,12,-.08,spectral?'#ffa9fb':color,strength);
+  foilLight(ctx,87,468,21,1.45,-.08,finish.light,strength);
+  ctx.restore();
+}
+
 export function renderITMCard(card,{photo=null,groupLogo=null,photoTransform=null}={}){
   const finish=Object.hasOwn(finishes,card?.rarity)?finishes[card.rarity]:finishes.N;
   const canvas=document.createElement('canvas');
@@ -128,6 +167,7 @@ export function renderITMCard(card,{photo=null,groupLogo=null,photoTransform=nul
     ctx.fillStyle=finish.light;ctx.textAlign='right';ctx.font='bold italic 26px Georgia';
     ctx.fillText(card?.rarity||'N',264,87);
   }
+  polishFoil(ctx,finish);
   if(groupLogo){
     const w=groupLogo.naturalWidth||groupLogo.width,h=groupLogo.naturalHeight||groupLogo.height;
     if(w&&h){
