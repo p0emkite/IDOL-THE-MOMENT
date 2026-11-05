@@ -44,6 +44,20 @@
         <button type="submit" class="action" id="saveMember" disabled>멤버 저장</button>
       </form>
     </details>
+    <details class="pack-section panel"><summary>팩 관리</summary>
+      <div class="section-heading"><div><span class="eyebrow">PACK LIBRARY</span><h2>카드팩 종류 관리</h2></div><button type="button" id="newPack" class="soft-btn">+ 새 팩</button></div>
+      <form id="packForm">
+        <label>기존 팩 <select id="packPicker"><option value="">새 팩 만들기</option></select></label>
+        <label>팩 이름 <input id="packName" maxlength="100" required placeholder="예: IVE 앨범 1집 팩"/></label>
+        <label>팩 이미지 (PNG · JPG · WebP) <input id="packImage" type="file" accept="image/png,image/jpeg,image/webp"/></label>
+        <div class="logo-display"><img id="packImagePreview" hidden alt="카드팩 이미지 미리보기"/><span id="packImageEmpty">팩 이미지를 등록할 수 있습니다.</span></div>
+        <p class="helper">그룹과 시리즈를 선택하지 않으면 해당 항목은 전체 허용됩니다. 두 조건을 선택한 경우 모두 만족하는 카드만 등장합니다.</p>
+        <label>등장 그룹</label><div id="packGroups" class="choice-grid"></div>
+        <label>등장 컬렉션 / 시리즈</label><div id="packSeries" class="choice-grid"></div>
+        <label class="check-row"><input id="packActive" type="checkbox" checked/> 팩 공개 및 사용</label>
+        <div class="submit-row"><button class="action" id="savePack" type="submit" disabled>팩 저장</button><button class="soft-btn" id="deletePack" type="button" disabled>팩 삭제</button></div>
+      </form>
+    </details>
     <article class="card-section panel">
       <div class="section-heading"><div><span class="eyebrow">02 / CARD EDITOR</span><h2>카드 정보 및 사진</h2></div><button id="newCard" type="button" class="soft-btn">+ 신규 카드</button></div>
       <form id="cardForm">
@@ -53,16 +67,18 @@
         </div>
         <label>등록 멤버 <select id="cardMember"></select></label>
         <label>카드명 <input id="cardName" required maxlength="100" placeholder="카드에 기록될 멤버명"/></label>
-        <label>컬렉션 / 시리즈 <input id="cardEdition" maxlength="100" value="DEBUT COLLECTION"/></label>
+        <label>컬렉션 / 시리즈 (선택한 그룹별 관리) <input id="cardEdition" list="groupSeriesList" maxlength="100" value="DEBUT COLLECTION" placeholder="앨범명 · 시즌명 등을 입력" /><datalist id="groupSeriesList"></datalist></label>
         <label>카드 사진 <input id="cardPhoto" type="file" accept="image/jpeg,image/png,image/webp"/></label>
-        <p class="helper">이미지를 올리면 오른쪽 프레임에 실시간으로 합성됩니다. 사진을 드래그해 위치도 바꿀 수 있습니다.</p>
+        <p class="helper">사진을 드래그해 위치를 조절하고, Alt + 마우스 휠로 확대·축소할 수 있습니다.</p>
         <div class="range-controls">
           <label for="photoZoom">사진 확대 <output id="zoomLabel">100%</output></label>
-          <input id="photoZoom" type="range" min="100" max="400" value="100" step="1"/>
+          <input id="photoZoom" type="range" min="0" max="400" value="100" step="1"/>
           <label for="photoX">가로 위치 <output id="xLabel">0</output></label>
           <input id="photoX" type="range" min="-100" max="100" value="0" step="1"/>
           <label for="photoY">세로 위치 <output id="yLabel">0</output></label>
           <input id="photoY" type="range" min="-100" max="100" value="0" step="1"/>
+          <label for="logoZoom">그룹 로고 크기 <output id="logoZoomLabel">100%</output></label>
+          <input id="logoZoom" type="range" min="0" max="300" value="100" step="1"/>
           <button id="resetCrop" type="button" class="soft-btn">사진 위치 초기화</button>
         </div>
         <label>UR 전체 화면 연출용 사진 (선택) <input id="cardFullArt" type="file" accept="image/jpeg,image/png,image/webp"/></label>
@@ -82,7 +98,7 @@
         <button data-rarity="N" type="button" class="selected">N</button><button data-rarity="R" type="button">R</button>
         <button data-rarity="SR" type="button">SR</button><button data-rarity="SSR" type="button">SSR</button><button data-rarity="UR" type="button">UR</button>
       </div>
-      <p class="helper">최종 합성 사이즈 1024 × 1492px · 카드 속 ITM 로고 없음 · 그룹 로고는 우측 하단에 표시됩니다.</p>
+      <p class="helper">최종 합성 사이즈 1024 × 1492px · 멤버 이름은 좌측 하단 · 그룹 로고는 우측 하단에 표시됩니다.</p>
     </aside>
   </section>
   <section class="library panel"><div class="section-heading"><div><span class="eyebrow">04 / RELEASE LIBRARY</span><h2>제작 카드 목록 <span id="cardCount">0</span></h2></div><button id="refreshCards" class="soft-btn">목록 새로고침</button></div>
