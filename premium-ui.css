@@ -264,3 +264,11 @@ body.itm-concert .stage-card-button .stage-card-front{
   /* The actual foil frame is painted by card-frame.js; remove only the wrapper shadow. */
   box-shadow:none!important;
 }
+
+/* Compact pack picker beside opening buttons; hidden until configured. */
+body.itm-concert .pack-choice{display:flex;flex-direction:column;justify-content:center;gap:4px;
+  color:#f9e9ff;font-size:11px;font-weight:800}
+body.itm-concert .pack-choice[hidden]{display:none!important}
+body.itm-concert .pack-choice select{min-height:42px;max-width:180px;padding:0 10px;
+  background:#170c28ee;color:#fff;border:1px solid #d9a8ee80;border-radius:10px}
+@media(max-width:780px){body.itm-concert .pack-choice select{max-width:125px}}
