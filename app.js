@@ -1,6 +1,6 @@
 import {mountAudioPanel} from './audio-manager.js?v=pack-studio-20261105';
 import {createOpeningEffects} from './opening-effects.js';
-import {renderITMCard} from './card-frame.js?v=single-foil-20261105';
+import {renderITMCard} from './card-frame.js?v=ur-photo-window-20261105';
 /* ITM — IDOL : THE MOMENT | Standalone, fan-made 3D prototype
    3D library is loaded from a pinned public ESM CDN; there is no build step.
    Offline demo cards are mock identities and stored only in localStorage.
