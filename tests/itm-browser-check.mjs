@@ -189,6 +189,29 @@ async function checkFrameTemplates(){
   const previewShot='qa/desktop-frame-templates.png';
   await preview.screenshot({path:previewShot,fullPage:false,timeout:15000});
   report.screenshots.push(previewShot);
+  // Regression capture: bright source photos expose corner-mask smears that
+  // cannot be seen against the dark empty-card preview.
+  await preview.evaluate(async()=>{
+    const {renderITMCard}=await import('./card-frame.js?v=crisp-corners-20261105');
+    const photo=document.createElement('canvas');
+    photo.width=720;photo.height=1020;
+    const p=photo.getContext('2d');
+    const backdrop=p.createLinearGradient(0,0,720,1020);
+    backdrop.addColorStop(0,'#fffafa');
+    backdrop.addColorStop(.65,'#f3edf9');
+    backdrop.addColorStop(1,'#f6deec');
+    p.fillStyle=backdrop;p.fillRect(0,0,720,1020);
+    for(const figure of document.querySelectorAll('#gallery figure')){
+      const rarity=figure.querySelector('figcaption strong')?.textContent?.trim();
+      const img=figure.querySelector('img');
+      if(img&&rarity)img.src=renderITMCard({rarity,name:'QA'}, {photo}).toDataURL('image/png');
+    }
+  });
+  await preview.waitForFunction(()=>[...document.querySelectorAll('#gallery figure img')]
+    .every(img=>img.complete&&img.naturalWidth===1024),null,{timeout:10000});
+  const brightShot='qa/desktop-frame-bright-photo.png';
+  await preview.screenshot({path:brightShot,fullPage:false,timeout:15000});
+  report.screenshots.push(brightShot);
   await context.close();
 }
 
