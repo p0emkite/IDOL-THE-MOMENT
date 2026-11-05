@@ -41,13 +41,20 @@ async function check(name,device){
     report.checks.sound=audioStats;
     await page.locator('#audioToggle').click();
     await page.locator('#drawFive').click({timeout:12000});
-    // Inspect actual opening phases (foil cut and card ascent), not just the result.
-    await page.waitForTimeout(2240);
-    await page.screenshot({path:'qa/desktop-foil-charge.png',fullPage:false});
-    report.screenshots.push('qa/desktop-foil-charge.png');
-    await page.waitForTimeout(1120);
-    await page.screenshot({path:'qa/desktop-card-emerge.png',fullPage:false});
-    report.screenshots.push('qa/desktop-card-emerge.png');
+    // Optional visual captures: software WebGL may take >30s to screenshot.
+    // Functional result/reveal checks remain strict, but frames are diagnostic.
+    const started=Date.now();
+    for(const [at,path] of [[2250,'qa/desktop-foil-charge.png'],[3400,'qa/desktop-card-emerge.png']]){
+      const remaining=at-(Date.now()-started);
+      if(remaining>0)await page.waitForTimeout(remaining);
+      if(Date.now()-started>4700)break;
+      try{
+        await page.screenshot({path,fullPage:false,timeout:6500,animations:'disabled'});
+        report.screenshots.push(path);
+      }catch(err){
+        (report.captureWarnings??=[]).push(path+': '+String(err.message).split('\n')[0]);
+      }
+    }
     report.checks.afterPackClick=await page.evaluate(()=>({
       heading:document.getElementById('sceneHeading')?.textContent,
       buttonDisabled:document.getElementById('drawFive')?.disabled,
