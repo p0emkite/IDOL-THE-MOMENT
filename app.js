@@ -1,5 +1,6 @@
 import {mountAudioPanel} from './audio-manager.js';
 import {createOpeningEffects} from './opening-effects.js';
+import {renderITMCard} from './card-frame.js';
 /* ITM — IDOL : THE MOMENT | Standalone, fan-made 3D prototype
    3D library is loaded from a pinned public ESM CDN; there is no build step.
    Offline demo cards are mock identities and stored only in localStorage.
@@ -228,7 +229,11 @@ function paintTierGradient(ctx,rarity,x0,y0,x1,y1){
 function makeTierEdgeTexture(rarity){
   const c=document.createElement('canvas');c.width=256;c.height=32;
   const g=c.getContext('2d');
-  g.fillStyle=paintTierGradient(g,rarity,0,0,256,32);g.fillRect(0,0,256,32);
+  const softPrism=['#c3f0ec','#accbf1','#bdafe7','#f0c2e1','#ffe0c4','#cfebda','#c3f0ec'];
+  const foil=rarity==='UR'
+    ?(()=>{const grad=g.createLinearGradient(0,0,256,32);softPrism.forEach((hex,i)=>grad.addColorStop(i/(softPrism.length-1),hex));return grad})()
+    :paintTierGradient(g,rarity,0,0,256,32);
+  g.fillStyle=foil;g.fillRect(0,0,256,32);
   g.fillStyle='rgba(255,255,255,.22)';g.fillRect(0,0,256,3);
   return c;
 }
@@ -319,76 +324,15 @@ function playOpeningCeremonySound(tier){
 }
 
 function toggleAudio(){if(!soundManager){audioPreferenceSet=true;setSound(!state.audio);if(state.audio)chime()}}
-// All cards use generated fictional/sample illustration. Real artist pictures can replace this asset layer.
+// Shared ITM frame-only card face. Photos/group logos remain intentionally
+// empty until the upcoming card-add tool supplies them as independent layers.
 const artCache=new Map();
 function makeCardArt(card){
-  if(artCache.has(card.id))return artCache.get(card.id);
-  const c=document.createElement('canvas');c.width=1024;c.height=1492;const g=c.getContext('2d');g.scale(2,2);
-  const tier=tone(card.rarity),hue=card.tint,isUR=card.rarity==='UR';
-  let bg=g.createLinearGradient(0,0,512,746);bg.addColorStop(0,'#29263b');bg.addColorStop(.4,hue);bg.addColorStop(.7,'#533c68');bg.addColorStop(1,'#18112d');g.fillStyle=bg;g.fillRect(0,0,512,746);
-  // soft stage light
-  let beam=g.createRadialGradient(246,258,10,260,280,340);beam.addColorStop(0,'#ffffffcb');beam.addColorStop(.35,tier+'85');beam.addColorStop(1,'#1a163000');g.fillStyle=beam;g.fillRect(0,0,512,690);
-  // decorative spotlight strokes
-  g.save();g.globalAlpha=.2;g.strokeStyle='#fff';for(let i=0;i<15;i++){g.beginPath();g.moveTo(256,40);g.lineTo(i*44-70,600);g.stroke()}g.restore();
-  // original stylized person silhouette, not a photograph or portrayal of a real idol
-  const x=255+(card.seed-.5)*36;
-  g.save();g.shadowColor='#170f31';g.shadowBlur=36;
-  const hair=g.createLinearGradient(80,0,390,520);hair.addColorStop(0,'#2d2541');hair.addColorStop(.5,'#120d23');hair.addColorStop(1,'#66517d');g.fillStyle=hair;
-  g.beginPath();g.ellipse(x,295,133,168,-.06,0,Math.PI*2);g.fill();
-  g.beginPath();g.moveTo(115,665);g.bezierCurveTo(100,525,135,459,x-65,442);g.lineTo(x+68,438);g.bezierCurveTo(380,490,428,525,413,665);g.closePath();g.fill();
-  const skin=g.createLinearGradient(x-70,190,x+100,470);skin.addColorStop(0,'#f7dfd8');skin.addColorStop(.54,'#d6a6a6');skin.addColorStop(1,'#b47b91');g.fillStyle=skin;
-  g.beginPath();g.ellipse(x,314,83,117,.02,0,Math.PI*2);g.fill();
-  g.fillStyle=hair;g.beginPath();g.moveTo(x-112,276);g.quadraticCurveTo(x-135,130,x-14,140);g.quadraticCurveTo(x+100,118,x+102,259);g.quadraticCurveTo(x+50,217,x+9,221);g.quadraticCurveTo(x-52,270,x-112,276);g.fill();
-  g.strokeStyle='#4a344a';g.lineWidth=4;g.beginPath();g.moveTo(x-52,321);g.quadraticCurveTo(x-31,311,x-17,320);g.moveTo(x+18,320);g.quadraticCurveTo(x+40,312,x+53,322);g.stroke();
-  g.strokeStyle='#9b627b';g.lineWidth=3;g.beginPath();g.arc(x,365,13,.1,Math.PI-.1);g.stroke();
-  const outfit=g.createLinearGradient(80,450,425,746);
-  outfit.addColorStop(0,'#1e193d');
-  if(isUR){outfit.addColorStop(.23,'#4caeed');outfit.addColorStop(.52,'#b96af6');outfit.addColorStop(.79,'#ff8bc7')}
-  else outfit.addColorStop(.5,tier);
-  outfit.addColorStop(1,'#120b2e');g.fillStyle=outfit;g.beginPath();g.moveTo(112,640);g.quadraticCurveTo(96,515,204,479);g.lineTo(256,520);g.lineTo(310,478);g.quadraticCurveTo(414,512,423,640);g.lineTo(420,746);g.lineTo(110,746);g.closePath();g.fill();
-  g.restore();
-  let lower=g.createLinearGradient(0,470,0,746);lower.addColorStop(0,'#0c0a1a00');lower.addColorStop(.65,'#140b2a55');lower.addColorStop(1,'#110d25c9');g.fillStyle=lower;g.fillRect(0,450,512,296);
-  if(card.rarity==='SSR'||card.rarity==='UR'){
-    g.save();for(let i=0;i<28;i++){g.globalAlpha=.12+(i%4)*.08;g.fillStyle=i%2?'#fff':tier;g.beginPath();let xx=((i*137)%490)+8,yy=((i*197)%590)+50;g.arc(xx,yy,i%5===0?4:2,0,Math.PI*2);g.fill()}g.restore();
-  }
-  // All grades use a true multistop gradient on the card frame, not a flat stroke.
-  // UR adds a vivid, translucent spectral foil and deterministic prismatic sparks.
-  if(isUR){
-    g.save();
-    g.globalCompositeOperation='screen';
-    g.globalAlpha=.19;
-    g.fillStyle=paintTierGradient(g,'UR',30,100,490,660);
-    g.fillRect(24,90,464,500);
-    g.restore();
-    const sparkleColors=tierMeta('UR').gradient;
-    g.save();g.globalCompositeOperation='screen';
-    for(let i=0;i<26;i++){
-      const sx=34+(i*173)%442,sy=82+(i*211)%570,rad=i%5===0?10:4;
-      g.strokeStyle=sparkleColors[i%sparkleColors.length];
-      g.globalAlpha=i%5===0?.85:.48;
-      g.lineWidth=i%5===0?1.6:.9;
-      g.beginPath();g.moveTo(sx-rad,sy);g.lineTo(sx+rad,sy);
-      g.moveTo(sx,sy-rad);g.lineTo(sx,sy+rad);g.stroke();
-    }
-    g.restore();
-  }
-  g.save();
-  g.strokeStyle=paintTierGradient(g,card.rarity,0,0,512,746);
-  g.lineWidth=isUR?10:7;g.shadowColor=tier;g.shadowBlur=isUR?24:8;
-  g.strokeRect(14,14,484,718);
-  g.restore();
-  g.strokeStyle=paintTierGradient(g,card.rarity,512,0,0,746);
-  g.lineWidth=isUR?2.5:1.5;
-  g.strokeRect(25,25,462,696);
-  g.fillStyle=paintTierGradient(g,card.rarity,32,0,480,0);
-  g.fillRect(32,79,448,isUR?6:4);
-  g.fillStyle='#f9f0ff';g.textAlign='left';g.font='bold 24px system-ui';g.fillText('ITM',47,68);
-  g.textAlign='right';g.font='bold 15px system-ui';g.fillText('STAGE 001',466,65);
-  g.textAlign='left';g.font='700 14px system-ui';g.fillStyle=paintTierGradient(g,card.rarity,47,598,325,598);g.fillText(card.group+' • '+card.edition,47,598);
-  g.font='900 62px Arial, sans-serif';g.fillStyle='#fff';g.shadowColor='#000a';g.shadowBlur=20;g.fillText(card.name,44,660);g.shadowBlur=0;
-  g.font='800 19px system-ui';g.fillStyle=paintTierGradient(g,card.rarity,47,695,190,695);g.fillText(card.rarity,47,695);
-  g.textAlign='right';g.font='11px monospace';g.fillStyle='#f7e9fc';g.fillText('DEMO ART / #'+card.id.split('-').slice(-1).join(''),465,697);
-  artCache.set(card.id,c);return c;
+  const cacheKey=card.id+':'+card.rarity;
+  if(artCache.has(cacheKey))return artCache.get(cacheKey);
+  const canvas=renderITMCard(card);
+  artCache.set(cacheKey,canvas);
+  return canvas;
 }
 function makeBackTexture(){const c=document.createElement('canvas');c.width=512;c.height=746;const g=c.getContext('2d');const b=g.createLinearGradient(0,0,512,746);b.addColorStop(0,'#300d51');b.addColorStop(.5,'#100d2c');b.addColorStop(1,'#68307b');g.fillStyle=b;g.fillRect(0,0,512,746);g.strokeStyle='#e7a3f7';g.lineWidth=8;g.strokeRect(18,18,476,710);g.strokeStyle='#ffffff70';g.lineWidth=1.4;g.strokeRect(34,34,444,678);for(let i=0;i<7;i++){g.save();g.translate(256,360);g.rotate(i*Math.PI/7);g.strokeStyle='#e99cea44';g.beginPath();g.ellipse(0,0,160,250,0,0,Math.PI*2);g.stroke();g.restore()}g.textAlign='center';g.fillStyle='#ffaedc';g.font='120px serif';g.fillStyle='#fff';g.font='900 43px system-ui';g.fillText('ITM',256,457);g.font='bold 15px system-ui';g.fillStyle='#e9badb';g.fillText('IDOL : THE MOMENT',256,493);return c}
 // Remove only the edge-connected dark matte from the supplied branding image.
