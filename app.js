@@ -74,7 +74,7 @@ const visibleInventory=()=>isNamedAccount()?state.remoteDemoInventory:state.demo
 function saveEntryChoice(value){try{localStorage.setItem(ENTRY_KEY,value)}catch{}}
 function guestChosen(){try{return localStorage.getItem(ENTRY_KEY)==='guest'}catch{return false}}
 function syncCanvasPointerEvents(){const canvas=$('threeCanvas');if(canvas)canvas.classList.toggle('itm-canvas-interactive',state.phase==='reveal');}
-let scene,renderer,camera,pack,packRim,packParts,packTop,packBottom,packSeam,openingCard,cardMeshes=[],dust,halos,stageLights=[],openingFx=null,THREE,clock,lastTime=0,openingAt=0,audioContext=null;
+let scene,renderer,camera,pack,packRim,packParts,packTop,packBottom,packSeam,tornSide,tornFace,openingCard,cardMeshes=[],dust,halos,stageLights=[],openingFx=null,THREE,clock,lastTime=0,openingAt=0,audioContext=null;
 
 let soundManager=null;
 let concertStage=null,hoverChimeAt=0,splashTimer=null,urCoverTimer=null,audioPreferenceSet=false,introShown=false,introTimers=[],introCameraActive=false,introCameraStart=0;
@@ -556,7 +556,7 @@ function initScene(){
   packParts=new THREE.Group();
   const cutHeight=.95,bottomHeight=3.83-cutHeight,bottomUv=bottomHeight/3.83;
   // Dedicated translucent materials: fade the torn foil, not the main pouch.
-  const tornSide=side.clone(),tornFace=face.clone();
+  tornSide=side.clone();tornFace=face.clone();
   tornSide.transparent=true;tornFace.transparent=true;
   tornSide.depthWrite=false;tornFace.depthWrite=false;
   packTop=new THREE.Mesh(makePackPartGeometry(cutHeight,bottomUv,cutHeight/3.83),
