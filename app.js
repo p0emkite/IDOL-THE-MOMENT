@@ -44,13 +44,8 @@ brandCardBack.addEventListener('load', () => {
   }
   if (!state.three && state.phase === 'reveal') renderFallbackCards();
 });
-const POOL = [
-  ['itm-demo-n','ARIA','LUMINA','N','#b6d0e9',.14],
-  ['itm-demo-r','MIU','NOVUS','R','#8cd9f5',.34],
-  ['itm-demo-sr','NOVA','PRISM','SR','#c0a1fc',.62],
-  ['itm-demo-ssr','LYRA','SOLAR','SSR','#f7d58f',.43],
-  ['itm-demo-ur','VEGA','AURORA','UR','#ff9edc',.74],
-].map(([id,name,group,rarity,tint,seed]) => ({id,name,group,rarity,tint,seed,edition:'DEBUT COLLECTION',image_url:null}));
+// Only published admin-managed cards are available.
+const POOL=[];
 const byId = new Map(POOL.map(c=>[c.id,c]));
 const LIVE_POOL=[];
 const AVAILABLE_PACKS=[];
@@ -92,7 +87,8 @@ async function ensureImage(url){
 }
 async function preloadCard(card){
   if(!card?.isLive)return;
-  await Promise.all([ensureImage(card.image_url),ensureImage(card.group_logo_url)]);
+  await Promise.all([ensureImage(card.image_url),ensureImage(card.group_logo_url),
+    ...(card.rarity==='UR'&&card.full_art_url?[ensureImage(card.full_art_url)]:[])]);
 }
 function drawLiveLocal(count,packRule=null){
   const eligible=LIVE_POOL.filter(c=>packCardAllowed(c,packRule));
@@ -110,17 +106,20 @@ async function loadPublishedCatalog(){
   if(!state.supabase)return false;
   const [groupsResult,cardsResult,packsResult]=await Promise.all([
     state.supabase.from('itm_groups').select('slug,name,logo_path'),
-    state.supabase.from('itm_catalog').select('id,group_slug,display_name,edition,rarity,photo_path,full_art_path,photo_scale,photo_x,photo_y,logo_scale,status').eq('status','published'),
+    state.supabase.from('itm_catalog').select('id,group_slug,display_name,edition,rarity,photo_path,full_art_path,photo_scale,photo_x,photo_y,logo_scale,ur_name_color,status').eq('status','published'),
     state.supabase.from('itm_packs').select('id,name,image_path,group_slugs,series_filters,active').eq('active',true).order('created_at')
   ]);
   if(groupsResult.error||cardsResult.error||packsResult.error)throw(groupsResult.error||cardsResult.error||packsResult.error);
   const previous=$('packPicker')?.value||'';
   AVAILABLE_PACKS.splice(0,AVAILABLE_PACKS.length,...(packsResult.data||[]));
   const picker=$('packPicker');
-  picker.replaceChildren(new Option('기본 카드팩',''),...AVAILABLE_PACKS.map(p=>new Option(p.name,p.id)));
-  picker.value=AVAILABLE_PACKS.some(p=>p.id===previous)?previous:'';
-  $('packChoice').hidden=!AVAILABLE_PACKS.length;
-  if(picker.value!==previous)void syncPackArtwork();
+  picker.replaceChildren(...(AVAILABLE_PACKS.length?
+    AVAILABLE_PACKS.map(p=>new Option(p.name,p.id)):[new Option('등록된 카드팩이 없습니다','')]));
+  picker.disabled=!AVAILABLE_PACKS.length;
+  picker.value=AVAILABLE_PACKS.some(p=>p.id===previous)?previous:(AVAILABLE_PACKS[0]?.id||'');
+  $('packChoice').hidden=false;
+  $('drawOne').disabled=$('drawFive').disabled=!AVAILABLE_PACKS.length;
+  if(pack&&renderer)void syncPackArtwork();
   const groupMap=new Map((groupsResult.data||[]).map(g=>[g.slug,g]));
   for(const card of LIVE_POOL)byId.delete(card.id);
   LIVE_POOL.length=0;
@@ -132,20 +131,16 @@ async function loadPublishedCatalog(){
       edition:row.edition,isLive:true,logo_scale:Number(row.logo_scale??1),
       image_url:assetUrl(row.photo_path),
       group_logo_url:assetUrl(group?.logo_path),
-      full_art_url:assetUrl(row.full_art_path),
+      full_art_url:assetUrl(row.full_art_path),ur_name_color:row.ur_name_color||'#f0c76d',
       photo_transform:{scale:Number(row.photo_scale),x:Number(row.photo_x),y:Number(row.photo_y)}
     };
     LIVE_POOL.push(card);byId.set(card.id,card);
   }
-  LIVE_READY=TIERS.every(t=>LIVE_POOL.some(c=>c.rarity===t.key));
-  if($('oddsDescription'))$('oddsDescription').textContent=LIVE_READY?
-    '실제 카드 팩: 1회·5회 모두 매 카드 독립 추첨이며 아래 확률을 적용합니다. 등급별 공개 카드 중 무작위 선정됩니다.':
-    '테스트 카드팩: 1회는 아래 확률, 5회는 각 등급 1장씩 확정 등장합니다.';
-  if($('stageFooterNote')){
-    $('stageFooterNote').textContent=LIVE_READY?
-      '✦ THE MOMENT COLLECTION · 공개 카드가 팩과 도감에 실시간 반영됩니다.':
-      '✦ FIRST SHOWCASE / TEST PACK · 실제 카드는 N~UR 각 등급 공개 후 팩에 등장합니다.';
-  }
+  LIVE_READY=LIVE_POOL.length>0&&AVAILABLE_PACKS.length>0;
+  if($('oddsDescription'))$('oddsDescription').textContent=
+    '선택한 팩의 공개 카드만 추첨하며, 등장 카드가 없는 등급은 제외하고 나머지 등급 확률을 비례 조정합니다.';
+  if($('stageFooterNote'))$('stageFooterNote').textContent=
+    '✦ THE MOMENT COLLECTION · 선택한 팩의 공개 카드가 도감에 반영됩니다.';
   return LIVE_READY;
 }
 // Shared grade palette: every tier has a gradient, with intense rainbow holography for UR.
@@ -159,8 +154,8 @@ const TIERS = [
    gradient:['#54ECFF','#4F9BFF','#9974FF','#F46BE6','#FF83A1','#FFE26A','#71FFC4','#54ECFF']},
 ];
 const PACK_OPEN_DURATION = 4650;
-function readDemoInventory(){try{return JSON.parse(localStorage.getItem('itm-test-pack-inventory-v1')||'{}')||{}}catch{return {}}}
-function writeDemoInventory(){try{localStorage.setItem('itm-test-pack-inventory-v1',JSON.stringify(state.demoInventory))}catch{}}
+function readDemoInventory(){try{localStorage.removeItem('itm-test-pack-inventory-v1')}catch{}return {}}
+function writeDemoInventory(){/* Retired demo cards. */}
 
 const state = {phase:'ready',cards:[],revealed:new Set(),inventory:readLocal(),demoInventory:readDemoInventory(),remoteDemoInventory:{},liveInventory:readLiveInventory(),remoteLiveInventory:{},supabase:null,user:null,accountName:null,accountMode:'login',entryRequired:false,playerId:null,hasRecovery:false,authError:null,backendReady:false,accountBusy:false,issuedRecovery:null,three:false,audio:true,busy:false};
 const ENTRY_KEY='itm-entry-choice-v1';
@@ -168,9 +163,7 @@ const ACCOUNT_PATTERN=/^[a-z][a-z0-9_]{3,19}$/;
 const accountEmail=name=>'itm.'+name+'@accounts.itm.example';
 const accountNameOf=user=>{const m=String(user?.email||'').match(/^itm\.([a-z][a-z0-9_]{3,19})@accounts\.itm\.example$/);return m?m[1]:null;};
 const isNamedAccount=()=>!!(state.accountName&&state.playerId);
-const visibleInventory=()=>isNamedAccount()?
-  {...state.remoteDemoInventory,...state.remoteLiveInventory}:
-  {...state.demoInventory,...state.liveInventory};
+const visibleInventory=()=>isNamedAccount()?{...state.remoteLiveInventory}:{...state.liveInventory};
 function saveEntryChoice(value){try{localStorage.setItem(ENTRY_KEY,value)}catch{}}
 function guestChosen(){try{return localStorage.getItem(ENTRY_KEY)==='guest'}catch{return false}}
 function syncCanvasPointerEvents(){const canvas=$('threeCanvas');if(canvas)canvas.classList.toggle('itm-canvas-interactive',state.phase==='reveal');}
@@ -307,11 +300,6 @@ const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 function readLocal(){try{return JSON.parse(localStorage.getItem('itm-inventory-v1')||localStorage.getItem('encore-inventory-v1'))||{}}catch{return {}}}
 function writeLocal(){try{localStorage.setItem('itm-inventory-v1',JSON.stringify(state.inventory))}catch{}}
 function rand(){if(window.crypto?.getRandomValues){const n=new Uint32Array(1);crypto.getRandomValues(n);return n[0]/4294967296}return Math.random()}
-function drawDemo(count){
-  // Five-card test packs include one of every tier (shuffled), rather than production odds.
-  if(count===5){const a=POOL.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(rand()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
-  return Array.from({length:count},()=>{let n=rand()*100;for(const tier of TIERS){if(n<tier.chance)return POOL.find(c=>c.rarity===tier.key);n-=tier.chance}return POOL[POOL.length-1]});
-}
 function tierMeta(rarity){return TIERS.find(t=>t.key===rarity)||TIERS[0]}
 function tone(rarity){return tierMeta(rarity).color}
 function tierCssGradient(rarity){
@@ -843,29 +831,23 @@ async function openPack(count){
   // Guest draws are local: never block the pack while Supabase initialises.
   // Cloud inventory draws still require the authenticated backend to be ready.
   if(state.busy||state.phase!=='ready'||state.entryRequired||(isNamedAccount()&&!state.backendReady))return;
+  if(!selectedPack())return toast('관리자가 공개한 카드팩이 없습니다.');
   state.busy=true;$('drawOne').disabled=$('drawFive').disabled=true;
   let rolled=[];
   try{
     if(state.supabase)await loadPublishedCatalog().catch(err=>console.warn('카드 목록 갱신 실패',err));
     if(isNamedAccount()){
-      // Managed packs can be opened with any eligible published cards;
-      // the default pack alone requires every rarity to be populated.
-      const rule=selectedPack();
-      const rpc=rule?'itm_open_managed_pack':LIVE_READY?'itm_open_card_pack':'itm_open_demo_pack';
-      const args=rule?{p_count:count,p_pack_id:rule.id}:{p_count:count};
-      const {data,error}=await state.supabase.rpc(rpc,args);
+      const {data,error}=await state.supabase.rpc('itm_open_managed_pack',{
+        p_count:count,p_pack_id:selectedPack().id
+      });
       if(error)throw error;
       rolled=(data||[]).map(x=>byId.get(String(x.id))).filter(Boolean);
       if(rolled.length!==count)throw Error('서버 카드 결과를 확인할 수 없습니다.');
       await syncRemote();
-    }else if(LIVE_READY||selectedPack()){
+    }else{
       rolled=drawLiveLocal(count,selectedPack());
       for(const card of rolled)state.liveInventory[card.id]=(state.liveInventory[card.id]||0)+1;
       writeLiveInventory();updateCounts();
-    }else{
-      rolled=drawDemo(count);
-      for(const card of rolled)state.demoInventory[card.id]=(state.demoInventory[card.id]||0)+1;
-      writeDemoInventory();updateCounts();
     }
     await Promise.all(rolled.map(async card=>{
       try{await preloadCard(card)}
@@ -1004,7 +986,7 @@ function reset(){
   requestAnimationFrame(resizeScene);
   state.phase='ready';syncCanvasPointerEvents();state.cards=[];state.revealed.clear();state.busy=false;
   clearCards();if(!state.three)resetFallback();
-  showControls(['drawOne','drawFive']);$('drawOne').disabled=$('drawFive').disabled=false;
+  showControls(['drawOne','drawFive']);$('drawOne').disabled=$('drawFive').disabled=!AVAILABLE_PACKS.length;
   $('controlHeading').textContent='어떤 순간을 열어 볼까요?';
   $('sceneHeading').textContent='01 — THE SEALED MOMENT';
   $('centerHint').innerHTML='<span>✧</span> THE SHOW IS ABOUT TO BEGIN';
@@ -1043,12 +1025,9 @@ function renderCollection(){
 
 async function syncRemote(){
   if(!state.supabase||!state.playerId)return false;
-  const [demo,live]=await Promise.all([
-    state.supabase.from('itm_demo_inventory').select('card_id,quantity'),
-    state.supabase.from('itm_card_inventory').select('card_id,quantity')
-  ]);
-  if(demo.error||live.error){toast('도감 동기화 오류: '+(demo.error||live.error).message);return false}
-  state.remoteDemoInventory=Object.fromEntries((demo.data||[]).map(r=>[r.card_id,r.quantity]));
+  const live=await state.supabase.from('itm_card_inventory').select('card_id,quantity');
+  if(live.error){toast('도감 동기화 오류: '+live.error.message);return false}
+  state.remoteDemoInventory={};
   state.remoteLiveInventory=Object.fromEntries((live.data||[]).map(r=>[r.card_id,r.quantity]));
   updateCounts();
   if($('collectionOverlay').classList.contains('active'))renderCollection();
@@ -1163,16 +1142,10 @@ async function submitAccount(event){
     if(error)throw error;
     if(!data?.user)throw Error('로그인 응답을 확인할 수 없습니다.');
     await activateNamedUser(data.user);
-    let imported=false;
-    if(signup&&Object.keys(state.demoInventory).length){
-      const {data:ok,error:importError}=await state.supabase.rpc('itm_import_guest_demo',{p_items:state.demoInventory});
-      if(importError)setAccountMessage('계정은 생성되었으나 게스트 카드를 이전하지 못했습니다. 게스트 기록은 이 브라우저에 남아 있습니다.');
-      else{imported=!!ok;await syncRemote();}
-    }
     $('accountPassword').value='';
     state.entryRequired=false;saveEntryChoice('account');updateLogin();
     closeModal('accountOverlay');
-    toast(signup?(imported?'회원가입 완료! 게스트 도감도 이전했습니다.':'ITM 계정 생성 완료!'):'로그인 성공! 클라우드 도감을 불러왔습니다.');
+    toast(signup?'ITM 계정 생성 완료!':'로그인 성공! 클라우드 도감을 불러왔습니다.');
   }catch(err){
     setAccountMessage('계정 처리 실패: '+(err?.message||String(err)));
     console.warn('ITM account flow failed',err?.message||String(err));
