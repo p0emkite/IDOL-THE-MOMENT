@@ -239,8 +239,8 @@ export function createConcertStage({THREE,scene,renderer,oldBeams=[]}) {
   // Nine distinctive fan lightstick heads (each batched by InstancedMesh).
   // A common grip stays in each fan's hand; the glowing head conveys the group.
   const glowMaterial=new THREE.MeshBasicMaterial({
-    color:0xffffff,toneMapped:false,transparent:true,opacity:.88,
-    depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide
+    color:0xffffff,toneMapped:false,transparent:true,opacity:.73,
+    depthWrite:false,blending:THREE.NormalBlending,side:THREE.DoubleSide
   });
   const handleMaterial=new THREE.MeshStandardMaterial({
     color:0x7d587f,metalness:.6,roughness:.32
@@ -306,11 +306,11 @@ export function createConcertStage({THREE,scene,renderer,oldBeams=[]}) {
   sticks.frustumCulled=heads.frustumCulled=bodies.frustumCulled=false;
   venue.add(sticks,heads,bodies);
   const dummy=new THREE.Object3D();
-  const palette=['#ff83d4','#be8aff','#fce1a6','#91d4ff','#c7f9ef','#f5a4ef'];
+  const palette=['#f876c3','#a67ce8','#f4cc91','#7faee8','#85d5b6','#df80c1'];
   for(let i=0;i<total;i++){
     const side=(i&1)?1:-1;
     const back=i>=total*.56;
-    const near=i<total*.33;
+    const near=i<total*.235;
     const z=back?11.0+prng(i*9+11)*35:
       near?6.4+prng(i*6+15)*4.4:2.4+prng(i*6+15)*7.3;
     const x=back?side*(2.9+prng(i*9+7)*17.5):
@@ -330,7 +330,7 @@ export function createConcertStage({THREE,scene,renderer,oldBeams=[]}) {
     litHeads[type].setColorAt(slot,hColor);
     const angle=Math.sin(batons[i].phase)*.22;
     dummy.position.set(x,y+.68*k,z);
-    dummy.scale.set(k,k,k);
+    dummy.scale.set(k*.60,k*.60,k*.60);
     dummy.rotation.set(angle,.06,side*.14);dummy.updateMatrix();
     litHeads[type].setMatrixAt(slot,dummy.matrix);
     dummy.position.set(x,y+.42*k,z);
@@ -524,7 +524,7 @@ export function createConcertStage({THREE,scene,renderer,oldBeams=[]}) {
       dummy.rotation.set(Math.sin(t*.8+b.phase)*.18,0,b.side*.16+wave);
       dummy.updateMatrix();sticks.setMatrixAt(i,dummy.matrix);
       dummy.position.set(px+Math.sin(t*.75+b.phase)*.025,py+.69*b.k,b.z+.02);
-      dummy.scale.set(b.k,b.k,b.k);
+      dummy.scale.set(b.k*.60,b.k*.60,b.k*.60);
       dummy.rotation.set(Math.sin(t*.8+b.phase)*.16,.06,b.side*.16+wave);
       dummy.updateMatrix();litHeads[i%9].setMatrixAt(Math.floor(i/9),dummy.matrix);
     }
