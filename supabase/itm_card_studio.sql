@@ -85,9 +85,10 @@ create policy itm_groups_admin_update on public.itm_groups
  with check((select private.itm_is_studio_admin()));
 create policy itm_groups_admin_delete on public.itm_groups
  for delete to authenticated using((select private.itm_is_studio_admin()));
-create policy itm_catalog_read on public.itm_catalog
- for select to anon,authenticated
- using(status='published' or (select private.itm_is_studio_admin()));
+create policy itm_catalog_public_read on public.itm_catalog
+ for select to anon,authenticated using(status='published');
+create policy itm_catalog_admin_read on public.itm_catalog
+ for select to authenticated using((select private.itm_is_studio_admin()));
 create policy itm_catalog_admin_insert on public.itm_catalog
  for insert to authenticated with check((select private.itm_is_studio_admin()));
 create policy itm_catalog_admin_update on public.itm_catalog
