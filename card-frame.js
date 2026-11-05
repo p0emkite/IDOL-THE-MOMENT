@@ -148,6 +148,10 @@ export function renderITMCard(card,{photo=null,groupLogo=null,photoTransform=nul
     foilCtx.imageSmoothingQuality='high';
     const stripX=finish.index*290;
     foilCtx.drawImage(foil,stripX,0,finish.width,478,0,0,280,478);
+    // SSR/UR source plates have a tiny flared spur to the LEFT of the
+    // plaque. Clear only that detached spur; it is not part of the bezel
+    // or the centered star and otherwise remains as a floating bright chip.
+    foilCtx.clearRect(148,53,30,98);
     const repair={x:178,y:32,w:102,h:116};
     foilCtx.clearRect(repair.x,repair.y,repair.w,repair.h);
     foilCtx.save();
