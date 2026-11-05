@@ -154,12 +154,13 @@ function drawFrame(ctx,rarity){
   ctx.globalAlpha=.72;ctx.fillStyle=reflection;ctx.fillRect(27,532,460,190);
   // Right-hand logo area remains colored but a shade more even, so uploaded
   // transparent logos will be distinguishable and not swallowed by glare.
-  const logoBase=ctx.createLinearGradient(319,620,485,680);
-  logoBase.addColorStop(0,'#ffffff00');
-  logoBase.addColorStop(.62,r.dark+'0e');
-  logoBase.addColorStop(1,r.dark+'40');
-  ctx.globalAlpha=.68;ctx.fillStyle=logoBase;
-  ctx.fillRect(318,594,168,121);
+  const logoBase=ctx.createLinearGradient(318,624,484,700);
+  logoBase.addColorStop(0,'#12102100');
+  logoBase.addColorStop(.30,'#19132428');
+  logoBase.addColorStop(.76,'#1811227a');
+  logoBase.addColorStop(1,'#181122a8');
+  ctx.globalAlpha=.76;ctx.fillStyle=logoBase;
+  ctx.fillRect(317,590,169,128);
   ctx.restore();
 
   // One full, wide luminous satin swoosh. This deliberately replaces the old
@@ -187,16 +188,6 @@ function drawFrame(ctx,rarity){
   arcLine(ctx,g=>{
     g.moveTo(29,686);g.bezierCurveTo(136,689,319,603,483,551);
   },r.light,2.0,.79);
-  // Subtle broad orbital ribbon over the photo, behind the eventual logo:
-  // the smooth grand curve from the reference, not parallel scratching.
-  ctx.save();ctx.globalAlpha=.52;
-  arcLine(ctx,g=>{
-    g.moveTo(33,625);
-    g.bezierCurveTo(56,723,172,718,285,650);
-    g.bezierCurveTo(365,601,423,555,482,533);
-  },r.light,2.5,.72);
-  ctx.restore();
-
   // A sparkling flare near the rising tip, confined to the swipe edge.
   const tipGlow=ctx.createRadialGradient(464,545,1,464,545,48);
   tipGlow.addColorStop(0,'#ffffffc8');
