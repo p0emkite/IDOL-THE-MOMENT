@@ -13,7 +13,9 @@ const finishes={
 };
 const foil=new Image();
 foil.src=new URL('./assets/frames/concept-foil.webp',import.meta.url).href;
-await foil.decode().catch(()=>{});
+const lowerFoil=new Image();
+lowerFoil.src=new URL('./assets/frames/concept-lower.webp',import.meta.url).href;
+await Promise.allSettled([foil.decode(),lowerFoil.decode()]);
 
 function clamp(n,a,b=1){return Math.min(b,Math.max(a,n))}
 function drawCover(ctx,img,x,y,w,h,transform={}){
@@ -48,57 +50,14 @@ function drawGlass(ctx,finish){
   stroke(ctx,arch,finish.edge,2.3,6);
   stroke(ctx,arch,finish.light,1);
 
-  // Both lips turn upwards at the right rail. The portrait remains visible
-  // through the thin ribbon; the darker lower corner carries the group mark.
-  const upper='M 7 412 C 8 442 41 449 91 436 C 164 419 258 375 273 298';
-  const lower='M 19 466 C 75 483 241 411 273 334';
-  const plate=new Path2D(upper+' L 278 477 L 3 477 Z');
-  const tint=ctx.createLinearGradient(70,463,244,305);
-  tint.addColorStop(0,finish.shade+'64');
-  tint.addColorStop(.47,finish.edge+'32');
-  tint.addColorStop(1,finish.shade+'89');
-  ctx.fillStyle=tint;ctx.fill(plate);
-  const ribbon=new Path2D(upper+' L 273 334 C 241 411 75 483 19 466 L 7 460 Z');
-  const sheen=ctx.createLinearGradient(27,466,270,350);
-  const colors=finish.index===4?
-    ['#939cff5a','#abfcf866','#ffaeea5c','#c4bcff42','#8cddff68','#ffeacc60']:
-    [finish.edge+'50',finish.light+'39',finish.edge+'48',finish.shade+'2c',finish.light+'65'];
-  colors.forEach((c,i)=>sheen.addColorStop(i/(colors.length-1),c));
-  ctx.fillStyle=sheen;ctx.fill(ribbon);
-
-  // A soft reflection follows the sweep. Feather its ends so it reads as
-  // light across glass rather than another outlined stripe.
-  ctx.save();ctx.clip(ribbon);
-  const reflection=ctx.createLinearGradient(23,461,269,355);
-  reflection.addColorStop(0,'#ffffff00');
-  reflection.addColorStop(.28,finish.light+'63');
-  reflection.addColorStop(.50,'#ffffff08');
-  reflection.addColorStop(.78,finish.light+'81');
-  reflection.addColorStop(1,'#ffffff00');
-  const facet=new Path2D('M 9 457 C 54 486 244 406 273 312 C 252 394 75 484 9 462 Z');
-  ctx.fillStyle=reflection;ctx.fill(facet);ctx.restore();
-
-  for(const curve of [upper,lower]){
-    const path=new Path2D(curve);
-    stroke(ctx,path,finish.edge,2.5,8);
-    stroke(ctx,path,finish.light,1.05);
+  // Each strip carries the original three curves, local reflections and
+  // translucent enamel. Its alpha mask exposes the live photo above the lip.
+  if(lowerFoil.naturalWidth){
+    ctx.drawImage(lowerFoil,finish.index*280,0,280,185,0,293,280,185);
+  }else{
+    const lip=new Path2D('M 7 413 C 20 483 242 409 274 326');
+    stroke(ctx,lip,finish.edge,2);
   }
-  // An elongated bloom and a narrow white core at the two light catches.
-  // Work in local coordinates to keep the reflections aligned at every size.
-  ctx.save();ctx.clip(plate);
-  const glints=[[76,463,-.20,39,8],[263,348,-1.14,25,5]];
-  for(const [x,y,angle,length,height] of glints){
-    ctx.save();ctx.translate(x,y);ctx.rotate(angle);ctx.scale(length,height);
-    const bloom=ctx.createRadialGradient(0,0,0,0,0,1);
-    bloom.addColorStop(0,'#fffffff2');
-    bloom.addColorStop(.16,finish.light+'d0');
-    bloom.addColorStop(.48,finish.edge+'72');
-    bloom.addColorStop(1,finish.edge+'00');
-    ctx.fillStyle=bloom;ctx.fillRect(-1,-1,2,2);
-    ctx.scale(.63,.16);ctx.fillStyle=bloom;ctx.fillRect(-1,-1,2,2);
-    ctx.restore();
-  }
-  ctx.restore();
 }
 
 // Reflections sit on top of the foil so its opaque rails do not mask the light.
@@ -132,11 +91,6 @@ function polishFoil(ctx,finish){
   foilLight(ctx,224,43,19,1.1,-.02,finish.light,strength);
   foilLight(ctx,5,182,48,8,Math.PI/2,spectral?'#a6f3ff':color,strength*.78);
   foilLight(ctx,275,310,48,10,Math.PI/2,color,strength*.85);
-  // Graduated reflections cross the translucent ribbon at grazing angles.
-  foilLight(ctx,182,406,51,9,-.48,spectral?'#92eaff':color,strength*.86);
-  foilLight(ctx,262,352,30,6,-1.05,finish.light,strength*.78);
-  foilLight(ctx,87,468,43,12,-.08,spectral?'#ffa9fb':color,strength);
-  foilLight(ctx,87,468,21,1.45,-.08,finish.light,strength);
   ctx.restore();
 }
 
