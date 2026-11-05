@@ -555,7 +555,12 @@ function initScene(){
   // Split the foil using top and bottom meshes with independently cropped UVs.
   packParts=new THREE.Group();
   const cutHeight=.95,bottomHeight=3.83-cutHeight,bottomUv=bottomHeight/3.83;
-  packTop=new THREE.Mesh(makePackPartGeometry(cutHeight,bottomUv,cutHeight/3.83),[side,side,side,side,face,face]);
+  // Dedicated translucent materials: fade the torn foil, not the main pouch.
+  const tornSide=side.clone(),tornFace=face.clone();
+  tornSide.transparent=true;tornFace.transparent=true;
+  tornSide.depthWrite=false;tornFace.depthWrite=false;
+  packTop=new THREE.Mesh(makePackPartGeometry(cutHeight,bottomUv,cutHeight/3.83),
+    [tornSide,tornSide,tornSide,tornSide,tornFace,tornFace]);
   packBottom=new THREE.Mesh(makePackPartGeometry(bottomHeight,0,bottomUv),[side,side,side,side,face,face]);
   packTop.position.y=bottomHeight/2;packBottom.position.y=-cutHeight/2;
   packSeam=new THREE.Mesh(new THREE.PlaneGeometry(2.64,.07),new THREE.MeshBasicMaterial({color:0xffe6ff,transparent:true,opacity:.9,depthWrite:false,blending:THREE.AdditiveBlending}));
@@ -610,16 +615,29 @@ function frame(now){
     packRim.visible=pack.visible;
     packRim.position.copy(pack.position);packRim.rotation.copy(pack.rotation);packRim.scale.copy(pack.scale);
     packParts.visible=opening&&tear>.004;
+    if(!opening){
+      packTop.visible=true;
+      tornSide.opacity=tornFace.opacity=1;
+      packTop.rotation.set(0,0,0);
+    }
     if(packParts.visible){
       packParts.position.copy(pack.position);packParts.rotation.copy(pack.rotation);
       packParts.scale.copy(pack.scale);
-      // Top seal peels off; shell sinks as the holographic card clears the opening.
-      const kick=Math.sin(split*Math.PI)*.28;
-      packTop.position.y=(3.83-.95)/2+split*1.07+kick;
-      packTop.position.x=split*.43;
-      packTop.position.z=split*.21;
-      packTop.rotation.z=split*-.43;
-      packTop.rotation.x=split*.23;
+      // The seal peels away, then the detached foil falls with gravity.
+      // At fallStart it is exactly continuous with the existing tear pose.
+      const fallStart=3.18,fallDuration=.90;
+      const topTear=EASE(clamp((Math.min(elapsed,fallStart)-2.52)/1.30,0,1));
+      const topKick=Math.sin(topTear*Math.PI)*.28;
+      const fall=elapsed>=fallStart?clamp((elapsed-fallStart)/fallDuration,0,1):0;
+      const gravity=fall*fall;
+      packTop.position.set(
+        topTear*.43+fall*.27+gravity*.16,
+        (3.83-.95)/2+topTear*1.07+topKick+fall*.12-gravity*2.48,
+        topTear*.21+fall*.26);
+      packTop.rotation.set(topTear*.23+fall*.22,fall*.35,-topTear*.43-fall*.63);
+      const fade=1-EASE(clamp((fall-.27)/.73,0,1));
+      tornSide.opacity=tornFace.opacity=fade;
+      packTop.visible=fall<1;
       packBottom.position.y=-.95/2-split*.59;
       packBottom.rotation.z=split*.052;
       packSeam.material.opacity=(1-tear)*.92;
