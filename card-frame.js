@@ -88,9 +88,11 @@ function polishFoil(ctx,finish){
   foilLight(ctx,138,34,23,1.6,0,finish.light,strength);
   foilLight(ctx,138,33,1.4,12,0,finish.light,strength*.85);
   // The arc, badge and vertical rails catch different parts of the same light.
-  foilLight(ctx,14,49,22,6,-.91,color,strength*.85);
-  foilLight(ctx,224,43,40,10,-.02,spectral?'#ffbded':color,strength);
-  foilLight(ctx,224,43,19,1.1,-.02,finish.light,strength);
+  // Keep the upper-left and upper-right bevels sharply defined. Previous
+  // broad corner flares hid the engraved lines on pale card photos.
+  foilLight(ctx,14,49,12,3,-.91,color,strength*.48);
+  foilLight(ctx,224,43,15,3.2,-.02,spectral?'#ffbded':color,strength*.48);
+  foilLight(ctx,224,43,10,.9,-.02,finish.light,strength*.62);
   foilLight(ctx,5,182,48,8,Math.PI/2,spectral?'#a6f3ff':color,strength*.78);
   foilLight(ctx,275,310,48,10,Math.PI/2,color,strength*.85);
   ctx.restore();
@@ -131,25 +133,32 @@ export function renderITMCard(card,{photo=null,groupLogo=null,photoTransform=nul
   if(foil.naturalWidth){
     ctx.save();
     ctx.shadowColor=finish.edge+'96';ctx.shadowBlur=finish.index===4?13:7;
-    // Isolate the original foil to erase the oversized grade plate WITHOUT
-    // leaving a square matte or damaging the artwork/photo underneath.
+    // The original atlas includes a full-size grade plaque in its upper-right
+    // corner. The old radial "destination-out" mask erased the bezel/rail as
+    // well, leaving a cloudy halo and a visible notch on every rarity.
+    //
+    // Rebuild ONLY the upper-right corner from this same rarity's pristine,
+    // badge-free upper-left bezel (mirrored horizontally). Its transparent
+    // center leaves the photo untouched; the star and every other frame detail
+    // remain in their original atlas coordinates.
     const foilLayer=document.createElement('canvas');
     foilLayer.width=280;foilLayer.height=478;
     const foilCtx=foilLayer.getContext('2d');
-    foilCtx.drawImage(foil,finish.index*290,0,finish.width,478,0,0,280,478);
+    foilCtx.imageSmoothingEnabled=true;
+    foilCtx.imageSmoothingQuality='high';
+    const stripX=finish.index*290;
+    foilCtx.drawImage(foil,stripX,0,finish.width,478,0,0,280,478);
+    const repair={x:178,y:32,w:102,h:116};
+    foilCtx.clearRect(repair.x,repair.y,repair.w,repair.h);
     foilCtx.save();
-    foilCtx.globalCompositeOperation='destination-out';
-    foilCtx.translate(229,90);foilCtx.scale(1.0,.91);
-    const plateErase=foilCtx.createRadialGradient(0,0,35,0,0,78);
-    plateErase.addColorStop(0,'rgba(255,255,255,1)');
-    plateErase.addColorStop(.64,'rgba(255,255,255,.99)');
-    plateErase.addColorStop(1,'rgba(255,255,255,0)');
-    foilCtx.fillStyle=plateErase;foilCtx.fillRect(-79,-79,158,158);
+    foilCtx.beginPath();
+    foilCtx.rect(repair.x,repair.y,repair.w,repair.h);
+    foilCtx.clip();
+    foilCtx.translate(280,0);
+    foilCtx.scale(-1,1);
+    foilCtx.drawImage(foil,stripX,0,finish.width,478,0,0,280,478);
     foilCtx.restore();
     const sourceRatio=finish.width/280;
-    // Keep the right-hand rail continuous where the soft mask touched it.
-    foilCtx.drawImage(foil,finish.index*290+272*sourceRatio,37,
-      8*sourceRatio,124,272,37,8,124);
     ctx.drawImage(foilLayer,0,0);
     ctx.restore();
     // Show the supplied grade plaque at exactly 50% of its original size.
