@@ -403,7 +403,13 @@ function makeCardArt(card){
   // In production the same renderer composites separately stored media with
   // the single, approved N–UR frame. The output is never pre-flattened.
   const canvas=renderITMCard(card,{photo,groupLogo,photoTransform:card.photo_transform});
-  if(!card.isLive||(photo&&(!card.group_logo_url||groupLogo)))artCache.set(cacheKey,canvas);
+  if(!card.isLive||(photo&&(!card.group_logo_url||groupLogo))){
+    // Small LRU: large photo textures should not accumulate without limit
+    // as groups and season card pools grow.
+    if(artCache.has(cacheKey))artCache.delete(cacheKey);
+    artCache.set(cacheKey,canvas);
+    while(artCache.size>14)artCache.delete(artCache.keys().next().value);
+  }
   return canvas;
 }
 function makeBackTexture(){const c=document.createElement('canvas');c.width=512;c.height=746;const g=c.getContext('2d');const b=g.createLinearGradient(0,0,512,746);b.addColorStop(0,'#300d51');b.addColorStop(.5,'#100d2c');b.addColorStop(1,'#68307b');g.fillStyle=b;g.fillRect(0,0,512,746);g.strokeStyle='#e7a3f7';g.lineWidth=8;g.strokeRect(18,18,476,710);g.strokeStyle='#ffffff70';g.lineWidth=1.4;g.strokeRect(34,34,444,678);for(let i=0;i<7;i++){g.save();g.translate(256,360);g.rotate(i*Math.PI/7);g.strokeStyle='#e99cea44';g.beginPath();g.ellipse(0,0,160,250,0,0,Math.PI*2);g.stroke();g.restore()}g.textAlign='center';g.fillStyle='#ffaedc';g.font='120px serif';g.fillStyle='#fff';g.font='900 43px system-ui';g.fillText('ITM',256,457);g.font='bold 15px system-ui';g.fillStyle='#e9badb';g.fillText('IDOL : THE MOMENT',256,493);return c}
