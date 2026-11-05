@@ -41,6 +41,13 @@ async function check(name,device){
     report.checks.sound=audioStats;
     await page.locator('#audioToggle').click();
     await page.locator('#drawFive').click({timeout:12000});
+    // Inspect actual opening phases (foil cut and card ascent), not just the result.
+    await page.waitForTimeout(2240);
+    await page.screenshot({path:'qa/desktop-foil-charge.png',fullPage:false});
+    report.screenshots.push('qa/desktop-foil-charge.png');
+    await page.waitForTimeout(1120);
+    await page.screenshot({path:'qa/desktop-card-emerge.png',fullPage:false});
+    report.screenshots.push('qa/desktop-card-emerge.png');
     report.checks.afterPackClick=await page.evaluate(()=>({
       heading:document.getElementById('sceneHeading')?.textContent,
       buttonDisabled:document.getElementById('drawFive')?.disabled,
