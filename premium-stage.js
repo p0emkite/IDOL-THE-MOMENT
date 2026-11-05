@@ -550,10 +550,10 @@ export function createConcertStage({THREE,scene,renderer,oldBeams=[]}) {
     const yaw=2*Math.PI*sweep;
     const eye=new THREE.Vector3(
       .27*Math.sin(sweep*Math.PI)*(1-approach),
-      mix(2.10,.65,approach),
-      mix(18.4,10.7,approach)
+      mix(2.10,-.70,approach),
+      mix(18.4,10.4,approach)
     );
-    const forward=new THREE.Vector3(Math.sin(yaw),mix(-.065,-.11,approach),-Math.cos(yaw)).normalize();
+    const forward=new THREE.Vector3(Math.sin(yaw),mix(-.065,.091,approach),-Math.cos(yaw)).normalize();
     return {pos:eye,look:eye.clone().addScaledVector(forward,27),fov:mix(53,42,approach)};
   }
   function reset(){opening=null;blackout=false;boomAt=-1;particles.visible=false;setRarity('DEFAULT');}
