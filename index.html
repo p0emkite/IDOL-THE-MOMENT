@@ -54,6 +54,7 @@
       <div class="top-actions">
         <button class="nav-button" id="audioToggle" aria-pressed="false" aria-expanded="false" aria-controls="soundPanel">♪ SOUND OFF <span aria-hidden="true">▾</span></button>
         <button class="nav-button" id="collectionOpen">▦ MY COLLECTION <span id="collectionCount">0</span></button>
+        <a class="nav-button" id="studioOpen" href="./studio.html" hidden>✦ CARD STUDIO</a>
         <button class="account-button" id="loginButton">✦ ITM ID</button>
       </div>
     </header>
@@ -168,7 +169,7 @@
       </div>
     </div>
   </div>
-  <div class="overlay" id="oddsOverlay" aria-hidden="true"><div class="odds-modal"><button class="close" id="oddsClose">×</button><h2>PACK ODDS</h2><p>1장 팩의 테스트 확률입니다. 5장 팩은 각 등급 1장씩 확정으로 등장합니다.</p><div id="oddsRows"></div></div></div>
+  <div class="overlay" id="oddsOverlay" aria-hidden="true"><div class="odds-modal"><button class="close" id="oddsClose">×</button><h2>PACK ODDS</h2><p id="oddsDescription">1장 팩의 테스트 확률입니다. 5장 테스트 팩은 각 등급 1장씩 확정으로 등장합니다.</p><div id="oddsRows"></div></div></div>
   <section class="pack-reveal-stage" id="packRevealStage" role="dialog" aria-modal="true" aria-label="ITM 카드팩 개봉" aria-hidden="true" hidden>
     <div class="concert-led-wall" id="concertRevealLED" aria-hidden="true"></div>
     <div class="concert-crowd" id="concertCrowd" aria-hidden="true"></div>
@@ -185,7 +186,7 @@
       <div class="stage-hint" id="stageHint" role="status" aria-live="polite">카드를 눌러 등급을 확인해 보세요.</div>
     </div>
     <div class="stage-footer">
-      <div class="stage-footer-note"><b>✦ FIRST SHOWCASE / TEST PACK</b>가상 아이돌 카드 5종 · 카드 이미지는 임시 아트입니다.</div>
+      <div class="stage-footer-note" id="stageFooterNote">✦ FIRST SHOWCASE / TEST PACK · 실제 카드는 N~UR 각 등급 공개 후 팩에 등장합니다.</div>
       <div class="stage-controls">
         <button class="stage-btn primary" id="stageRevealAll">모두 공개 ✦</button>
         <button class="stage-btn primary" id="stageFinish" hidden>개봉 완료 · 돌아가기 ↗</button>
