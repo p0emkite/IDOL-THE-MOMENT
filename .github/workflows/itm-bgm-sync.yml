@@ -1,0 +1,28 @@
+name: Sync public ITM BGM to GitHub
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/10 * * * *'
+permissions:
+  contents: write
+concurrency:
+  group: itm-bgm-sync
+  cancel-in-progress: false
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Download published BGM tracks
+        run: python3 .github/scripts/sync-itm-bgm.py
+      - name: Commit synchronized tracks
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/audio/extra
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(itm): sync uploaded BGM tracks"
+            git push
+          fi
