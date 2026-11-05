@@ -106,45 +106,51 @@ async function check(name,device){
       const stage=document.getElementById('packRevealStage');
       return stage&&!stage.hidden&&document.querySelectorAll('#stageCardTrack .stage-card-button').length===5;
     },null,{timeout:40000,polling:300});
-    const ur=page.locator('#stageCardTrack .stage-card-button.rarity-ur');
+    const ur=page.locator('#stageCardTrack .stage-card-button.rarity-ur').first();
     await ur.scrollIntoViewIfNeeded();
-    // Assert the UR-specific 300 ms silence/hold before the flip.
-    const urLead=await page.evaluate(()=>{
-      const b=document.querySelector('#stageCardTrack .stage-card-button.rarity-ur');
-      b.click();
+    const lead=await page.evaluate(()=>{
+      const card=document.querySelector('#stageCardTrack .stage-card-button.rarity-ur');
+      card.click();
       return {
-        waiting:!b.classList.contains('is-revealed'),
-        stageMuted:document.getElementById('packRevealStage').classList.contains('ur-anticipating'),
-        revealAllLocked:document.getElementById('stageRevealAll').disabled
+        stillFaceDown:!card.classList.contains('is-revealed'),
+        blackoutStarted:!document.getElementById('urScreenTransition').hidden,
+        controlsLocked:document.getElementById('stageRevealAll').disabled,
+        noImpactYet:!document.getElementById('packRevealStage').classList.contains('ur-impact')
       };
     });
-    report.checks.landscapeURLead=urLead;
-    if(!urLead.waiting||!urLead.stageMuted||!urLead.revealAllLocked)
-      throw new Error('UR 300 ms anticipation/interaction guard is missing');
-    await page.waitForFunction(()=>document.querySelector('#stageCardTrack .stage-card-button.rarity-ur.is-revealed'),
-      null,{timeout:3500,polling:70});
-    const urPayoff=await page.evaluate(()=>{
-      const card=document.querySelector('#stageCardTrack .stage-card-button.rarity-ur.is-revealed');
-      return {
-        active:!!document.querySelector('.itm-ur-payoff.active'),
-        hologram:getComputedStyle(card.querySelector('.stage-card-front'),'::after').animationName
-      };
-    });
-    report.checks.landscapeURPayoff=urPayoff;
-    if(!urPayoff.active||!urPayoff.hologram.includes('itmURFoilAlive'))
-      throw new Error('UR explosion or post-reveal holographic foil is missing');
-    await page.waitForFunction(()=>!document.getElementById('raritySplash').hidden,null,{timeout:13000});
-    await page.waitForTimeout(1750);
+    report.checks.landscapeURLead=lead;
+    if(!lead.stillFaceDown||!lead.blackoutStarted||!lead.controlsLocked||!lead.noImpactYet)
+      throw new Error('UR reveal spoiled the card before full-screen art');
+    await page.waitForFunction(()=>!document.getElementById('raritySplash').hidden,
+      null,{timeout:13000,polling:70});
     report.checks.landscapeUR=await page.evaluate(()=>{
       const splash=document.getElementById('raritySplash');
       const grade=document.getElementById('splashGrade');
       const name=document.getElementById('splashName');
+      const card=document.querySelector('#stageCardTrack .stage-card-button.rarity-ur');
       const box=el=>{const r=el.getBoundingClientRect();return {left:r.left,top:r.top,right:r.right,bottom:r.bottom,width:r.width,height:r.height}};
       const g=box(grade),n=box(name);
-      return {visible:!splash.hidden,grade:g,name:n,viewport:[innerWidth,innerHeight],
+      return {visible:!splash.hidden,stillFaceDown:!card.classList.contains('is-revealed'),
+        grade:g,name:n,viewport:[innerWidth,innerHeight],
         gradeFullyVisible:g.left>=0&&g.top>=0&&g.bottom<=innerHeight&&g.right<=innerWidth,
         nameFullyVisible:n.left>=0&&n.top>=0&&n.bottom<=innerHeight&&n.right<=innerWidth};
     });
+    if(!report.checks.landscapeUR.stillFaceDown)
+      throw new Error('UR card flipped behind the full-screen reveal');
+    await page.locator('#splashClose').click();
+    await page.waitForFunction(()=>document.querySelector('#stageCardTrack .stage-card-button.rarity-ur.is-revealed'),
+      null,{timeout:12000,polling:50});
+    report.checks.landscapeURPayoff=await page.evaluate(()=>{
+      const card=document.querySelector('#stageCardTrack .stage-card-button.rarity-ur.is-revealed');
+      return {
+        revealedAfterClose:!!card,
+        hologram:getComputedStyle(card.querySelector('.stage-card-front'),'::after').animationName,
+        allControlsUnlocked:!document.getElementById('stageRevealAll').disabled
+      };
+    });
+    if(!report.checks.landscapeURPayoff.revealedAfterClose||
+       !report.checks.landscapeURPayoff.hologram.includes('itmURFoilAlive'))
+      throw new Error('UR impact flip or hologram did not run after the cinematic');
     const splashShot='qa/landscape-ur.png';
     await page.screenshot({path:splashShot,fullPage:false});
     report.screenshots.push(splashShot);
