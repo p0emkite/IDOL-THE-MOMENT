@@ -133,10 +133,10 @@ function showConcertIntro(force=false){
   document.body.classList.add('itm-intro-active');
   introCameraStart=performance.now();
   void el.offsetWidth;
-  // Curtains open, then actual WebGL camera travels through audience and back.
-  introTimers.push(setTimeout(()=>el.classList.add('opening'),260));
-  introTimers.push(setTimeout(()=>{el.hidden=true},700));
-  introTimers.push(setTimeout(closeConcertIntro,3900));
+  // Short, elegant straight-on approach: no audience fly-around or orbit.
+  introTimers.push(setTimeout(()=>el.classList.add('opening'),180));
+  introTimers.push(setTimeout(()=>{el.hidden=true},600));
+  introTimers.push(setTimeout(closeConcertIntro,2860));
 }
 function setConcertRarity(rarity){
   const stage=$('packRevealStage');
@@ -572,7 +572,7 @@ function frame(now){
 if(dust){dust.rotation.y+=delta*.015;dust.rotation.z+=delta*.01}stageLights.forEach((cone,i)=>cone.rotation.z=Math.sin(t*.4+i)*.23);concertStage?.update(t,delta);
   const n=cardMeshes.length;cardMeshes.forEach((mesh,i)=>{const revealed=state.revealed.has(i);const mobile=window.innerWidth<780;const spread=n===1?0:(mobile?1.18:1.47);const targetX=(i-(n-1)/2)*spread;const targetY=.14+Math.sin(t*1.3+i)*.055;mesh.position.x+=(targetX-mesh.position.x)*Math.min(1,delta*4.2);mesh.position.y+=(targetY-mesh.position.y)*Math.min(1,delta*4.2);mesh.position.z+=(0-mesh.position.z)*Math.min(1,delta*3);const targetR=revealed?Math.PI*2:Math.PI;mesh.rotation.y+=(targetR-mesh.rotation.y)*Math.min(1,delta*(revealed?3.2:4.8));mesh.rotation.z=((i-(n-1)/2)*(mobile?-.035:-.043))+Math.sin(t*.7+i)*.012;const targetScale=(revealed&&['SSR','UR'].includes(state.cards[i].rarity))?1.07:1;mesh.scale.lerp(new THREE.Vector3(targetScale,targetScale,targetScale),Math.min(1,delta*3))});
   if(introCameraActive&&concertStage?.introPose){
-    const progress=clamp((performance.now()-introCameraStart)/3650,0,1);
+    const progress=clamp((performance.now()-introCameraStart)/2750,0,1);
     const pose=concertStage.introPose(progress);
     camera.position.copy(pose.pos);
     camera.lookAt(pose.look);
