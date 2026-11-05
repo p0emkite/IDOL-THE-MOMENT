@@ -88,76 +88,103 @@ function drawFrame(ctx,rarity){
   roundRect(ctx,27,27,458,692,17);ctx.stroke();
   ctx.globalAlpha=1;
 
-  // Top crown sits directly ON the sweeping crest instead of beneath it.
-  // Its top point grazes the card edge, like the approved reference.
-  const crownY=25;
+  // The crest's large center star sits visibly across the leading arch,
+  // with its upper point rising above the outer border like the approved art.
+  const crestY=46,starY=32,starRadius=31;
   arcLine(ctx,g=>{
-    g.moveTo(33,75);g.bezierCurveTo(99,33,175,31,256,crownY);
-    g.bezierCurveTo(337,31,413,33,479,75);
-  },across,3.1,.98);
+    g.moveTo(33,81);
+    g.bezierCurveTo(105,37,184,42,256,crestY);
+    g.bezierCurveTo(328,42,407,37,479,81);
+  },across,3.2,.98);
   arcLine(ctx,g=>{
-    g.moveTo(44,89);g.bezierCurveTo(118,50,191,45,256,crownY+13);
-    g.bezierCurveTo(321,45,394,50,467,89);
-  },'#ffffff',1.3,.46);
-  // UR crown remains a soft pastel rainbow; no extra corner star cluster.
-  const crownGradient=gradient(ctx,r.stops,230,0,285,51);
-  ctx.save();ctx.shadowColor=prism?'#e6dbff':r.glow;
-  ctx.shadowBlur=prism?21:rarity==='N'?9:15;
-  starPath(ctx,256,crownY,22,.22);
-  ctx.fillStyle=crownGradient;ctx.fill();
-  ctx.shadowBlur=0;ctx.strokeStyle='#ffffffed';ctx.lineWidth=1.65;ctx.stroke();
-  ctx.restore();
-
-  // Color-filled lower panel, shaped along the orbital ribbons rather than a
-  // rectangular overlay. The surface remains photo-forward and consistent
-  // across all tiers, with softer rainbow iridescence on UR only.
-  const panelPath=()=>{
-    ctx.beginPath();
-    ctx.moveTo(30,692);
-    ctx.bezierCurveTo(140,676,254,602,361,604);
-    ctx.bezierCurveTo(418,603,462,626,482,646);
-    ctx.lineTo(482,715);ctx.lineTo(30,715);ctx.closePath();
-  };
+    g.moveTo(43,94);
+    g.bezierCurveTo(119,56,188,57,256,crestY+14);
+    g.bezierCurveTo(324,57,393,56,469,94);
+  },'#ffffff',1.35,.42);
+  // The star intentionally straddles the arch: its core is ABOVE the crest.
+  // UR keeps the same soft, desaturated spectrum in all three foil locations.
+  const crownGradient=gradient(ctx,r.stops,225,2,292,70);
   ctx.save();
-  panelPath();ctx.clip();
-  const deepTone=ctx.createLinearGradient(0,602,0,716);
-  deepTone.addColorStop(0,'#150e2904');
-  deepTone.addColorStop(.35,r.dark+'86');
-  deepTone.addColorStop(.72,r.dark+'c8');
-  deepTone.addColorStop(1,'#1b132be8');
-  ctx.fillStyle=deepTone;ctx.fillRect(29,595,457,125);
-  // Foil wash adds unmistakable tier color to the filled area.
-  ctx.globalAlpha=prism?.49:.39;
-  ctx.fillStyle=gradient(ctx,r.stops,45,606,471,713);
-  ctx.fillRect(29,598,457,122);
-  ctx.globalAlpha=1;
-  const sheen=ctx.createLinearGradient(55,628,435,720);
-  sheen.addColorStop(0,'#ffffff09');
-  sheen.addColorStop(.43,'#ffffff2e');
-  sheen.addColorStop(.73,'#ffffff03');
-  sheen.addColorStop(1,'#ffffff24');
-  ctx.fillStyle=sheen;ctx.fillRect(29,598,457,122);
+  ctx.shadowColor=prism?'#e7d8ff':r.glow;
+  ctx.shadowBlur=prism?27:rarity==='N'?13:20;
+  starPath(ctx,256,starY,starRadius,.22);
+  ctx.fillStyle=crownGradient;ctx.fill();
+  ctx.shadowBlur=0;
+  ctx.lineWidth=1.75;ctx.strokeStyle='#fffdf6ed';ctx.stroke();
+  ctx.restore();
+  arcLine(ctx,g=>{
+    g.moveTo(242,starY);g.lineTo(213,starY);
+    g.moveTo(270,starY);g.lineTo(299,starY);
+  },r.light,1.2,.58);
+
+  // Bottom: an ascending pointed SWOOSH, not a dome/arch.
+  // A sharp right-side tip and thick left-to-center foil ribbon define the
+  // silhouette. All rarities use exactly this outline and the same logo slot.
+  const swoosh=()=>{
+    ctx.beginPath();
+    ctx.moveTo(29,707);
+    ctx.bezierCurveTo(155,699,344,627,482,590);
+    ctx.bezierCurveTo(377,668,192,720,29,727);
+    ctx.closePath();
+  };
+  const metal=ctx.createLinearGradient(37,708,487,606);
+  metal.addColorStop(0,r.dark);
+  metal.addColorStop(.23,r.mid);
+  metal.addColorStop(.57,r.light);
+  metal.addColorStop(.76,r.mid);
+  metal.addColorStop(1,prism?'#d4e8ff':r.light);
+  ctx.save();
+  ctx.shadowColor=r.glow;ctx.shadowBlur=prism?26:17;
+  ctx.globalAlpha=.96;
+  swoosh();ctx.fillStyle=metal;ctx.fill();
   ctx.restore();
 
-  // Multiple luminous rails give the lower portion the same polished,
-  // dimensional character as the approved concept, without a logo/name box.
-  ctx.save();ctx.shadowColor=r.glow;ctx.shadowBlur=prism?16:11;
+  // Tonal color backing makes the lower panel read like an enamel/foil insert
+  // instead of an empty transparent opening.
+  ctx.save();swoosh();ctx.clip();
+  const tinted=ctx.createLinearGradient(0,598,0,742);
+  tinted.addColorStop(0,'#ffffff92');
+  tinted.addColorStop(.32,'#ffffff35');
+  tinted.addColorStop(.70,r.dark+'64');
+  tinted.addColorStop(1,'#140d29d2');
+  ctx.fillStyle=tinted;ctx.fillRect(27,585,459,150);
+  const specular=ctx.createLinearGradient(27,710,480,598);
+  specular.addColorStop(0,'#ffffff00');
+  specular.addColorStop(.35,'#ffffff32');
+  specular.addColorStop(.57,'#ffffff85');
+  specular.addColorStop(.70,'#ffffff12');
+  specular.addColorStop(1,'#ffffff9b');
+  ctx.globalAlpha=.7;
+  ctx.fillStyle=specular;ctx.fillRect(27,586,459,150);
+  ctx.restore();
+
+  // High-key sweep across the rising edge, plus tapering filament trails.
+  ctx.save();ctx.shadowColor=r.glow;ctx.shadowBlur=prism?25:18;
   arcLine(ctx,g=>{
-    g.moveTo(29,692);g.bezierCurveTo(140,676,254,602,361,604);
-    g.bezierCurveTo(418,603,462,626,482,646);
-  },foil,4,.95);
+    g.moveTo(29,707);
+    g.bezierCurveTo(155,699,344,627,482,590);
+  },foil,4.7,1);
   ctx.restore();
   arcLine(ctx,g=>{
-    g.moveTo(31,703);g.bezierCurveTo(147,682,260,624,373,626);
-    g.bezierCurveTo(423,626,458,641,480,663);
-  },'#ffffff',1.75,.72);
+    g.moveTo(35,712);g.bezierCurveTo(163,703,343,647,468,605);
+  },'#ffffff',2.2,.84);
   arcLine(ctx,g=>{
-    g.moveTo(36,714);g.bezierCurveTo(159,687,270,646,389,650);
-    g.bezierCurveTo(425,652,455,665,478,680);
-  },r.light,2.0,.82);
+    g.moveTo(33,722);g.bezierCurveTo(182,705,336,667,451,621);
+  },r.light,2.2,.76);
   arcLine(ctx,g=>{
-    g.moveTo(45,720);g.bezierCurveTo(157,700,266,663,392,668);
-  },r.mid,1.35,.55);
+    g.moveTo(45,727);g.bezierCurveTo(174,713,323,682,431,648);
+  },r.mid,1.25,.62);
+  // Jewel-like highlights travel along the directional ribbon, not around
+  // a static semi-circle. Never place branding or star badges on the card face.
+  ctx.save();
+  const flare=ctx.createRadialGradient(425,608,1,425,608,53);
+  flare.addColorStop(0,'#ffffffbb');
+  flare.addColorStop(.17,r.light+'8e');
+  flare.addColorStop(.7,r.glow+'1a');
+  flare.addColorStop(1,'#ffffff00');
+  ctx.globalAlpha=.61;ctx.fillStyle=flare;
+  ctx.fillRect(375,560,108,110);
+  ctx.restore();
 
   // Rightmost quarter deliberately left unobstructed for a group logo
   // supplied by the future "add card" tool. No brand/name placeholder.
