@@ -13,7 +13,7 @@ export function mountAudioPanel({onToggle,initialEnabled=true}){
     {title:'Sugar Parade',url:'./assets/audio/3_ITM_Sugar_Parade_Track04_No_Lead.mp3'}
   ];
   let tracks=base.slice(),index=0,enabled=!!initialEnabled,bgmGain=.5,fxGain=.5;
-  let playerReady=false,playing=false,serial=0,failures=0,backend=null,isAdmin=false;
+  let playerReady=false,playing=false,manualPaused=false,serial=0,failures=0,backend=null,isAdmin=false;
   const player=new Audio();
   player.preload='auto';player.loop=false;player.volume=bgmGain;
   const status=msg=>{caption.textContent=msg};
@@ -36,7 +36,7 @@ export function mountAudioPanel({onToggle,initialEnabled=true}){
     describe();
   }
   async function playCurrent(){
-    if(!enabled)return;
+    if(!enabled||manualPaused)return;
     if(!playerReady)loadCurrent();
     const snapshot=serial;
     try{
@@ -56,7 +56,7 @@ export function mountAudioPanel({onToggle,initialEnabled=true}){
   function setEnabled(on){
     enabled=!!on;
     controls();
-    if(enabled)initialPlay();
+    if(enabled){manualPaused=false;initialPlay()}
     else{player.pause();playing=false;status('BGM 일시정지')}
   }
   function next(step=1){
@@ -74,7 +74,7 @@ export function mountAudioPanel({onToggle,initialEnabled=true}){
   // Autoplay may be rejected by the browser. Retry from a genuine user gesture
   // without requiring the user to open the sound menu.
   function unlockPlayback(){
-    if(enabled&&!playing){
+    if(enabled&&!playing&&!manualPaused){
       if(!playerReady)loadCurrent();
       void player.play().then(()=>{playing=true;failures=0;describe()}).catch(()=>{});
     }
@@ -99,8 +99,8 @@ export function mountAudioPanel({onToggle,initialEnabled=true}){
   byId('musicNext').addEventListener('click',()=>next(1));
   byId('musicPlay').addEventListener('click',()=>{
     if(!enabled){onToggle(true);return}
-    if(playing){player.pause();playing=false;status('BGM 일시정지')}
-    else initialPlay();
+    if(playing){manualPaused=true;player.pause();playing=false;status('BGM 일시정지')}
+    else{manualPaused=false;initialPlay()}
   });
   async function reloadTracks(){
     if(!backend)return;
