@@ -9,6 +9,8 @@ on:
       - 'premium-ui.css'
       - 'audio-manager.js'
       - 'app.js'
+      - 'card-frame.js'
+      - 'frame-preview.html'
       - 'index.html'
       - 'tests/itm-browser-check.mjs'
 permissions:
