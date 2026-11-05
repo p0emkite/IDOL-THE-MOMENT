@@ -1,6 +1,11 @@
 name: Sync public ITM BGM to GitHub
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/itm-bgm-sync.yml'
+      - '.github/scripts/sync-itm-bgm.py'
   schedule:
     - cron: '*/10 * * * *'
 permissions:
