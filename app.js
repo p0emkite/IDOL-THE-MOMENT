@@ -1,4 +1,5 @@
 import {mountAudioPanel} from './audio-manager.js';
+import {createOpeningEffects} from './opening-effects.js';
 /* ITM — IDOL : THE MOMENT | Standalone, fan-made 3D prototype
    3D library is loaded from a pinned public ESM CDN; there is no build step.
    Offline demo cards are mock identities and stored only in localStorage.
@@ -73,7 +74,7 @@ const visibleInventory=()=>isNamedAccount()?state.remoteDemoInventory:state.demo
 function saveEntryChoice(value){try{localStorage.setItem(ENTRY_KEY,value)}catch{}}
 function guestChosen(){try{return localStorage.getItem(ENTRY_KEY)==='guest'}catch{return false}}
 function syncCanvasPointerEvents(){const canvas=$('threeCanvas');if(canvas)canvas.classList.toggle('itm-canvas-interactive',state.phase==='reveal');}
-let scene,renderer,camera,pack,packRim,packParts,packTop,packBottom,packSeam,openingCard,cardMeshes=[],dust,halos,stageLights=[],THREE,clock,lastTime=0,openingAt=0,audioContext=null;
+let scene,renderer,camera,pack,packRim,packParts,packTop,packBottom,packSeam,openingCard,cardMeshes=[],dust,halos,stageLights=[],openingFx=null,THREE,clock,lastTime=0,openingAt=0,audioContext=null;
 
 let soundManager=null;
 let concertStage=null,hoverChimeAt=0,splashTimer=null,urCoverTimer=null,audioPreferenceSet=false,introShown=false,introTimers=[],introCameraActive=false,introCameraStart=0;
@@ -235,6 +236,56 @@ function flash(rarity){const f=$('flash');f.style.background=`radial-gradient(el
 let toastTimer;
 function toast(msg){const t=$('toast');t.textContent=msg;t.classList.add('visible');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('visible'),2900)}
 function chime(freq=523,intensity=.13){if(!state.audio)return;intensity*=(soundManager?.getSfxGain()??.62);if(intensity<.0005)return;try{audioContext ||= new(window.AudioContext||window.webkitAudioContext)();audioContext.resume();const now=audioContext.currentTime;[1,1.498,2].forEach((factor,i)=>{const o=audioContext.createOscillator(),g=audioContext.createGain();o.type=i===0?'sine':'triangle';o.frequency.value=freq*factor;g.gain.setValueAtTime(0,now+i*.07);g.gain.linearRampToValueAtTime(intensity/(i+1),now+i*.07+.02);g.gain.exponentialRampToValueAtTime(.0001,now+i*.07+.48);o.connect(g).connect(audioContext.destination);o.start(now+i*.07);o.stop(now+i*.07+.5)})}catch{}}
+
+// Low-volume synthesized foil, charge and impact sounds.
+// Respect the independent SFX volume and keep existing BGM playback intact.
+function playOpeningCeremonySound(tier){
+  if(!state.audio)return;
+  const gainLevel=soundManager?.getSfxGain()??.62;
+  if(gainLevel<.015)return;
+  try{
+    audioContext ||= new(window.AudioContext||window.webkitAudioContext)();
+    audioContext.resume();
+    const ctx=audioContext,t=ctx.currentTime;
+    const master=ctx.createGain();
+    master.gain.value=Math.min(.15,.20*gainLevel);
+    master.connect(ctx.destination);
+    const note=(at,f0,f1,len,amp,kind='sine')=>{
+      const osc=ctx.createOscillator(),vol=ctx.createGain();
+      osc.type=kind;
+      osc.frequency.setValueAtTime(f0,t+at);
+      osc.frequency.exponentialRampToValueAtTime(f1,t+at+len);
+      vol.gain.setValueAtTime(.0001,t+at);
+      vol.gain.linearRampToValueAtTime(amp,t+at+.025);
+      vol.gain.exponentialRampToValueAtTime(.0001,t+at+len);
+      osc.connect(vol).connect(master);
+      osc.start(t+at);osc.stop(t+at+len+.02);
+    };
+    const rip=()=>{
+      const len=.31,b=ctx.createBuffer(1,Math.ceil(ctx.sampleRate*len),ctx.sampleRate);
+      const ch=b.getChannelData(0);
+      for(let i=0;i<ch.length;i++)ch[i]=(Math.random()*2-1)*(.9-.6*i/ch.length);
+      const source=ctx.createBufferSource(),filter=ctx.createBiquadFilter(),vol=ctx.createGain();
+      source.buffer=b;filter.type='highpass';filter.frequency.value=1700;
+      vol.gain.setValueAtTime(.001,t+2.51);
+      vol.gain.linearRampToValueAtTime(.39,t+2.56);
+      vol.gain.exponentialRampToValueAtTime(.001,t+2.82);
+      source.connect(filter).connect(vol).connect(master);
+      source.start(t+2.51);source.stop(t+2.82);
+    };
+    note(.05,142,202,.22,.12,'triangle');
+    note(.57,190,260,.29,.12);
+    note(1.20,206,tier==='UR'?440:320,.44,.17,'sawtooth');
+    note(2.08,430,850,.31,.20);
+    rip();
+    note(2.63,350,tier==='UR'?1090:810,.41,.27);
+    note(3.15,340,970,.44,.28,'triangle');
+    const final=tier==='UR'?784:tier==='SSR'?659:tier==='SR'?587:440;
+    note(3.60,final,final*1.5,.60,tier==='UR'?.37:.27);
+    note(3.65,final*1.25,final*2,.52,.15,'triangle');
+  }catch{/* Disabled/autoplay-restricted devices skip only this supplementary SFX. */}
+}
+
 function toggleAudio(){if(!soundManager){audioPreferenceSet=true;setSound(!state.audio);if(state.audio)chime()}}
 // All cards use generated fictional/sample illustration. Real artist pictures can replace this asset layer.
 const artCache=new Map();
@@ -518,6 +569,7 @@ function initScene(){
   );
   openingCard.visible=false;openingCard.position.set(0,-.65,.30);scene.add(openingCard);
   packRim=new THREE.Mesh(new THREE.BoxGeometry(2.62,3.9,.2),new THREE.MeshBasicMaterial({color:0xcc73ff,transparent:true,opacity:.16,wireframe:true,depthWrite:false}));scene.add(packRim);
+  openingFx=createOpeningEffects({THREE,scene});
   window.addEventListener('resize',resizeScene,{passive:true});resizeScene();
   const raycaster=new THREE.Raycaster(),pointer=new THREE.Vector2();canvas.addEventListener('pointerdown',(e)=>{if(state.phase!=='reveal')return;const b=canvas.getBoundingClientRect();pointer.x=((e.clientX-b.left)/b.width)*2-1;pointer.y=-((e.clientY-b.top)/b.height)*2+1;raycaster.setFromCamera(pointer,camera);const hit=raycaster.intersectObjects(cardMeshes);if(hit.length)revealIndex(hit[0].object.userData.index)});
   renderer.setAnimationLoop(frame);state.three=true;
@@ -682,6 +734,8 @@ async function openPack(count){
   setConcertRarity('DEFAULT');
   state.phase='opening';syncCanvasPointerEvents();openingAt=performance.now()*.001;
   concertStage?.beginOpening(state.pullHighlight);
+  openingFx?.setTier(state.pullHighlight);
+  playOpeningCeremonySound(state.pullHighlight);
   document.body.classList.add('pack-cinematic');requestAnimationFrame(resizeScene);
   showControls([]);$('controlHeading').textContent='봉인을 해제하고 있어요…';
   $('sceneHeading').textContent='02 — BREAK THE SEAL';
@@ -751,7 +805,7 @@ function revealAll(){
   }
 }
 function reset(){
-  closeRaritySplash();concertStage?.endOpening();setConcertRarity('DEFAULT');
+  closeRaritySplash();concertStage?.endOpening();openingFx?.reset();setConcertRarity('DEFAULT');
   document.body.classList.remove('pack-cinematic','pack-revealing');
   const stage=$('packRevealStage');stage.hidden=true;stage.setAttribute('aria-hidden','true');
   $('stageBurst').className='stage-burst';$('stageRarityBanner').className='stage-rarity-banner';
