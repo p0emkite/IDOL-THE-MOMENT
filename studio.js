@@ -5,8 +5,8 @@ const BUCKET='itm-card-media';
 const VALID_MIME=['image/jpeg','image/png','image/webp'];
 const RARITIES=['N','R','SR','SSR','UR'];
 const state={
-  client:null,admin:false,logged:false,groups:[],members:[],cards:[],editingId:null,
-  photoFile:null,fullArtFile:null,groupLogoFile:null,
+  client:null,admin:false,logged:false,groups:[],members:[],cards:[],series:[],packs:[],editingId:null,
+  photoFile:null,fullArtFile:null,groupLogoFile:null,packFile:null,packImagePath:null,
   photoImage:null,groupImage:null,groupEditorImage:null,
   imagePath:null,fullArtPath:null,
   currentGroup:null,renderQueued:false,saving:false,previewCanvas:null,
@@ -27,6 +27,8 @@ function accessControls(){
   $('saveCard').disabled=!allowed;
   $('saveGroup').disabled=!allowed;
   $('saveMember').disabled=!allowed||!$('groupPicker').value;
+  $('savePack').disabled=!allowed;
+  $('deletePack').disabled=!allowed||!$('packPicker').value;
   $('studioLogout').hidden=!state.logged;
   $('studioLogin').hidden=state.logged;
   if(state.admin){
@@ -73,12 +75,13 @@ async function asImage(input){
 }
 function groupLogoPath(slug){return state.groups.find(g=>g.slug===slug)?.logo_path||null}
 function currentTransform(){return {
-  scale:Math.min(4,Math.max(1,Number($('photoZoom').value)/100)),
+  scale:Math.min(4,Math.max(0,Number($('photoZoom').value)/100)),
   x:Number($('photoX').value)/100,
   y:Number($('photoY').value)/100
 }}
 function setTransform(v={}){
-  $('photoZoom').value=Math.round(Math.max(1,Math.min(4,Number(v.scale)||1))*100);
+  const rawScale=Number(v.scale);
+  $('photoZoom').value=Math.round(Math.max(0,Math.min(4,Number.isFinite(rawScale)?rawScale:1))*100);
   $('photoX').value=Math.round((Number(v.x)||0)*100);
   $('photoY').value=Math.round((Number(v.y)||0)*100);
   updateCropLabels();queuePreview();
@@ -87,6 +90,7 @@ function updateCropLabels(){
   $('zoomLabel').textContent=$('photoZoom').value+'%';
   $('xLabel').textContent=$('photoX').value;
   $('yLabel').textContent=$('photoY').value;
+  $('logoZoomLabel').textContent=$('logoZoom').value+'%';
 }
 function previewData(){
   const card={
@@ -94,7 +98,7 @@ function previewData(){
     group:$('cardGroup').value,
     name:$('cardName').value,
     edition:$('cardEdition').value,
-    photo_transform:currentTransform()
+    photo_transform:currentTransform(),logo_scale:Number($('logoZoom').value)/100
   };
   return card;
 }
@@ -192,6 +196,7 @@ function clearCard(){
   state.editingId=null;state.photoFile=null;state.fullArtFile=null;
   state.photoImage=null;state.imagePath=null;state.fullArtPath=null;
   $('cardName').value='';$('cardEdition').value='DEBUT COLLECTION';$('cardRarity').value='N';
+  $('logoZoom').value='100';
   $('cardStatus').value='draft';$('cardPhoto').value='';$('cardFullArt').value='';
   refreshCardMembers('');
   $('cardId').value='';
@@ -202,13 +207,14 @@ async function loadCard(card){
   if(!card)return;
   state.editingId=card.id;state.photoFile=null;state.fullArtFile=null;
   state.imagePath=card.photo_path||null;state.fullArtPath=card.full_art_path||null;
-  $('cardGroup').value=card.group_slug;refreshCardMembers(card.member_id);
+  $('cardGroup').value=card.group_slug;refreshCardMembers(card.member_id);refreshSeriesOptions();
   $('cardName').value=card.display_name;
   $('cardEdition').value=card.edition;
   $('cardRarity').value=card.rarity;
   $('cardStatus').value=card.status;
   $('cardId').value=card.id;
   $('cardPhoto').value='';$('cardFullArt').value='';
+  $('logoZoom').value=String(Math.round((card.logo_scale??1)*100));
   setTransform({scale:card.photo_scale,x:card.photo_x,y:card.photo_y});
   state.photoImage=null;queuePreview();
   await syncLogo();
@@ -222,16 +228,21 @@ async function loadCard(card){
 }
 async function loadCatalog(){
   if(!state.client)return;
-  const [{data:groups,error:groupError},{data:cards,error:cardError},members]=await Promise.all([
+  const [{data:groups,error:groupError},{data:cards,error:cardError},members,series,packs]=await Promise.all([
     state.client.from('itm_groups').select('slug,name,logo_path').order('name'),
     state.client.from('itm_catalog').select('*').order('created_at',{ascending:false}),
-    state.admin?state.client.from('itm_members').select('id,group_slug,name').order('name'):Promise.resolve({data:[]})
+    state.admin?state.client.from('itm_members').select('id,group_slug,name').order('name'):Promise.resolve({data:[]}),
+    state.client.from('itm_series').select('id,group_slug,name').order('name'),
+    state.client.from('itm_packs').select('*').order('created_at',{ascending:false})
   ]);
   if(groupError)throw groupError;
   if(cardError)throw cardError;
   if(members.error)throw members.error;
+  if(series.error||packs.error)throw (series.error||packs.error);
   state.members=members.data||[];state.groups=groups||[];state.cards=cards||[];
-  refreshSelectors();refreshCardMembers();refreshMembers($('memberPicker').value);renderLibrary();await syncLogo();
+  state.series=series.data||[];state.packs=packs.data||[];
+  refreshSelectors();refreshCardMembers();refreshMembers($('memberPicker').value);
+  refreshSeriesOptions();refreshPackEditor();renderLibrary();await syncLogo();
 }
 function renderLibrary(){
   const list=$('cardLibrary');
@@ -311,12 +322,15 @@ async function saveCard(event){
   if(status==='published'&&!state.photoFile&&!state.imagePath)return toast('공개 전 카드 사진을 등록해 주세요.');
   state.saving=true;accessControls();
   try{
+    const {error:seriesError}=await state.client.from('itm_series').upsert({group_slug,name:edition},{onConflict:'group_slug,name'});
+    if(seriesError)throw seriesError;
     const photo_path=state.photoFile?await uploadFile(state.photoFile,'photos'):state.imagePath||'';
     const full_art_path=state.fullArtFile?await uploadFile(state.fullArtFile,'special'):state.fullArtPath||null;
     const transform=currentTransform();
     const row={
       member_id:$('cardMember').value||null,group_slug,display_name,edition,rarity:$('cardRarity').value,status,
       photo_path,full_art_path,photo_scale:transform.scale,photo_x:transform.x,photo_y:transform.y,
+      logo_scale:Number($('logoZoom').value)/100,
       updated_at:new Date().toISOString()
     };
     const req=state.editingId?state.client.from('itm_catalog').update(row).eq('id',state.editingId):
@@ -327,7 +341,7 @@ async function saveCard(event){
     state.imagePath=photo_path;state.fullArtPath=full_art_path;
     $('cardId').value=data.id;$('cardPhoto').value='';$('cardFullArt').value='';
     await loadCatalog();
-    $('cardGroup').value=group_slug;await syncLogo();
+    $('cardGroup').value=group_slug;refreshSeriesOptions();await syncLogo();
     toast(status==='published'?'카드 공개 완료! 등급별 준비 상태에 따라 팩·도감에 반영됩니다.':status==='private'?'비공개로 저장했습니다.':'임시 저장했습니다.');
   }catch(err){toast('카드 저장 실패: '+(err?.message||err))}
   finally{state.saving=false;accessControls()}
@@ -370,6 +384,12 @@ function bindDrag(){
     updateCropLabels();queuePreview();
   });
   for(const name of ['pointerup','pointercancel'])holder.addEventListener(name,()=>{current=null});
+  holder.addEventListener('wheel',event=>{
+    if(!event.altKey||!state.photoImage)return;
+    event.preventDefault();const target=$('photoZoom');
+    target.value=String(Math.min(400,Math.max(0,Number(target.value)+(event.deltaY<0?10:-10))));
+    updateCropLabels();queuePreview();
+  },{passive:false});
 }
 async function refreshAccess(){
   try{
@@ -413,7 +433,7 @@ function bind(){
   $('newCard').onclick=()=>{clearCard();syncLogo()};
   $('memberForm').onsubmit=saveMember;
   $('memberPicker').onchange=()=>refreshMembers($('memberPicker').value);
-  $('cardGroup').onchange=()=>{refreshCardMembers('');syncLogo()};
+  $('cardGroup').onchange=()=>{refreshCardMembers('');refreshSeriesOptions();syncLogo()};
   $('cardMember').onchange=()=>{
     const member=state.members.find(m=>m.id===$('cardMember').value);
     if(member)$('cardName').value=member.name;
@@ -425,7 +445,7 @@ function bind(){
   $('cardName').oninput=queuePreview;
   $('cardEdition').oninput=queuePreview;
   $('resetCrop').onclick=()=>setTransform({scale:1,x:0,y:0});
-  ['photoZoom','photoX','photoY'].forEach(id=>$(id).oninput=()=>{updateCropLabels();queuePreview()});
+  ['photoZoom','photoX','photoY','logoZoom'].forEach(id=>$(id).oninput=()=>{updateCropLabels();queuePreview()});
   for(const btn of document.querySelectorAll('[data-rarity]')){
     btn.onclick=()=>{$('cardRarity').value=btn.dataset.rarity;queuePreview()};
   }
@@ -438,6 +458,16 @@ function bind(){
     $('groupLogoPreview').replaceWith(img);img.id='groupLogoPreview';img.alt='그룹 로고';$('groupLogoPreview').hidden=false;$('groupLogoEmpty').hidden=true;
     if($('groupSlug').value===$('cardGroup').value){state.groupImage=img;queuePreview()}
   });
+  $('packForm').onsubmit=savePack;
+  $('newPack').onclick=()=>selectPack('');
+  $('packPicker').onchange=()=>selectPack($('packPicker').value);
+  $('deletePack').onclick=deletePack;
+  $('packImage').onchange=async e=>{
+    const file=e.target.files?.[0];if(!file)return;
+    try{fileCheck(file);state.packFile=file;const img=await asImage(file);
+      $('packImagePreview').src=img.src;$('packImagePreview').hidden=false;$('packImageEmpty').hidden=true;
+    }catch(err){toast(err.message);e.target.value=''}
+  };
   bindDrag();
   setTransform();queuePreview();
 }
