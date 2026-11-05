@@ -419,27 +419,31 @@ function makePackTexture(){
   return c;
 }
 function texture(c){const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=Math.min(renderer.capabilities.getMaxAnisotropy(),8);return t}
-let backTexture,packTexture;
-function makePackPartGeometry(height,uvStart,uvSize){
-  const geometry=new THREE.BoxGeometry(2.55,height,.23),uv=geometry.attributes.uv;
-  for(let i=0;i<uv.count;i++)uv.setY(i,uv.getY(i)*uvSize+uvStart);
-  return geometry;
-}
-
-function makeSculptedFoilGeometry(){
-  const geo=new THREE.BoxGeometry(2.55,3.83,.23,30,44,2);
-  const p=geo.attributes.position;
+let backTexture,packTexture,packSheen;
+function sculptFoilGeometry(geometry,uvStart=0,uvSize=1){
+  // Convex, sealed metallized film with a smoothly rounded pillow profile.
+  // Both the unopened pouch and the torn sections share the same world-space curvature.
+  const p=geometry.attributes.position,uv=geometry.attributes.uv;
   for(let i=0;i<p.count;i++){
     const x=p.getX(i),y=p.getY(i),z=p.getZ(i);
-    const edge=Math.pow(Math.abs(x)/1.275,3);
-    const top=Math.pow(Math.abs(y)/1.915,5);
-    const crease=Math.sin(y*2.6+x*1.1)*.0042;
-    const deformation=crease*(.12+.88*edge)+top*.003*Math.sin(x*5.2);
-    if(Math.abs(z)>.09){
-      p.setXYZ(i,x+edge*.0015*Math.sin(y*4),y,z+(z>0?1:-.5)*deformation);
+    const fullY=(uvStart+uv.getY(i)*uvSize)*3.83-1.915;
+    const cross=Math.max(0,1-Math.pow(x/1.275,2));
+    const long=Math.max(0,1-Math.pow(fullY/1.915,4));
+    const bow=.115*cross*long;
+    if(Math.abs(z)>.12){
+      p.setZ(i,z+(z>0?bow:-bow*.64));
     }
+    uv.setY(i,uvStart+uv.getY(i)*uvSize);
   }
-  p.needsUpdate=true;geo.computeVertexNormals();return geo;
+  p.needsUpdate=true;uv.needsUpdate=true;geometry.computeVertexNormals();
+  return geometry;
+}
+function makePackPartGeometry(height,uvStart,uvSize){
+  const vertical=Math.max(8,Math.round(height/3.83*44));
+  return sculptFoilGeometry(new THREE.BoxGeometry(2.55,height,.33,30,vertical,2),uvStart,uvSize);
+}
+function makeSculptedFoilGeometry(){
+  return sculptFoilGeometry(new THREE.BoxGeometry(2.55,3.83,.33,30,44,2));
 }
 
 function initScene(){
@@ -458,6 +462,45 @@ function initScene(){
   backTexture=texture(loaded(brandCardBack)?brandCardBack:makeBackTexture());packTexture=texture(makePackTexture());
   const face=new THREE.MeshPhysicalMaterial({map:packTexture,metalness:.43,roughness:.21,clearcoat:1,clearcoatRoughness:.1,envMapIntensity:1.65,side:THREE.DoubleSide});const side=new THREE.MeshPhysicalMaterial({color:0xf7a8dc,metalness:.86,roughness:.22,clearcoat:1,envMapIntensity:1.8});
   pack=new THREE.Mesh(makeSculptedFoilGeometry(),[side,side,side,side,face,face]);pack.rotation.y=-.32;scene.add(pack);
+  // Thin metallic rolled seams physically wrap the pouch instead of being printed.
+  const edgeMaterial=new THREE.MeshPhysicalMaterial({
+    color:0xffc8f4,metalness:.79,roughness:.16,clearcoat:1,envMapIntensity:2
+  });
+  for(const x of [-1.246,1.246]){
+    const rail=new THREE.Mesh(new THREE.CylinderGeometry(.022,.022,3.73,8),edgeMaterial);
+    rail.position.set(x,0,.17);pack.add(rail);
+  }
+  for(const y of [-1.826,1.826]){
+    const seam=new THREE.Mesh(new THREE.CylinderGeometry(.018,.018,2.46,8),edgeMaterial);
+    seam.rotation.z=Math.PI/2;seam.position.set(0,y,.19);pack.add(seam);
+  }
+  // A real curved transparent specular layer catches light as the pack floats.
+  const sheenCanvas=document.createElement('canvas');sheenCanvas.width=512;sheenCanvas.height=1024;
+  const sg=sheenCanvas.getContext('2d');
+  const stripe=sg.createLinearGradient(0,0,512,1024);
+  stripe.addColorStop(0,'#ffffff00');
+  stripe.addColorStop(.28,'#ffffff00');
+  stripe.addColorStop(.43,'#fff8ff25');
+  stripe.addColorStop(.49,'#ffffff8c');
+  stripe.addColorStop(.54,'#e3eeff30');
+  stripe.addColorStop(.64,'#ffffff00');
+  stripe.addColorStop(1,'#ffffff00');
+  sg.fillStyle=stripe;sg.fillRect(0,0,512,1024);
+  const sheenTexture=new THREE.CanvasTexture(sheenCanvas);
+  sheenTexture.colorSpace=THREE.SRGBColorSpace;
+  const sheenGeo=new THREE.PlaneGeometry(2.48,3.68,30,44);
+  const sheenPos=sheenGeo.attributes.position;
+  for(let i=0;i<sheenPos.count;i++){
+    const x=sheenPos.getX(i),y=sheenPos.getY(i);
+    const bulge=.115*Math.max(0,1-(x/1.275)**2)*Math.max(0,1-(y/1.915)**4);
+    sheenPos.setZ(i,.174+bulge);
+  }
+  sheenGeo.computeVertexNormals();
+  packSheen=new THREE.Mesh(sheenGeo,new THREE.MeshBasicMaterial({
+    map:sheenTexture,transparent:true,opacity:.25,side:THREE.DoubleSide,
+    depthWrite:false,blending:THREE.AdditiveBlending
+  }));
+  pack.add(packSheen);
   // Split the foil using top and bottom meshes with independently cropped UVs.
   packParts=new THREE.Group();
   const cutHeight=.95,bottomHeight=3.83-cutHeight,bottomUv=bottomHeight/3.83;
@@ -496,6 +539,7 @@ function frame(now){
     pack.rotation.x=Math.sin(t*.66)*.025+(opening?shake*Math.sin(t*19)*.045:0);
     pack.rotation.z=Math.sin(t*.48)*.02+(opening?shake*Math.sin(t*25)*.105:0);
     pack.scale.setScalar(opening?1+EASE(clamp(elapsed/2.7,0,1))*.105:1);
+    if(packSheen)packSheen.material.opacity=.21+.17*(.5+.5*Math.sin(t*.72+pack.rotation.y*3));
     pack.visible=(ready||opening)&&tear<=.004;
     packRim.visible=pack.visible;
     packRim.position.copy(pack.position);packRim.rotation.copy(pack.rotation);packRim.scale.copy(pack.scale);
