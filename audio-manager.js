@@ -1,199 +1,154 @@
-/* ITM sound system — independent SFX/BGM gain, ordered 3-track playlist.
- * Uses same-origin MP3s when published; a local IndexedDB library is a
- * fallback for sessions before those files are published to GitHub Pages.
- * Audio playback starts only after an explicit user gesture.
+/* ITM audio: defaults ON at 50/50; browser gesture policies still apply.
+ * Live BGM additions are persisted in Supabase and shared across devices.
+ * A scheduled GitHub workflow mirrors the same files to the repository.
  */
-export function mountAudioPanel({onToggle,initialEnabled=false}) {
+export function mountAudioPanel({onToggle,initialEnabled=true}){
   const byId=id=>document.getElementById(id);
-  const panel=byId('soundPanel'),button=byId('audioToggle');
-  const volumeBgm=byId('bgmVolume'),volumeFx=byId('sfxVolume');
-  const master=byId('soundMaster'),caption=byId('musicTrackInfo');
-  const fileInput=byId('musicFiles'),fileHint=byId('musicFileHint');
-  const trackNames=['Afterglow Arcade','Chrome Rush','Sugar Parade'];
-  const urls=[
-    './assets/audio/1_ITM_Afterglow_Arcade_Lobby_BGM.mp3',
-    './assets/audio/2_ITM_Chrome_Rush_Track03_No_Lead.mp3',
-    './assets/audio/3_ITM_Sugar_Parade_Track04_No_Lead.mp3'
+  const panel=byId('soundPanel'),button=byId('audioToggle'),master=byId('soundMaster');
+  const volumeBgm=byId('bgmVolume'),volumeFx=byId('sfxVolume'),caption=byId('musicTrackInfo');
+  const input=byId('musicFiles'),uploadLabel=byId('musicUploadLabel');
+  const base=[
+    {title:'Afterglow Arcade',url:'./assets/audio/1_ITM_Afterglow_Arcade_Lobby_BGM.mp3'},
+    {title:'Chrome Rush',url:'./assets/audio/2_ITM_Chrome_Rush_Track03_No_Lead.mp3'},
+    {title:'Sugar Parade',url:'./assets/audio/3_ITM_Sugar_Parade_Track04_No_Lead.mp3'}
   ];
-  const read=(k,fallback)=>{try{return localStorage.getItem(k)??fallback}catch{return fallback}};
-  const save=(k,v)=>{try{localStorage.setItem(k,String(v))}catch{}};
-  let enabled=!!initialEnabled;
-  let bgmGain=Math.max(0,Math.min(1,Number(read('itm-bgm-volume','0.32'))));
-  let fxGain=Math.max(0,Math.min(1,Number(read('itm-sfx-volume','0.62'))));
-  let index=0,playing=false,serial=0,failures=0,currentBlobURL=null;
+  let tracks=base.slice(),index=0,enabled=!!initialEnabled,bgmGain=.5,fxGain=.5;
+  let playerReady=false,playing=false,serial=0,failures=0,backend=null,isAdmin=false;
   const player=new Audio();
-  player.preload='none';player.loop=false;
-  player.volume=enabled?bgmGain:0;
-  let database=null;
-  function openDB() {
-    if(database)return database;
-    if(!('indexedDB' in window))return Promise.resolve(null);
-    database=new Promise(resolve=>{
-      try{
-        const req=indexedDB.open('itm-user-audio-v1',1);
-        req.onupgradeneeded=()=>{
-          if(!req.result.objectStoreNames.contains('tracks'))req.result.createObjectStore('tracks');
-        };
-        req.onsuccess=()=>resolve(req.result);
-        req.onerror=()=>resolve(null);
-      }catch{resolve(null)}
-    });
-    return database;
-  }
-  async function storedTrack(idx){
-    const db=await openDB();if(!db)return null;
-    return new Promise(resolve=>{
-      try{
-        const tx=db.transaction('tracks','readonly');
-        const req=tx.objectStore('tracks').get(idx);
-        req.onsuccess=()=>resolve(req.result||null);
-        req.onerror=()=>resolve(null);
-      }catch{resolve(null)}
-    });
-  }
-  async function saveTrack(idx,file){
-    const db=await openDB();if(!db)throw Error('브라우저에 음악을 저장할 수 없습니다.');
-    return new Promise((resolve,reject)=>{
-      const tx=db.transaction('tracks','readwrite');
-      tx.objectStore('tracks').put(file,idx);
-      tx.oncomplete=resolve;
-      tx.onerror=()=>reject(Error('브라우저에 음악을 저장하지 못했습니다.'));
-    });
-  }
-  function status(message){
-    if(caption)caption.textContent=message;
-  }
-  function volume(){
+  player.preload='auto';player.loop=false;player.volume=bgmGain;
+  const status=msg=>{caption.textContent=msg};
+  const describe=()=>status('♪ '+(index+1)+'/'+tracks.length+' · '+tracks[index].title);
+  function controls(){
     player.volume=enabled?bgmGain:0;
-    if(master)master.checked=enabled;
-    if(volumeBgm)volumeBgm.value=String(Math.round(bgmGain*100));
-    if(volumeFx)volumeFx.value=String(Math.round(fxGain*100));
+    master.checked=enabled;
+    volumeBgm.value=String(Math.round(bgmGain*100));volumeFx.value=String(Math.round(fxGain*100));
     byId('bgmValue').textContent=Math.round(bgmGain*100)+'%';
     byId('sfxValue').textContent=Math.round(fxGain*100)+'%';
     button.setAttribute('aria-expanded',String(!panel.hidden));
+    uploadLabel.hidden=!isAdmin;
   }
-  async function loadCurrent(){
-    const attempt=++serial;
-    const oldBlobURL=currentBlobURL;currentBlobURL=null;
-    player.pause();
-    player.removeAttribute('src');
-    if(oldBlobURL)URL.revokeObjectURL(oldBlobURL);
-    const blob=await storedTrack(index);
-    if(attempt!==serial)return false;
-    if(blob instanceof Blob){
-      currentBlobURL=URL.createObjectURL(blob);
-      player.src=currentBlobURL;
-      if(fileHint)fileHint.textContent='음악 파일이 이 브라우저에 저장돼 있습니다.';
-    }else{
-      player.src=urls[index];
-    }
-    player.load();
-    status('♪ '+(index+1)+'/3 · '+trackNames[index]);
-    return true;
+  function loadCurrent(){
+    if(!tracks.length)return;
+    serial++;
+    player.pause();playing=false;
+    player.src=tracks[index].url;
+    player.load();playerReady=true;
+    describe();
   }
   async function playCurrent(){
     if(!enabled)return;
-    const mySerial=serial;
+    if(!playerReady)loadCurrent();
+    const snapshot=serial;
     try{
       await player.play();
-      if(mySerial!==serial)return;
-      playing=true;failures=0;
+      if(snapshot===serial){playing=true;failures=0;describe()}
     }catch(error){
       playing=false;
-      if(error?.name==='NotAllowedError'){
-        status('음악 재생 버튼을 눌러 주세요.');
-      }else if(!error||error.name!=='AbortError'){
-        status('음원 로딩 중 · 음악 파일을 연결해 주세요.');
-      }
+      if(error?.name==='NotAllowedError')status('재생 준비됨 · 화면을 누르면 BGM이 시작됩니다.');
+      else if(error?.name!=='AbortError')status('BGM 파일 로딩 실패 · 다음 트랙을 확인해 주세요.');
     }
   }
-  async function next(manual=false){
-    if(manual)failures=0;
-    else failures++;
-    if(failures>=3){
-      player.pause();playing=false;
-      status('BGM 3곡 파일이 없습니다 · 아래에서 파일을 연결해 주세요.');
-      if(fileHint)fileHint.textContent='MP3 3곡을 한 번만 선택하면 이 브라우저에 보관됩니다.';
-      return;
-    }
-    index=(index+1)%3;
-    const loaded=await loadCurrent();
-    if(loaded&&enabled)await playCurrent();
-  }
-  player.addEventListener('ended',()=>{failures=0;next(true)});
-  player.addEventListener('error',()=>{
-    if(enabled && player.error?.code!==1)next(false);
-  });
-  function setEnabled(on){
-    enabled=!!on;volume();
-    if(!enabled){player.pause();playing=false;status('BGM 일시정지');}
-    else if(!player.getAttribute('src')){
-      loadCurrent().then(()=>playCurrent());
-    }else playCurrent();
-  }
-  async function initialPlay(){
+  function initialPlay(){
     if(!enabled)return;
-    if(!player.getAttribute('src'))await loadCurrent();
-    await playCurrent();
+    if(!playerReady)loadCurrent();
+    void playCurrent();
   }
+  function setEnabled(on){
+    enabled=!!on;
+    controls();
+    if(enabled)initialPlay();
+    else{player.pause();playing=false;status('BGM 일시정지')}
+  }
+  function next(step=1){
+    if(!tracks.length)return;
+    index=(index+step+tracks.length)%tracks.length;
+    loadCurrent();if(enabled)void playCurrent();
+  }
+  player.addEventListener('ended',()=>{failures=0;next()});
+  player.addEventListener('error',()=>{
+    if(!enabled||!playerReady)return;
+    failures++;
+    if(failures>=tracks.length){player.pause();playing=false;status('재생 가능한 BGM을 찾지 못했습니다.');return}
+    next();
+  });
+  // Autoplay may be rejected by the browser. Retry from a genuine user gesture
+  // without requiring the user to open the sound menu.
+  function unlockPlayback(){
+    if(enabled&&!playing){
+      if(!playerReady)loadCurrent();
+      void player.play().then(()=>{playing=true;failures=0;describe()}).catch(()=>{});
+    }
+  }
+  document.addEventListener('pointerdown',unlockPlayback,{capture:true});
+  document.addEventListener('keydown',unlockPlayback,{capture:true});
   button.addEventListener('click',event=>{
-    event.stopPropagation();
-    panel.hidden=!panel.hidden;
-    volume();
+    event.stopPropagation();panel.hidden=!panel.hidden;controls();
   });
   panel.addEventListener('click',event=>event.stopPropagation());
   document.addEventListener('pointerdown',event=>{
-    if(!panel.hidden && !panel.contains(event.target) && event.target!==button)panel.hidden=true;
+    if(!panel.hidden&&!panel.contains(event.target)&&event.target!==button)panel.hidden=true;
   });
-  master.addEventListener('change',()=>{
-    onToggle(!!master.checked);
-    initialPlay();
+  master.addEventListener('change',()=>onToggle(master.checked));
+  volumeBgm.addEventListener('input',()=>{
+    bgmGain=Math.max(0,Math.min(1,Number(volumeBgm.value)/100));controls();
   });
-  volumeBgm.addEventListener('input',event=>{
-    bgmGain=Math.max(0,Math.min(1,Number(event.target.value)/100));
-    save('itm-bgm-volume',bgmGain);
-    volume();
+  volumeFx.addEventListener('input',()=>{
+    fxGain=Math.max(0,Math.min(1,Number(volumeFx.value)/100));controls();
   });
-  volumeFx.addEventListener('input',event=>{
-    fxGain=Math.max(0,Math.min(1,Number(event.target.value)/100));
-    save('itm-sfx-volume',fxGain);
-    volume();
-  });
-  byId('musicPrev').addEventListener('click',()=>{index=(index+1)%3;next(true)});
-  byId('musicNext').addEventListener('click',()=>next(true));
+  byId('musicPrev').addEventListener('click',()=>next(-1));
+  byId('musicNext').addEventListener('click',()=>next(1));
   byId('musicPlay').addEventListener('click',()=>{
-    onToggle(!enabled);
-    if(!enabled)player.pause();
+    if(!enabled){onToggle(true);return}
+    if(playing){player.pause();playing=false;status('BGM 일시정지')}
     else initialPlay();
   });
-  fileInput.addEventListener('change',async event=>{
-    const files=[...(event.target.files||[])];
-    let imported=0;
+  async function reloadTracks(){
+    if(!backend)return;
+    const {data,error}=await backend.from('itm_bgm_tracks').select('title,file_path,sort_order').order('sort_order').order('created_at');
+    if(error){console.warn('BGM catalogue read failed',error.message);return}
+    const extras=(data||[]).map(row=>({
+      title:row.title,
+      url:backend.storage.from('itm-bgm').getPublicUrl(row.file_path).data.publicUrl
+    }));
+    const oldUrl=tracks[index]?.url;
+    tracks=[...base,...extras];
+    const oldIndex=tracks.findIndex(track=>track.url===oldUrl);
+    if(oldIndex>=0)index=oldIndex;
+    else index=0;
+    if(!playing){loadCurrent();if(enabled)void playCurrent()}
+    else describe();
+  }
+  async function setBackend(client,admin=false){
+    backend=client||null;isAdmin=!!client&&!!admin;controls();
+    if(client)await reloadTracks();
+  }
+  input.addEventListener('change',async event=>{
+    const files=[...(event.target.files||[])];input.value='';
+    if(!backend||!isAdmin){status('관리자 계정으로 로그인해야 BGM을 추가할 수 있습니다.');return}
+    let uploaded=0;
     for(const file of files){
-      const match=file.name.match(/^([123])[_\s.-]/);
-      if(!match || !/\.mp3$/i.test(file.name))continue;
-      try{await saveTrack(Number(match[1])-1,file);imported++}catch(err){status(err.message||'음악 저장 오류')}
+      if(!/\.mp3$/i.test(file.name)||file.size>15*1024*1024||file.size===0){
+        status('MP3 파일만 업로드할 수 있습니다 (곡당 15MB 이하).');continue
+      }
+      const path='tracks/'+crypto.randomUUID()+'.mp3';
+      const title=file.name.replace(/\.mp3$/i,'').slice(0,120).trim()||'ITM BGM';
+      const {error:uploadError}=await backend.storage.from('itm-bgm').upload(path,file,{contentType:'audio/mpeg',cacheControl:'3600',upsert:false});
+      if(uploadError){status('업로드 실패: '+uploadError.message);continue}
+      const {error:recordError}=await backend.from('itm_bgm_tracks').insert({
+        title,file_path:path,sort_order:tracks.length+uploaded
+      });
+      if(recordError){
+        await backend.storage.from('itm-bgm').remove([path]);
+        status('곡 등록 실패: '+recordError.message);continue
+      }
+      uploaded++;
     }
-    if(imported){
-      failures=0;index=0;
-      status('MP3 '+imported+'곡 연결 완료 · 1번 곡부터 순서대로 재생');
-      fileHint.textContent='선택한 음악은 이 브라우저에 저장되며 다른 기기와 동기화되지는 않습니다.';
-      await loadCurrent();
-      if(enabled)await playCurrent();
-    }else if(files.length){
-      status('MP3 이름은 1_, 2_, 3_ 으로 시작해야 합니다.');
+    if(uploaded){
+      await reloadTracks();
+      status('BGM '+uploaded+'곡이 서버에 영구 등록되었습니다. GitHub에 자동 동기화됩니다.');
     }
-    fileInput.value='';
   });
-  // Restore previous settings; browsers may require a click before playback.
-  volume();
-  status('♪ 1/3 · '+trackNames[0]);
-  return {
-    getSfxGain:()=>enabled?fxGain:0,
-    setEnabled,
-    initialPlay,
-    next:()=>next(true),
-    trackNames,
-    isEnabled:()=>enabled
-  };
+  controls();loadCurrent();void playCurrent();
+  return {getSfxGain:()=>enabled?fxGain:0,setEnabled,initialPlay,next:()=>next(1),
+    get trackNames(){return tracks.map(t=>t.title)},isEnabled:()=>enabled,setBackend};
 }
