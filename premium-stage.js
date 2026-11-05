@@ -627,19 +627,19 @@ export function createConcertStage({THREE,scene,renderer,oldBeams=[]}) {
     }
   }
   function introPose(progress){
-    const t=clamp(progress);
-    // Exactly one uninterrupted 360-degree sweep followed by a short approach.
-    // Yaw completes once and remains fixed while advancing toward the pack.
-    const sweep=smooth(clamp(t/.80));
-    const approach=smooth(clamp((t-.80)/.20));
-    const yaw=2*Math.PI*sweep;
+    // A single uninterrupted front-to-stage dolly: no spin, no camera cuts.
+    // Final view matches closeConcertIntro() exactly, avoiding a visible snap.
+    const approach=smooth(progress);
+    const mobile=window.innerWidth<780;
+    const finalY=mobile?-.58:-.70;
+    const finalZ=mobile?12.8:10.4;
     const eye=new THREE.Vector3(
-      .27*Math.sin(sweep*Math.PI)*(1-approach),
-      mix(2.10,-.70,approach),
-      mix(18.4,10.4,approach)
+      0,
+      mix(.20,finalY,approach),
+      mix(mobile?22.0:19.1,finalZ,approach)
     );
-    const forward=new THREE.Vector3(Math.sin(yaw),mix(-.065,.091,approach),-Math.cos(yaw)).normalize();
-    return {pos:eye,look:eye.clone().addScaledVector(forward,27),fov:mix(53,42,approach)};
+    const look=new THREE.Vector3(0,.27,0);
+    return {pos:eye,look,fov:mix(mobile?52:51,42,approach)};
   }
   function reset(){opening=null;blackout=false;boomAt=-1;particles.visible=false;setRarity('DEFAULT');}
   drawLED(0);
