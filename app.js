@@ -283,6 +283,38 @@ function playOpeningCeremonySound(tier){
     const final=tier==='UR'?784:tier==='SSR'?659:tier==='SR'?587:440;
     note(3.60,final,final*1.5,.60,tier==='UR'?.37:.27);
     note(3.65,final*1.25,final*2,.52,.15,'triangle');
+    // Large but volume-limited concert pyrotechnics. Low thump + bright crack
+    // precisely accompany the 3D fireworks; existing SFX slider controls both.
+    const boom=(delay,strength)=>{
+      const start=t+delay,length=.54;
+      const bass=ctx.createOscillator(),envelope=ctx.createGain();
+      bass.type='sine';
+      bass.frequency.setValueAtTime(155,start);
+      bass.frequency.exponentialRampToValueAtTime(48,start+.26);
+      envelope.gain.setValueAtTime(.0001,start);
+      envelope.gain.linearRampToValueAtTime(strength*.55,start+.014);
+      envelope.gain.exponentialRampToValueAtTime(.0001,start+.48);
+      bass.connect(envelope).connect(master);
+      bass.start(start);bass.stop(start+.52);
+      const noise=ctx.createBuffer(1,Math.ceil(ctx.sampleRate*length),ctx.sampleRate);
+      const samples=noise.getChannelData(0);
+      for(let i=0;i<samples.length;i++)samples[i]=(Math.random()*2-1)*(1-i/samples.length);
+      const source=ctx.createBufferSource(),filter=ctx.createBiquadFilter(),gain=ctx.createGain();
+      source.buffer=noise;filter.type='bandpass';filter.frequency.value=810;filter.Q.value=.55;
+      gain.gain.setValueAtTime(.0001,start);
+      gain.gain.linearRampToValueAtTime(strength*.46,start+.018);
+      gain.gain.exponentialRampToValueAtTime(.0001,start+.42);
+      source.connect(filter).connect(gain).connect(master);
+      source.start(start);source.stop(start+length);
+    };
+    if(tier==='UR'){
+      boom(2.65,.83);boom(2.81,.68);boom(3.00,.80);
+      boom(3.20,.57);boom(3.37,.74);
+    }else if(tier==='SSR'){
+      boom(2.65,.67);boom(2.81,.51);boom(3.00,.55);
+    }else if(tier==='SR'){
+      boom(2.65,.43);boom(2.81,.35);
+    }
   }catch{/* Disabled/autoplay-restricted devices skip only this supplementary SFX. */}
 }
 
