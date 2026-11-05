@@ -8,6 +8,8 @@ on:
       - 'opening-effects.js'
       - 'premium-ui.css'
       - 'audio-manager.js'
+      - 'ur-reveal.js'
+      - 'ur-reveal.css'
       - 'app.js'
       - 'card-frame.js'
       - 'frame-preview.html'
