@@ -8,11 +8,13 @@ body.itm-concert .pack-reveal-stage.ur-anticipating .stage-card-button:not(.ur-p
 body.itm-concert .stage-card-button.ur-primed{
   z-index:6;
   filter:brightness(1.20) drop-shadow(0 0 20px #ff89e5);
-  animation:itmURHold .3s ease-in-out both!important;
+}
+body.itm-concert .stage-card-button.ur-primed .stage-card-inner{
+  animation:itmURHold .3s ease-in-out both;
 }
 @keyframes itmURHold{
-  0%,100%{transform:translateY(0) scale(1)}
-  55%{transform:translateY(-3px) scale(1.055)}
+  0%,100%{scale:1;translate:0 0}
+  55%{scale:1.055;translate:0 -3px}
 }
 /* Impact moves the stage a few pixels, not the existing frame geometry. */
 body.itm-concert .pack-reveal-stage.ur-impact .stage-main{
@@ -22,14 +24,14 @@ body.itm-concert .pack-reveal-stage.ur-impact .stage-main{
   0%{translate:0 0}11%{translate:-6px 4px}25%{translate:5px -3px}
   43%{translate:-3px 2px}65%{translate:2px -1px}100%{translate:0 0}
 }
-body.itm-concert .stage-card-button.rarity-ur.is-revealed.ur-impact-card{
+body.itm-concert .stage-card-button.rarity-ur.is-revealed.ur-impact-card .stage-card-inner{
   animation:itmURCardHit .75s cubic-bezier(.15,.8,.16,1) both!important;
 }
 @keyframes itmURCardHit{
-  0%{transform:translateY(0) scale(.91)}
-  20%{transform:translateY(-9px) scale(1.15)}
-  52%{transform:translateY(2px) scale(.99)}
-  100%{transform:translateY(0) scale(1)}
+  0%{scale:.91;translate:0 0}
+  20%{scale:1.15;translate:0 -9px}
+  52%{scale:.99;translate:0 2px}
+  100%{scale:1;translate:0 0}
 }
 .itm-ur-payoff{
   position:fixed;inset:0;z-index:7;overflow:hidden;pointer-events:none;
