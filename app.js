@@ -811,7 +811,7 @@ async function openPack(count){
       const {data,error}=await state.supabase.rpc(rpc,{p_count:count});
       if(error)throw error;
       rolled=(data||[]).map(x=>byId.get(String(x.id))).filter(Boolean);
-      if(rolled.length!==count)throw Error('서버 카드 결과를 확인할 수 없어.');
+      if(rolled.length!==count)throw Error('서버 카드 결과를 확인할 수 없습니다.');
       await syncRemote();
     }else if(LIVE_READY){
       rolled=drawLiveLocal(count);
@@ -852,7 +852,7 @@ async function openPack(count){
     state.phase='reveal';syncCanvasPointerEvents();state.busy=false;
     if(state.three&&!document.body.classList.contains('itm-concert'))addCards();
     else if(!state.three)renderFallbackCards();
-    $('controlHeading').textContent='한 장씩 뒤집어 카드의 등급을 확인해 봐.';
+    $('controlHeading').textContent='카드를 한 장씩 뒤집어 등급을 확인해 보세요.';
     $('sceneHeading').textContent='03 — YOUR CARDS AWAIT';
     $('centerHint').innerHTML='<span>✧</span> TAP A CARD TO REVEAL';
     showControls([]);
@@ -887,10 +887,10 @@ function revealIndex(i,silent=false){
   updateStageProgress();
   if(!state.three)renderFallbackCards();
   if(state.revealed.size===state.cards.length){
-    $('controlHeading').textContent='모든 카드를 확인했어! 테스트 도감에 기록됐어.';
+    $('controlHeading').textContent='모든 카드를 확인하셨습니다. 획득한 카드는 도감에 기록되었습니다.';
     $('sceneHeading').textContent='04 — A MOMENT TO REMEMBER';
     $('centerHint').innerHTML='<span>✦</span> COLLECTION UPDATED';
-    $('stageHint').textContent='모든 카드가 공개됐어! ✦ 테스트 도감에서 다시 볼 수 있어.';
+    $('stageHint').textContent='모든 카드가 공개되었습니다! ✦ 획득한 카드는 도감에서 다시 볼 수 있습니다.';
     showControls([]);
   }
 }
@@ -917,7 +917,7 @@ function reset(){
   state.phase='ready';syncCanvasPointerEvents();state.cards=[];state.revealed.clear();state.busy=false;
   clearCards();if(!state.three)resetFallback();
   showControls(['drawOne','drawFive']);$('drawOne').disabled=$('drawFive').disabled=false;
-  $('controlHeading').textContent='어떤 순간을 열어볼까?';
+  $('controlHeading').textContent='어떤 순간을 열어 볼까요?';
   $('sceneHeading').textContent='01 — THE SEALED MOMENT';
   $('centerHint').innerHTML='<span>✧</span> THE SHOW IS ABOUT TO BEGIN';
 }
@@ -931,7 +931,7 @@ function renderCollection(){
   const unique=ids.length,total=POOL.length+LIVE_POOL.length;
   $('collectionSummary').textContent=`DISCOVERED ${unique} / ${total}   •   OWNED ${ids.reduce((sum,[,q])=>sum+Number(q),0)} CARDS`;
   const grid=$('collectionGrid');grid.replaceChildren();
-  if(!ids.length&&!LIVE_POOL.length){const p=document.createElement('p');p.className='collection-empty';p.textContent='아직 수집한 카드가 없어. 첫 번째 팩을 열어봐 ✦';grid.append(p)}
+  if(!ids.length&&!LIVE_POOL.length){const p=document.createElement('p');p.className='collection-empty';p.textContent='아직 수집한 카드가 없습니다. 첫 번째 팩을 열어 보세요 ✦';grid.append(p)}
   const ordered=[...POOL,...LIVE_POOL];
   ids.sort((a,b)=>ordered.findIndex(c=>c.id===a[0])-ordered.findIndex(c=>c.id===b[0]));
   const ownedIds=new Set(ids.map(([id])=>id));
@@ -979,7 +979,7 @@ function updateLogin(){
   $('restoreRecoveryCode').disabled=!signed||state.accountBusy;
   $('accountSubmit').disabled=state.accountBusy;
   $('accountSubmit').textContent=state.accountBusy?'확인 중…':state.accountMode==='signup'?'ITM ID 만들기 →':'내 도감 불러오기 →';
-  $('collectionFooter').textContent=signed?'클라우드에 저장된 도감이야. 같은 ITM ID로 어디서나 불러올 수 있어.':'게스트 도감은 이 브라우저에만 저장돼. 데이터 삭제·시크릿 모드 종료 시 사라질 수 있어.';
+  $('collectionFooter').textContent=signed?'계정에 저장된 도감입니다. 같은 ITM ID로 어디서나 불러올 수 있습니다.':'게스트 도감은 이 브라우저에만 저장됩니다. 브라우저 데이터를 삭제하거나 시크릿 모드를 종료하면 수집 기록이 사라질 수 있습니다.';
 }
 function setAccountMessage(message){$('accountMessage').textContent=message}
 function setAccountMode(mode){
@@ -1007,7 +1007,7 @@ function chooseGuest(){
   showConcertIntro(true);
 }
 async function activateNamedUser(user){
-  if(!user||!accountNameOf(user))throw Error('ITM 계정 정보를 확인할 수 없어.');
+  if(!user||!accountNameOf(user))throw Error('ITM 계정 정보를 확인할 수 없습니다.');
   state.user=user;state.accountName=accountNameOf(user);state.playerId=null;
   const {data:playerId,error}=await state.supabase.rpc('ensure_guest_player');
   if(error)throw error;
@@ -1022,7 +1022,7 @@ async function activateNamedUser(user){
 }
 async function initBackend(){
   if(!CONFIG.supabaseUrl||!CONFIG.supabasePublishableKey){
-    state.authError='Supabase 설정을 확인해 줘.';state.backendReady=true;
+    state.authError='Supabase 설정을 확인해 주세요.';state.backendReady=true;
     updateLogin();if(!guestChosen())accountOpen(true);return;
   }
   try{
@@ -1049,19 +1049,19 @@ async function initBackend(){
     state.accountName=null;state.playerId=null;state.user=null;
     updateCounts();updateLogin();
     if(!guestChosen())accountOpen(true);
-    setAccountMessage('서버 연결에 문제가 있어. 게스트 플레이는 가능해. '+state.authError);
+    setAccountMessage('서버에 연결하지 못했습니다. 게스트로는 플레이할 수 있습니다. '+state.authError);
   }finally{state.backendReady=true}
 }
 async function submitAccount(event){
   event?.preventDefault();
   if(state.accountBusy)return;
-  if(!state.supabase)return setAccountMessage('서버 연결을 확인한 뒤 다시 시도해 줘.');
+  if(!state.supabase)return setAccountMessage('서버 연결을 확인한 뒤 다시 시도해 주세요.');
   const name=$('accountUsername').value.trim().toLowerCase(),password=$('accountPassword').value;
-  if(!ACCOUNT_PATTERN.test(name))return setAccountMessage('아이디는 영문 소문자로 시작하는 4~20자의 영문·숫자·밑줄만 사용할 수 있어.');
-  if(!password)return setAccountMessage('비밀번호를 입력해 줘.');
+  if(!ACCOUNT_PATTERN.test(name))return setAccountMessage('아이디는 영문 소문자로 시작해야 합니다. 영문 소문자, 숫자, 밑줄을 사용해 4~20자로 입력해 주세요.');
+  if(!password)return setAccountMessage('비밀번호를 입력해 주세요.');
   const signup=state.accountMode==='signup';
   if(signup&&(password.length<10||password.length>72||!/[A-Za-z]/.test(password)||!/[0-9]/.test(password)))
-    return setAccountMessage('회원가입 비밀번호는 영문과 숫자를 포함한 10~72자여야 해.');
+    return setAccountMessage('비밀번호는 영문과 숫자를 포함해 10~72자로 입력해 주세요.');
   state.accountBusy=true;updateLogin();
   try{
     if(signup){
@@ -1070,23 +1070,23 @@ async function submitAccount(event){
         body:JSON.stringify({username:name,password})
       });
       const payload=await res.json().catch(()=>({}));
-      if(!res.ok)throw Error(payload.error||'계정 생성에 실패했어.');
+      if(!res.ok)throw Error(payload.error||'계정 생성에 실패했습니다.');
     }
     const {data,error}=await state.supabase.auth.signInWithPassword({email:accountEmail(name),password});
     if(error)throw error;
-    if(!data?.user)throw Error('로그인 응답을 확인할 수 없어.');
+    if(!data?.user)throw Error('로그인 응답을 확인할 수 없습니다.');
     await activateNamedUser(data.user);
     let imported=false;
     if(signup&&Object.keys(state.demoInventory).length){
       const {data:ok,error:importError}=await state.supabase.rpc('itm_import_guest_demo',{p_items:state.demoInventory});
-      if(importError)setAccountMessage('계정은 생성됐지만 게스트 카드 이전은 실패했어. 로컬 기록은 남아 있어.');
+      if(importError)setAccountMessage('계정은 생성되었으나 게스트 카드를 이전하지 못했습니다. 게스트 기록은 이 브라우저에 남아 있습니다.');
       else{imported=!!ok;await syncRemote();}
     }
     $('accountPassword').value='';
     state.entryRequired=false;saveEntryChoice('account');updateLogin();
     closeModal('accountOverlay');
     showConcertIntro(true);
-    toast(signup?(imported?'회원가입 완료! 게스트 도감도 이전했어.':'ITM 계정 생성 완료!'):'로그인 성공! 클라우드 도감을 불러왔어.');
+    toast(signup?(imported?'회원가입 완료! 게스트 도감도 이전했습니다.':'ITM 계정 생성 완료!'):'로그인 성공! 클라우드 도감을 불러왔습니다.');
   }catch(err){
     setAccountMessage('계정 처리 실패: '+(err?.message||String(err)));
     console.warn('ITM account flow failed',err?.message||String(err));
@@ -1103,12 +1103,12 @@ async function logoutAccount(){
   state.hasRecovery=false;state.issuedRecovery=null;
   try{localStorage.removeItem(ENTRY_KEY)}catch{}
   updateCounts();accountOpen(true);
-  toast('로그아웃했어. 계정 도감은 서버에 보관돼.');
+  toast('로그아웃했습니다. 계정 도감은 서버에 보관됩니다.');
 }
 async function issueRecovery(){
   if(state.accountBusy)return;
-  if(!state.supabase||!state.playerId)return toast('서버 계정 연결 후 사용할 수 있어.');
-  if(state.hasRecovery&&!window.confirm('새 코드를 발급하면 기존 복구 코드는 더 이상 작동하지 않아. 계속할까?'))return;
+  if(!state.supabase||!state.playerId)return toast('서버 계정 연결 후 사용할 수 있습니다.');
+  if(state.hasRecovery&&!window.confirm('새 코드를 발급하면 기존 복구 코드는 사용할 수 없습니다. 새 코드를 발급하시겠습니까?'))return;
   state.accountBusy=true;updateLogin();
   try{
     const {data,error}=await state.supabase.rpc('issue_recovery_code');
@@ -1116,33 +1116,33 @@ async function issueRecovery(){
     state.issuedRecovery=String(data);state.hasRecovery=true;
     $('issuedCode').textContent=state.issuedRecovery;
     $('issuedCodeBox').hidden=false;
-    setAccountMessage('복구 코드가 발급됐어! 이 화면을 닫기 전에 코드를 복사해서 안전한 곳에 보관해 줘. 서버에는 원본 코드를 저장하지 않아.');
-    toast('복구 코드가 발급됐어. 반드시 보관해 줘!');
+    setAccountMessage('복구 코드가 발급되었습니다. 이 화면을 닫기 전에 코드를 복사해 안전한 곳에 보관해 주세요. 서버에는 원본 코드를 저장하지 않습니다.');
+    toast('복구 코드가 발급되었습니다. 안전한 곳에 보관해 주세요.');
   }catch(err){setAccountMessage('발급 실패: '+(err?.message||String(err)))}
   finally{state.accountBusy=false;updateLogin()}
 }
 async function copyRecovery(){
   if(!state.issuedRecovery)return;
-  try{await navigator.clipboard.writeText(state.issuedRecovery);toast('복구 코드를 복사했어!')}
-  catch{window.prompt('복구 코드를 복사해 보관해 줘.',state.issuedRecovery)}
+  try{await navigator.clipboard.writeText(state.issuedRecovery);toast('복구 코드를 복사했습니다.')}
+  catch{window.prompt('복구 코드를 복사해 보관해 주세요.',state.issuedRecovery)}
 }
 async function restoreRecovery(){
   if(state.accountBusy)return;
-  if(!state.supabase||!state.playerId)return toast('서버 계정 연결 후 사용할 수 있어.');
+  if(!state.supabase||!state.playerId)return toast('서버 계정 연결 후 사용할 수 있습니다.');
   const code=$('recoveryCodeInput').value.trim();
-  if(!code)return setAccountMessage('다른 기기에서 발급받은 복구 코드를 입력해 줘.');
+  if(!code)return setAccountMessage('다른 기기에서 발급받은 복구 코드를 입력해 주세요.');
   state.accountBusy=true;updateLogin();
   try{
     let {data,error}=await state.supabase.rpc('recover_player',{p_code:code,p_allow_switch:false});
     if(error)throw error;
     if(data?.reason==='confirm_switch'){
-      const proceed=window.confirm('이 기기의 '+data.existing_cards+'장 카드 도감은 합쳐지지 않고 별도로 남아. 기존 도감으로 전환할까?');
-      if(!proceed){setAccountMessage('도감 전환을 취소했어. 현재 카드 기록은 그대로 유지돼.');return}
+      const proceed=window.confirm('이 기기에서 수집한 카드 '+data.existing_cards+'장은 현재 도감에 별도로 보관됩니다. 기존 도감으로 전환하시겠습니까?');
+      if(!proceed){setAccountMessage('도감 전환을 취소했습니다. 현재 수집 기록은 그대로 유지됩니다.');return}
       ({data,error}=await state.supabase.rpc('recover_player',{p_code:code,p_allow_switch:true}));
       if(error)throw error;
     }
     if(!data?.ok){
-      const msg=data?.reason==='rate_limited'?'입력 횟수가 초과됐어. 약 15분 뒤 다시 시도해 줘.':'복구 코드가 일치하지 않아. 입력한 코드를 확인해 줘.';
+      const msg=data?.reason==='rate_limited'?'입력 횟수 제한을 초과했습니다. 약 15분 뒤 다시 시도해 주세요.':'복구 코드가 일치하지 않습니다. 입력한 코드를 확인해 주세요.';
       return setAccountMessage(msg);
     }
     const {data:playerId,error:playerError}=await state.supabase.rpc('ensure_guest_player');
@@ -1153,8 +1153,8 @@ async function restoreRecovery(){
     $('issuedCodeBox').hidden=true;
     $('recoveryCodeInput').value='';
     await syncRemote();
-    setAccountMessage('도감 불러오기 성공! 이 기기에서도 같은 카드와 수집 수량을 사용할 수 있어.');
-    toast('✦ 다른 기기의 도감을 불러왔어!');
+    setAccountMessage('도감 불러오기 성공! 이 기기에서도 같은 카드와 수집 수량을 사용할 수 있습니다.');
+    toast('✦ 다른 기기의 도감을 불러왔습니다!');
   }catch(err){setAccountMessage('불러오기 실패: '+(err?.message||String(err)))}
   finally{state.accountBusy=false;updateLogin()}
 }

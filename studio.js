@@ -46,7 +46,7 @@ function accessControls(){
 function fileCheck(file){
   if(!file)return;
   if(!VALID_MIME.includes(file.type))throw new Error('PNG, JPG 또는 WebP 이미지만 업로드할 수 있습니다.');
-  if(file.size>12*1024*1024)throw new Error('이미지는 12MB 이하로 준비해주세요.');
+  if(file.size>12*1024*1024)throw new Error('이미지는 12MB 이하로 준비해 주세요.');
 }
 function publicUrl(path){
   if(!path)return null;
@@ -282,7 +282,7 @@ async function saveGroup(event){
   if(!state.admin)return toast('관리자만 그룹을 저장할 수 있습니다.');
   const slug=$('groupSlug').value.toLowerCase().trim();
   const name=$('groupName').value.trim();
-  if(!/^[a-z0-9][a-z0-9_-]{1,39}$/.test(slug)||!name)return toast('그룹 코드와 이름을 확인해주세요.');
+  if(!/^[a-z0-9][a-z0-9_-]{1,39}$/.test(slug)||!name)return toast('그룹 코드와 이름을 확인해 주세요.');
   if(state.saving)return;
   state.saving=true;accessControls();
   try{
@@ -307,8 +307,8 @@ async function saveCard(event){
   const display_name=$('cardName').value.trim();
   const edition=$('cardEdition').value.trim()||'DEBUT COLLECTION';
   const status=$('cardStatus').value;
-  if(!state.groups.some(g=>g.slug===group_slug)||!display_name)return toast('그룹과 카드명을 입력해주세요.');
-  if(status==='published'&&!state.photoFile&&!state.imagePath)return toast('공개 전 카드 사진을 등록해주세요.');
+  if(!state.groups.some(g=>g.slug===group_slug)||!display_name)return toast('그룹과 카드명을 입력해 주세요.');
+  if(status==='published'&&!state.photoFile&&!state.imagePath)return toast('공개 전 카드 사진을 등록해 주세요.');
   state.saving=true;accessControls();
   try{
     const photo_path=state.photoFile?await uploadFile(state.photoFile,'photos'):state.imagePath||'';
@@ -391,7 +391,7 @@ async function signIn(event){
   if(!state.client)return toast('서버 연결 중입니다.');
   const name=$('studioUsername').value.trim().toLowerCase();
   const password=$('studioPassword').value;
-  if(!/^[a-z][a-z0-9_]{3,19}$/.test(name)||!password)return toast('유효한 ITM ID와 비밀번호를 입력해주세요.');
+  if(!/^[a-z][a-z0-9_]{3,19}$/.test(name)||!password)return toast('유효한 ITM ID와 비밀번호를 입력해 주세요.');
   const {error}=await state.client.auth.signInWithPassword({email:'itm.'+name+'@accounts.itm.example',password});
   if(error)return toast('로그인 실패: '+error.message);
   $('studioPassword').value='';
@@ -444,7 +444,7 @@ function bind(){
 async function main(){
   bind();
   if(!CONFIG.supabaseUrl||!CONFIG.supabasePublishableKey){
-    toast('ITM Supabase 설정을 확인해주세요. 로컬 디자인 미리보기만 가능합니다.');
+    toast('ITM Supabase 설정을 확인해 주세요. 로컬 디자인 미리보기만 가능합니다.');
     setAuthState('오프라인 미리보기');return;
   }
   try{

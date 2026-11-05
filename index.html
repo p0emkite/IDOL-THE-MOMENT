@@ -64,7 +64,7 @@
         <div class="hero-copy">
           <div class="section-number">01 / ENTER THE SHOW</div>
           <div class="hero-title"><span class="title-small">THIS IS YOUR</span><span class="title-big">MOMENT<span class="shine">.</span></span></div>
-          <p class="hero-description">좋아하는 순간을, 손끝에서 다시 만나다.<br />스포트라이트 아래 펼쳐지는 나만의 포토카드 스테이지.</p>
+          <p class="hero-description">좋아하는 순간을 손끝에서 다시 만나 보세요.<br />스포트라이트 아래 펼쳐지는 나만의 포토카드 스테이지.</p>
           <div class="set-meta"><span class="tiny-star">✦</span><span>DEBUT COLLECTION</span><span class="meta-sep">/</span><span>STAGE 001</span></div>
         </div>
         <div class="scene-wrap" id="sceneWrap" aria-label="3차원 카드팩 개봉 무대">
@@ -90,7 +90,7 @@
         </aside>
       </section>
       <section class="control-zone">
-        <div class="control-left"><span class="section-number">02 / MAKE IT YOURS</span><div class="control-heading" id="controlHeading">어떤 순간을 열어볼까?</div></div>
+        <div class="control-left"><span class="section-number">02 / MAKE IT YOURS</span><div class="control-heading" id="controlHeading">어떤 순간을 열어 볼까요?</div></div>
         <div class="draw-actions" id="drawActions">
           <button id="drawOne" class="btn secondary">1회 뽑기</button>
           <button id="drawFive" class="btn primary">5회 뽑기 ✦</button>
@@ -102,10 +102,10 @@
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <div class="overlay" id="collectionOverlay" aria-hidden="true">
     <div class="modal">
-      <div class="modal-top"><div><div class="eyebrow">THE MEMORY ARCHIVE</div><h2>MY COLLECTION <span class="pink">✦</span></h2><p>빛나는 순간을 하나씩 기록해봐.</p></div><button class="close" id="collectionClose" aria-label="도감 닫기">×</button></div>
+      <div class="modal-top"><div><div class="eyebrow">THE MEMORY ARCHIVE</div><h2>MY COLLECTION <span class="pink">✦</span></h2><p>빛나는 순간을 하나씩 기록해 보세요.</p></div><button class="close" id="collectionClose" aria-label="도감 닫기">×</button></div>
       <div class="collection-summary" id="collectionSummary"></div>
       <div class="collection-grid" id="collectionGrid"></div>
-      <div class="collection-footer" id="collectionFooter">게스트 기록은 이 브라우저에만 저장돼. 로그인하면 서버 도감이 표시돼.</div>
+      <div class="collection-footer" id="collectionFooter">게스트 기록은 이 브라우저에만 저장됩니다. 로그인하면 계정에 저장된 도감을 볼 수 있습니다.</div>
     </div>
   </div>
   <div class="overlay" id="accountOverlay" aria-hidden="true">
@@ -129,7 +129,7 @@
             <label for="accountPassword">비밀번호</label>
             <input id="accountPassword" type="password" required autocomplete="current-password"
               placeholder="비밀번호 입력" />
-            <p class="account-password-note" id="accountPasswordNote" hidden>영문과 숫자를 포함해 10자 이상으로 설정해 줘. 이메일 없이 만드는 계정이어서 비밀번호를 잊으면 재설정이 어려울 수 있어.</p>
+            <p class="account-password-note" id="accountPasswordNote" hidden>영문과 숫자를 포함해 10자 이상으로 설정해 주세요. 이메일 없이 가입하는 방식이므로 비밀번호를 잊으시면 재설정이 어려울 수 있습니다.</p>
             <button id="accountSubmit" type="submit" class="account-action">내 도감 불러오기 →</button>
           </form>
           <div class="account-guest-choice">
@@ -139,28 +139,28 @@
         </section>
         <section class="account-profile" id="accountProfile" hidden>
           <div class="identity-bar"><span class="identity-dot"></span><div><strong id="accountStatus">로그인된 도감</strong><small id="accountPlayerId"></small></div><button type="button" class="account-retry" id="accountRetry" hidden>다시 연결</button></div>
-          <p class="account-profile-note">수집 기록이 ITM Supabase 서버에 저장돼. 동일한 아이디와 비밀번호로 다른 기기에서 로그인하면 도감이 이어져.</p>
+          <p class="account-profile-note">수집 기록은 ITM 서버에 저장됩니다. 다른 기기에서도 같은 아이디와 비밀번호로 로그인하면 수집을 이어갈 수 있습니다.</p>
           <button type="button" class="account-action secondary" id="accountLogout">로그아웃</button>
           <details class="account-legacy">
             <summary>기존 ITM 복구 코드 사용 (이전 버전 도감)</summary>
             <div class="account-columns">
               <section class="account-section">
                 <div class="account-number">BACK UP</div><h3>복구 코드 발급</h3>
-                <p>이전 버전의 복구 코드 방식도 계속 지원해.</p>
+                <p>이전 버전의 복구 코드도 사용할 수 있습니다.</p>
                 <button type="button" class="account-action" id="issueRecoveryCode">새 복구 코드 발급</button>
                 <div class="code-box" id="issuedCodeBox" hidden>
                   <span>단 한 번 표시되는 코드</span><code id="issuedCode"></code>
                   <button type="button" class="code-copy" id="copyRecoveryCode">복구 코드 복사</button>
                 </div>
-                <small class="account-warning">새 코드를 발급하면 이전 코드는 무효화돼. 다른 사람에게 코드를 공유하지 마.</small>
+                <small class="account-warning">새 코드를 발급하면 이전 코드는 사용할 수 없습니다. 복구 코드는 다른 사람에게 공유하지 마세요.</small>
               </section>
               <section class="account-section">
                 <div class="account-number">RESTORE</div><h3>기존 도감 연결</h3>
-                <p>기존 기기에서 발급받은 코드를 사용해 해당 도감을 연결할 수 있어.</p>
+                <p>기존 기기에서 발급받은 코드를 사용해 해당 도감을 연결할 수 있습니다.</p>
                 <label for="recoveryCodeInput">ITM RECOVERY CODE</label>
                 <input id="recoveryCodeInput" type="text" placeholder="IT-XXXX-XXXX-XXXX-..." autocomplete="off" maxlength="60" />
                 <button type="button" class="account-action secondary" id="restoreRecoveryCode">기존 도감 연결하기 →</button>
-                <small class="account-warning">기존 도감과 현재 도감은 자동으로 합쳐지지 않아.</small>
+                <small class="account-warning">기존 도감과 현재 도감은 자동으로 합쳐지지 않습니다.</small>
               </section>
             </div>
           </details>
