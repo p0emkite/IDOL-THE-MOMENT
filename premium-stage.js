@@ -428,22 +428,116 @@ export function createConcertStage({THREE,scene,renderer,oldBeams=[]}) {
   // A faint haze near the lower audience unifies sticks and stage in depth.
   const haze=mesh(new THREE.PlaneGeometry(27,5),crowdGlow,[0,-3.5,5.8]);haze.rotation.x=-.16;
 
-  // Premium grade fireworks are physical particles in the same 3D space.
-  const count=180,fireGeom=new THREE.BufferGeometry(),coords=new Float32Array(count*3);
-  const colors=new Float32Array(count*3);
-  const speeds=[];
-  for(let i=0;i<count;i++){
-    const a=prng(i*2+6)*Math.PI*2,v=1.6+prng(i*11+5)*3.9;
-    speeds.push({x:Math.cos(a)*v,y:2+prng(i*4+8)*3.4,z:(prng(i*3+1)-.5)*2.5});
-    const c=new THREE.Color(palette[i%palette.length]);
-    colors.set([c.r,c.g,c.b],i*3);
+  // ITM grand-pyro show: multiple staggered spherical fireworks, not a short
+  // particle puff near the floor. All effects are actual world-space WebGL
+  // geometry so the existing high-tier camera dolly and stage lighting remain.
+  const fireBurstSpecs=[
+    {x:-3.78,y:1.98,z:1.05,delay:0,scale:1.0},
+    {x: 3.78,y:2.10,z:1.05,delay:.16,scale:1.08},
+    {x: 0.00,y:3.58,z:-.9,delay:.35,scale:1.18},
+    {x:-2.20,y:3.07,z:-.25,delay:.55,scale:.9},
+    {x: 2.24,y:3.22,z:-.25,delay:.72,scale:1.0}
+  ];
+  const fireMaxBursts=fireBurstSpecs.length;
+  const sparkPerBurst=isMobile()?83:153;
+  const fireCount=sparkPerBurst*fireMaxBursts;
+  const fireGeom=new THREE.BufferGeometry();
+  const fireCoords=new Float32Array(fireCount*3);
+  const fireColors=new Float32Array(fireCount*3);
+  const trailCoords=new Float32Array(fireCount*6);
+  const trailColors=new Float32Array(fireCount*6);
+  const fireDirections=[];
+  // Deterministic, near-spherical radial trajectories with different speeds.
+  for(let burst=0;burst<fireMaxBursts;burst++){
+    for(let i=0;i<sparkPerBurst;i++){
+      const id=burst*sparkPerBurst+i;
+      const theta=2*Math.PI*prng(id*5+13);
+      const u=2*prng(id*7+9)-1;
+      const thetaR=Math.sqrt(1-u*u);
+      const speed=(2.65+prng(id*11+21)*2.18)*fireBurstSpecs[burst].scale;
+      fireDirections.push({
+        x:Math.cos(theta)*thetaR*speed,
+        y:u*speed,
+        z:Math.sin(theta)*thetaR*speed*.58,
+        delay:prng(id*13+5)*.095,
+        afterglow:i%6===0
+      });
+      fireCoords.set([0,-1000,0],id*3);
+      trailCoords.set([0,-1000,0,0,-1000,0],id*6);
+      const color=new THREE.Color(i%9===0?'#fffce8':palette[(id+burst*3)%palette.length]);
+      fireColors.set([color.r,color.g,color.b],id*3);
+      trailColors.set([color.r,color.g,color.b,color.r,color.g,color.b],id*6);
+    }
   }
-  fireGeom.setAttribute('position',new THREE.BufferAttribute(coords,3));
-  fireGeom.setAttribute('color',new THREE.BufferAttribute(colors,3));
-  const fireMaterial=new THREE.PointsMaterial({size:.07,transparent:true,opacity:0,depthWrite:false,
-    blending:THREE.AdditiveBlending,vertexColors:true});
-  const particles=new THREE.Points(fireGeom,fireMaterial);particles.visible=false;particles.frustumCulled=false;venue.add(particles);
-  let boomAt=-1;
+  fireGeom.setAttribute('position',new THREE.BufferAttribute(fireCoords,3).setUsage(THREE.DynamicDrawUsage));
+  fireGeom.setAttribute('color',new THREE.BufferAttribute(fireColors,3));
+  const fireMaterial=new THREE.PointsMaterial({
+    map:haloTexture,size:isMobile()?.17:.23,vertexColors:true,
+    transparent:true,opacity:0,sizeAttenuation:true,depthWrite:false,
+    blending:THREE.AdditiveBlending
+  });
+  const particles=new THREE.Points(fireGeom,fireMaterial);
+  particles.visible=false;particles.frustumCulled=false;
+  venue.add(particles);
+
+  const trailGeom=new THREE.BufferGeometry();
+  trailGeom.setAttribute('position',new THREE.BufferAttribute(trailCoords,3).setUsage(THREE.DynamicDrawUsage));
+  trailGeom.setAttribute('color',new THREE.BufferAttribute(trailColors,3));
+  const fireTrails=new THREE.LineSegments(trailGeom,new THREE.LineBasicMaterial({
+    vertexColors:true,transparent:true,opacity:0,depthWrite:false,
+    blending:THREE.AdditiveBlending
+  }));
+  fireTrails.frustumCulled=false;fireTrails.visible=false;venue.add(fireTrails);
+  const fireBursts=fireBurstSpecs.map((spec,i)=>{
+    const hub=new THREE.Sprite(new THREE.SpriteMaterial({
+      map:haloTexture,color:0xffe7fa,opacity:0,transparent:true,depthWrite:false,
+      blending:THREE.AdditiveBlending
+    }));
+    hub.position.set(spec.x,spec.y,spec.z+.23);
+    hub.scale.set(.2,.2,1);venue.add(hub);
+    const shock=new THREE.Mesh(new THREE.RingGeometry(.94,1,80),
+      new THREE.MeshBasicMaterial({
+        color:0xffd4f8,transparent:true,opacity:0,side:THREE.DoubleSide,
+        depthWrite:false,blending:THREE.AdditiveBlending
+      }));
+    shock.position.set(spec.x,spec.y,spec.z+.16);
+    shock.scale.setScalar(.025);venue.add(shock);
+    const light=new THREE.PointLight(0xffb1ed,0,10,2);
+    light.position.set(spec.x,spec.y,spec.z+1);
+    venue.add(light);
+    return {hub,shock,light};
+  });
+  let boomAt=-1,activeFireBursts=0;
+  const firePalette={
+    SR:['#ddb0ff','#f6cfff','#ffffff'],
+    SSR:['#ffdb80','#fff2be','#ffa3d8'],
+    UR:['#ff9edc','#a7e6ff','#f8ce82','#c9abff','#ffffff']
+  };
+  function configureFireworks(rarity){
+    const choices=firePalette[rarity]||firePalette.UR;
+    for(let i=0;i<fireCount;i++){
+      const burst=Math.floor(i/sparkPerBurst);
+      const c=new THREE.Color(choices[(i+burst*2)%choices.length]);
+      fireColors.set([c.r,c.g,c.b],i*3);
+      trailColors.set([c.r,c.g,c.b,c.r,c.g,c.b],i*6);
+    }
+    fireGeom.attributes.color.needsUpdate=true;
+    trailGeom.attributes.color.needsUpdate=true;
+    fireBursts.forEach(({hub,shock,light},i)=>{
+      const color=new THREE.Color(choices[i%choices.length]);
+      hub.material.color.copy(color);
+      shock.material.color.copy(color);
+      light.color.copy(color);
+    });
+  }
+  function stopFireworks(){
+    boomAt=-1;
+    particles.visible=false;fireTrails.visible=false;
+    fireMaterial.opacity=0;fireTrails.material.opacity=0;
+    for(const {hub,shock,light} of fireBursts){
+      hub.material.opacity=0;shock.material.opacity=0;light.intensity=0;
+    }
+  }
 
   function ledWave(style,x,y,t){
     const r=Math.hypot(x-.51,(y-.51)*1.35);
@@ -551,11 +645,15 @@ export function createConcertStage({THREE,scene,renderer,oldBeams=[]}) {
   function beginOpening(tier){
     opening=tier||'N';openAt=performance.now()*.001;
     grade='WHITE';blackout=false;fireStarted=false;lastDraw=-1;
+    stopFireworks();
   }
   function endOpening(){opening=null;blackout=false;}
-  function burst(){
+  function burst(rarity=opening||'UR'){
+    if(!firePalette[rarity])return;
+    configureFireworks(rarity);
+    activeFireBursts=rarity==='UR'?5:rarity==='SSR'?3:2;
     boomAt=performance.now()*.001;
-    particles.visible=true;
+    particles.visible=true;fireTrails.visible=true;
   }
   function update(t,dt){
     // Gentle continuous aurora movement; automatic blackout preservation for UR.
@@ -568,9 +666,13 @@ export function createConcertStage({THREE,scene,renderer,oldBeams=[]}) {
       if(opening==='UR'){
         dark=d>=.73&&d<1.58;
         if(d>=1.58)next='UR';
-        if(d>=1.9&&!fireStarted){fireStarted=true;burst();}
       }else if(opening==='SSR')next=d>=1.58?'SSR':d>=.79?'SR':'WHITE';
       else if(opening==='SR')next=d>=1.19?'SR':'WHITE';
+      // Start the pyro exactly as the seal breaks, not a second earlier.
+      if(d>=2.65&&!fireStarted){
+        fireStarted=true;
+        if(['SR','SSR','UR'].includes(opening))burst(opening);
+      }
       if(grade!==next||blackout!==dark){
         grade=next;blackout=dark;lastDraw=-1;
         tint.set(dark?'#0a0612':grade==='SSR'?'#fce1a9':grade==='SR'?'#cf9cef':'#ffc2e9');
@@ -616,14 +718,52 @@ export function createConcertStage({THREE,scene,renderer,oldBeams=[]}) {
     sticks.instanceMatrix.needsUpdate=true;
     for(const group of litHeads)group.instanceMatrix.needsUpdate=true;
     if(boomAt>=0){
-      const age=performance.now()*.001-boomAt;
-      fireMaterial.opacity=Math.max(0,.8*(1-age/2.1));
-      for(let i=0;i<count;i++){
-        const v=speeds[i],from=i%2?-3:3;
-        fireGeom.attributes.position.setXYZ(i,from+v.x*age,-1.55+v.y*age-3.7*age*age,v.z*age);
+      const age=Math.max(0,performance.now()*.001-boomAt);
+      const totalDuration=2.36;
+      let hasLiveBurst=false;
+      for(let burst=0;burst<fireMaxBursts;burst++){
+        const spec=fireBurstSpecs[burst],local=age-spec.delay;
+        const {hub,shock,light}=fireBursts[burst];
+        const active=burst<activeFireBursts&&local>=0&&local<1.72;
+        if(active)hasLiveBurst=true;
+        const power=active?1-smooth(clamp((local-.25)/1.47)):0;
+        const flash=active?(1-smooth(clamp(local/.24))):0;
+        hub.material.opacity=Math.min(.96,flash*.9);
+        hub.scale.set(1.25+local*7,1.25+local*7,1);
+        shock.material.opacity=active?(1-smooth(clamp(local/.68)))*.93:0;
+        shock.scale.setScalar(.16+Math.max(0,local)*2.95);
+        light.intensity=active?flash*(opening==='UR'?13:9):0;
+        for(let i=0;i<sparkPerBurst;i++){
+          const id=burst*sparkPerBurst+i,j=id*3,k=id*6;
+          const v=fireDirections[id],particleAge=local-v.delay;
+          if(!active||particleAge<0){
+            fireCoords[j]=0;fireCoords[j+1]=-1000;fireCoords[j+2]=0;
+            trailCoords[k]=trailCoords[k+3]=0;
+            trailCoords[k+1]=trailCoords[k+4]=-1000;
+            trailCoords[k+2]=trailCoords[k+5]=0;
+            continue;
+          }
+          // Explosive velocity with drag, slight droop, and trailing afterimages.
+          const elapsed=Math.min(particleAge,1.72);
+          const travelled=(1-Math.exp(-elapsed*1.65))*1.18;
+          const x=spec.x+v.x*travelled;
+          const y=spec.y+v.y*travelled-.72*elapsed*elapsed;
+          const z=spec.z+v.z*travelled;
+          const past=Math.max(0,elapsed-.092);
+          const oldTravel=(1-Math.exp(-past*1.65))*1.18;
+          fireCoords[j]=x;fireCoords[j+1]=y;fireCoords[j+2]=z;
+          trailCoords[k]=x;trailCoords[k+1]=y;trailCoords[k+2]=z;
+          trailCoords[k+3]=spec.x+v.x*oldTravel;
+          trailCoords[k+4]=spec.y+v.y*oldTravel-.72*past*past;
+          trailCoords[k+5]=spec.z+v.z*oldTravel;
+        }
       }
       fireGeom.attributes.position.needsUpdate=true;
-      if(age>=2.1){boomAt=-1;particles.visible=false;}
+      trailGeom.attributes.position.needsUpdate=true;
+      const fade=1-smooth(clamp((age-.88)/1.57));
+      fireMaterial.opacity=fade*.96;
+      fireTrails.material.opacity=fade*.78;
+      if((!hasLiveBurst&&age>1.3)||age>=totalDuration)stopFireworks();
     }
   }
   function introPose(progress){
@@ -641,7 +781,7 @@ export function createConcertStage({THREE,scene,renderer,oldBeams=[]}) {
     const look=new THREE.Vector3(0,.27,0);
     return {pos:eye,look,fov:mix(mobile?52:51,42,approach)};
   }
-  function reset(){opening=null;blackout=false;boomAt=-1;particles.visible=false;setRarity('DEFAULT');}
+  function reset(){opening=null;blackout=false;stopFireworks();setRarity('DEFAULT');}
   drawLED(0);
   return {setRarity,beginOpening,endOpening,burst,introPose,reset,update};
 }
