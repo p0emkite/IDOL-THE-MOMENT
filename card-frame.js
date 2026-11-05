@@ -75,15 +75,22 @@ export function renderITMCard(card,{photo=null,groupLogo=null,photoTransform=nul
   const top=(ITM_CARD_HEIGHT-FRAME_HEIGHT*uniformScale)/2;
   ctx.setTransform(2*uniformScale,0,0,2*uniformScale,2*left,2*top);
 
+  // The UR artwork uses the full 290px strip: its right inner rail starts
+  // around x=282, unlike N/R/SR/SSR (x=268–275). A common 272px photo
+  // window ends at x=276 and leaves a visible dark gap on UR. Extend ONLY
+  // UR's photo and clip to x=285 (under the opaque right bezel); preserve
+  // every frame's original WebP geometry and the other tiers' crops.
+  const photoWindow={x:4,y:34,w:finish.index===4?281:272,h:438,r:25};
   const body=new Path2D();
-  body.roundRect(4,34,272,438,25);
+  body.roundRect(photoWindow.x,photoWindow.y,photoWindow.w,photoWindow.h,photoWindow.r);
   ctx.save();
   ctx.clip(body);
   ctx.fillStyle='#30283e';
   ctx.fill(body);
-  drawCover(ctx,photo,4,34,272,438,photoTransform||card?.photo_transform||{
-    scale:card?.photo_scale,x:card?.photo_x,y:card?.photo_y
-  });
+  drawCover(ctx,photo,photoWindow.x,photoWindow.y,photoWindow.w,photoWindow.h,
+    photoTransform||card?.photo_transform||{
+      scale:card?.photo_scale,x:card?.photo_x,y:card?.photo_y
+    });
   ctx.restore();
 
   if(!drawOriginalFoil(ctx,finish)){
