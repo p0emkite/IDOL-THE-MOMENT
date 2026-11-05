@@ -108,7 +108,31 @@ async function check(name,device){
     },null,{timeout:40000,polling:300});
     const ur=page.locator('#stageCardTrack .stage-card-button.rarity-ur');
     await ur.scrollIntoViewIfNeeded();
-    await ur.click({timeout:12000});
+    // Assert the UR-specific 300 ms silence/hold before the flip.
+    const urLead=await page.evaluate(()=>{
+      const b=document.querySelector('#stageCardTrack .stage-card-button.rarity-ur');
+      b.click();
+      return {
+        waiting:!b.classList.contains('is-revealed'),
+        stageMuted:document.getElementById('packRevealStage').classList.contains('ur-anticipating'),
+        revealAllLocked:document.getElementById('stageRevealAll').disabled
+      };
+    });
+    report.checks.landscapeURLead=urLead;
+    if(!urLead.waiting||!urLead.stageMuted||!urLead.revealAllLocked)
+      throw new Error('UR 300 ms anticipation/interaction guard is missing');
+    await page.waitForFunction(()=>document.querySelector('#stageCardTrack .stage-card-button.rarity-ur.is-revealed'),
+      null,{timeout:3500,polling:70});
+    const urPayoff=await page.evaluate(()=>{
+      const card=document.querySelector('#stageCardTrack .stage-card-button.rarity-ur.is-revealed');
+      return {
+        active:!!document.querySelector('.itm-ur-payoff.active'),
+        hologram:getComputedStyle(card.querySelector('.stage-card-front'),'::after').animationName
+      };
+    });
+    report.checks.landscapeURPayoff=urPayoff;
+    if(!urPayoff.active||!urPayoff.hologram.includes('itmURFoilAlive'))
+      throw new Error('UR explosion or post-reveal holographic foil is missing');
     await page.waitForFunction(()=>!document.getElementById('raritySplash').hidden,null,{timeout:13000});
     await page.waitForTimeout(1750);
     report.checks.landscapeUR=await page.evaluate(()=>{
