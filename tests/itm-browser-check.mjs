@@ -169,6 +169,24 @@ async function checkStudio(){
   const shot='qa/desktop-card-studio.png';
   await page.screenshot({path:shot,fullPage:false,timeout:15000});
   report.screenshots.push(shot);
+  // Regression: checkbox is compact, while the series title has a real text column.
+  await page.locator('.pack-section summary').click();
+  await page.locator('#packGroups .choice-item').first().waitFor({state:'visible',timeout:15000});
+  report.checks.packLayout=await page.evaluate(()=>{
+    const rows=[...document.querySelectorAll('.pack-section .choice-item,.pack-section .check-row')];
+    const series=document.querySelector('#packSeries'),groups=document.querySelector('#packGroups');
+    return {
+      choices:rows.length,
+      maxCheckboxWidth:Math.max(...rows.map(x=>x.querySelector('input')?.getBoundingClientRect().width||0)),
+      maxCheckboxHeight:Math.max(...rows.map(x=>x.querySelector('input')?.getBoundingClientRect().height||0)),
+      minTextWidth:Math.min(...rows.filter(x=>x.querySelector('span')).map(x=>x.querySelector('span').getBoundingClientRect().width)),
+      horizontalOverflow:[groups,series].some(el=>el.scrollWidth>el.clientWidth+2),
+      seriesColumns:getComputedStyle(series).gridTemplateColumns
+    };
+  });
+  const packShot='qa/desktop-pack-manager.png';
+  await page.locator('.pack-section').screenshot({path:packShot,timeout:15000});
+  report.screenshots.push(packShot);
   await context.close();
 }
 
@@ -229,6 +247,10 @@ try{
 if(report.consoleErrors.some(x=>/Uncaught|TypeError|ReferenceError|Failed to resolve module/i.test(x)))process.exitCode=1;
 if(!report.checks.desktop?.webgl||!report.checks.mobile?.webgl)process.exitCode=1;
 if(report.checks.frameTemplates?.count!==5||!report.checks.frameTemplates?.sizes.every(([w,h])=>w===1024&&h===1492))process.exitCode=1;
+if(report.checks.packLayout?.maxCheckboxWidth>24||
+ report.checks.packLayout?.maxCheckboxHeight>24||
+ report.checks.packLayout?.minTextWidth<70||
+ report.checks.packLayout?.horizontalOverflow)process.exitCode=1;
 if(report.checks.studio?.grade!=='UR'||!report.checks.studio?.saveLocked||
  !report.checks.studio?.packManagerCollapsed||!report.checks.studio?.packSaveLocked||!report.checks.studio?.packControls||
  report.checks.studio?.groupsApi?.status!==200||report.checks.studio?.catalogApi?.status!==200)process.exitCode=1;
