@@ -4,6 +4,87 @@
  */
 export function createConcertStage({THREE,scene,renderer,oldBeams=[]}) {
   const venue=new THREE.Group();scene.add(venue);
+
+  // Pastel Aurora Dome: a real inner-facing 3D environment behind the concert
+  // structures, not a flat fullscreen illustration. Kept separate from the
+  // physical wall and floor so parallax remains coherent during 360° entry.
+  const skyCanvas=document.createElement('canvas');
+  const skyW=window.innerWidth<760?1024:2048,skyH=skyW/2;
+  skyCanvas.width=skyW;skyCanvas.height=skyH;
+  const skyCtx=skyCanvas.getContext('2d');
+  function makeAtmosphere(){
+    const ctx=skyCtx,w=skyW,h=skyH;
+    const base=ctx.createLinearGradient(0,0,w*.14,h);
+    base.addColorStop(0,'#261545');
+    base.addColorStop(.23,'#634078');
+    base.addColorStop(.47,'#ab6da1');
+    base.addColorStop(.72,'#6663a6');
+    base.addColorStop(1,'#283a6b');
+    ctx.fillStyle=base;ctx.fillRect(0,0,w,h);
+    // Different-colored glowing pools make the world feel like a lively
+    // outdoor festival while leaving the stage center as the brightest point.
+    const pools=[
+      [.14,.39,.43,.56,'#ffa3dc',.76],
+      [.41,.31,.36,.52,'#c2a4ff',.69],
+      [.69,.43,.47,.59,'#83daee',.69],
+      [.92,.32,.38,.56,'#f8a4dc',.58],
+      [.49,.83,.66,.39,'#ffafd0',.34]
+    ];
+    for(const [px,py,rx,ry,color,alpha] of pools){
+      ctx.save();ctx.translate(px*w,py*h);ctx.scale(rx*w,ry*h);
+      const fill=ctx.createRadialGradient(0,0,.012,0,0,1);
+      const hex=color.replace('#','');
+      const colorRGB=parseInt(hex.slice(0,2),16)+','+parseInt(hex.slice(2,4),16)+','+parseInt(hex.slice(4,6),16);
+      fill.addColorStop(0,'rgba('+colorRGB+','+alpha+')');
+      fill.addColorStop(.38,'rgba('+colorRGB+','+(alpha*.39)+')');
+      fill.addColorStop(1,'rgba('+colorRGB+',0)');
+      ctx.fillStyle=fill;ctx.beginPath();ctx.arc(0,0,1,0,Math.PI*2);ctx.fill();
+      ctx.restore();
+    }
+    // Silk-like translucent aurora ribbons curve across the spherical sky.
+    ctx.save();ctx.globalCompositeOperation='screen';
+    for(let band=0;band<6;band++){
+      const top=.16+band*.095;
+      const path=ctx.createLinearGradient(0,h*(top+.06),w,h*(top+.02));
+      path.addColorStop(0,'#fa9afc00');
+      path.addColorStop(.26,band%2?'#ffcaea40':'#95efff55');
+      path.addColorStop(.61,'#e4b4ff48');
+      path.addColorStop(1,'#fac6e300');
+      ctx.beginPath();
+      ctx.moveTo(-w*.09,h*(top+.08));
+      ctx.bezierCurveTo(w*.25,h*(top-.18),w*.46,h*(top+.34),w*.77,h*(top+.045));
+      ctx.bezierCurveTo(w*.91,h*(top-.08),w*1.02,h*(top+.09),w*1.1,h*(top+.01));
+      ctx.lineWidth=h*(.065+band*.007);
+      ctx.strokeStyle=path;ctx.shadowColor=band%2?'#dda5ff':'#84e9fa';
+      ctx.shadowBlur=h*.085;ctx.stroke();
+    }
+    ctx.restore();
+    // Tiny light flecks and distant concert bokeh; deterministic distribution.
+    for(let i=0;i<(skyW>1200?590:320);i++){
+      const x=((i*929+Math.sin(i*7.07)*311)%w+w)%w;
+      const y=((i*457+Math.cos(i*3.21)*223)%Math.round(h*.86)+h)%h;
+      const r=i%41===0?2.7:i%7===0?1.32:.58;
+      const a=.13+((i*37)%11)/70;
+      ctx.fillStyle='rgba(255,248,255,'+a.toFixed(2)+')';
+      ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();
+    }
+    // Soft corner shading supplies depth without returning to a black void.
+    const shade=ctx.createLinearGradient(0,h*.40,0,h);
+    shade.addColorStop(0,'#120c2900');
+    shade.addColorStop(1,'#21133d79');
+    ctx.fillStyle=shade;ctx.fillRect(0,0,w,h);
+  }
+  makeAtmosphere();
+  const skyTexture=new THREE.CanvasTexture(skyCanvas);
+  skyTexture.colorSpace=THREE.SRGBColorSpace;
+  skyTexture.anisotropy=Math.min(4,renderer.capabilities.getMaxAnisotropy());
+  const skyMaterial=new THREE.MeshBasicMaterial({
+    map:skyTexture,side:THREE.BackSide,toneMapped:false,fog:false,
+    transparent:true,opacity:1,depthWrite:false
+  });
+  const skyDome=new THREE.Mesh(new THREE.SphereGeometry(70,64,32),skyMaterial);
+  skyDome.renderOrder=-1000;
+  scene.add(skyDome);
   const isMobile=()=>window.innerWidth<760;
   const prng=n=>{const t=Math.sin(n*127.173+9.13)*43758.5453;return t-Math.floor(t)};
   const mix=(a,b,t)=>a+(b-a)*t, clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x));
@@ -477,6 +558,10 @@ export function createConcertStage({THREE,scene,renderer,oldBeams=[]}) {
     particles.visible=true;
   }
   function update(t,dt){
+    // Gentle continuous aurora movement; automatic blackout preservation for UR.
+    skyDome.rotation.y=Math.sin(t*.055)*.055+t*.0009;
+    skyDome.rotation.z=Math.sin(t*.043)*.012;
+    skyMaterial.opacity+=( (blackout?.11:opening?.84:1)-skyMaterial.opacity)*Math.min(1,dt*2.1);
     if(opening){
       const d=performance.now()*.001-openAt;
       let next='WHITE',dark=false;
