@@ -239,8 +239,8 @@ export function createConcertStage({THREE,scene,renderer,oldBeams=[]}) {
   // Nine distinctive fan lightstick heads (each batched by InstancedMesh).
   // A common grip stays in each fan's hand; the glowing head conveys the group.
   const glowMaterial=new THREE.MeshBasicMaterial({
-    color:0xffffff,toneMapped:false,transparent:true,opacity:.73,
-    depthWrite:false,blending:THREE.NormalBlending,side:THREE.DoubleSide
+    color:0xffffff,toneMapped:false,transparent:true,opacity:.39,
+    depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide
   });
   const handleMaterial=new THREE.MeshStandardMaterial({
     color:0x7d587f,metalness:.6,roughness:.32
@@ -312,12 +312,12 @@ export function createConcertStage({THREE,scene,renderer,oldBeams=[]}) {
     const back=i>=total*.56;
     const near=i<total*.235;
     const z=back?11.0+prng(i*9+11)*35:
-      near?6.4+prng(i*6+15)*4.4:2.4+prng(i*6+15)*7.3;
+      near?4.0+prng(i*6+15)*2.7:2.4+prng(i*6+15)*4.9;
     const x=back?side*(2.9+prng(i*9+7)*17.5):
       near?side*(1.06+(10.8-z)*.31+prng(i*11+8)*4.0):
       side*(2.02+(z-2.4)*.30+prng(i*11+8)*5.4);
     const y=back?-2.40+Math.min(3.1,(z-11)*.115)+prng(i*3)*.3:
-      near?-2.67+(z-6.4)*.25+prng(i*4+5)*.38:
+      near?-3.02+(z-4.0)*.22+prng(i*4+5)*.32:
       -2.95+(z-2.4)*.18+prng(i*4+5)*.40;
     const k=back?.62+prng(i*5)*.35:near?1.09+prng(i*5)*.48:.80+prng(i*5)*.48;
     batons.push({x,y,z,k,phase:prng(i*2+1)*Math.PI*2,side});
