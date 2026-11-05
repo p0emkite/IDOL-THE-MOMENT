@@ -653,7 +653,9 @@ function stageBurst(card){
   banner.className='stage-rarity-banner '+klass+' active';
 }
 async function openPack(count){
-  if(state.busy||state.phase!=='ready'||state.entryRequired||!state.backendReady)return;
+  // Guest draws are local: never block the pack while Supabase initialises.
+  // Cloud inventory draws still require the authenticated backend to be ready.
+  if(state.busy||state.phase!=='ready'||state.entryRequired||(isNamedAccount()&&!state.backendReady))return;
   state.busy=true;$('drawOne').disabled=$('drawFive').disabled=true;
   let rolled=[];
   try{
