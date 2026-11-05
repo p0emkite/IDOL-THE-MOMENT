@@ -43,3 +43,14 @@ input[type=range]{width:100%;accent-color:#e5a2e9;margin:0 0 15px}.range-control
 .preview-section{grid-column:auto;position:sticky;top:12px}
 .library-filters{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:12px;margin-bottom:16px}
 @media(max-width:700px){.tools{grid-template-columns:minmax(0,1fr)}.preview-section{position:static}.library-filters{grid-template-columns:1fr}}
+
+/* Collapsible pack manager & multi-select filters. */
+.pack-section summary{cursor:pointer;font-weight:800}
+.pack-section[open] summary{margin-bottom:20px}
+.choice-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin:0 0 20px}
+.choice-item,.check-row{display:flex!important;flex-direction:row!important;align-items:center;gap:8px!important;
+  margin:0!important;padding:10px;border:1px solid #ba9ad73b;background:#171020;border-radius:10px;
+  font-size:12px;cursor:pointer;overflow-wrap:anywhere}
+.choice-item input,.check-row input{width:16px;height:16px;flex:none;accent-color:#e8a5f5}
+.check-row{margin:12px 0 18px!important}
+.pack-section .logo-display img{object-fit:contain;max-width:95%;max-height:80px}
