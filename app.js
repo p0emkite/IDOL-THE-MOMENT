@@ -835,7 +835,9 @@ async function openPack(count){
   try{
     if(state.supabase)await loadPublishedCatalog().catch(err=>console.warn('카드 목록 갱신 실패',err));
     if(isNamedAccount()){
-      const rule=LIVE_READY?selectedPack():null;
+      // Managed packs can be opened with any eligible published cards;
+      // the default pack alone requires every rarity to be populated.
+      const rule=selectedPack();
       const rpc=rule?'itm_open_managed_pack':LIVE_READY?'itm_open_card_pack':'itm_open_demo_pack';
       const args=rule?{p_count:count,p_pack_id:rule.id}:{p_count:count};
       const {data,error}=await state.supabase.rpc(rpc,args);
@@ -843,7 +845,7 @@ async function openPack(count){
       rolled=(data||[]).map(x=>byId.get(String(x.id))).filter(Boolean);
       if(rolled.length!==count)throw Error('서버 카드 결과를 확인할 수 없습니다.');
       await syncRemote();
-    }else if(LIVE_READY){
+    }else if(LIVE_READY||selectedPack()){
       rolled=drawLiveLocal(count,selectedPack());
       for(const card of rolled)state.liveInventory[card.id]=(state.liveInventory[card.id]||0)+1;
       writeLiveInventory();updateCounts();
