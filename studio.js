@@ -5,7 +5,7 @@ const BUCKET='itm-card-media';
 const VALID_MIME=['image/jpeg','image/png','image/webp'];
 const RARITIES=['N','R','SR','SSR','UR'];
 const state={
-  client:null,admin:false,logged:false,groups:[],cards:[],editingId:null,
+  client:null,admin:false,logged:false,groups:[],members:[],cards:[],editingId:null,
   photoFile:null,fullArtFile:null,groupLogoFile:null,
   photoImage:null,groupImage:null,groupEditorImage:null,
   imagePath:null,fullArtPath:null,
@@ -22,8 +22,11 @@ function toast(message){
 function setAuthState(text){$('accessState').textContent=text}
 function accessControls(){
   const allowed=state.admin&&!state.saving;
+  document.querySelector('.tools').inert=state.saving;
+  document.querySelector('.library').inert=state.saving;
   $('saveCard').disabled=!allowed;
   $('saveGroup').disabled=!allowed;
+  $('saveMember').disabled=!allowed||!$('groupPicker').value;
   $('studioLogout').hidden=!state.logged;
   $('studioLogin').hidden=state.logged;
   if(state.admin){
@@ -75,7 +78,7 @@ function currentTransform(){return {
   y:Number($('photoY').value)/100
 }}
 function setTransform(v={}){
-  $('photoZoom').value=Math.round(Math.max(1,Math.min(3,Number(v.scale)||1))*100);
+  $('photoZoom').value=Math.round(Math.max(1,Math.min(4,Number(v.scale)||1))*100);
   $('photoX').value=Math.round((Number(v.x)||0)*100);
   $('photoY').value=Math.round((Number(v.y)||0)*100);
   updateCropLabels();queuePreview();
@@ -124,6 +127,7 @@ function newGroup(){
   $('groupPicker').value='';$('groupSlug').value='';$('groupSlug').readOnly=false;
   $('groupName').value='';$('groupLogo').value='';
   state.groupLogoFile=null;state.groupEditorImage=null;
+  refreshMembers();
   $('groupLogoPreview').hidden=true;$('groupLogoEmpty').hidden=false;
 }
 async function selectGroup(){
@@ -133,10 +137,44 @@ async function selectGroup(){
   if(!group)return;
   $('groupSlug').value=group.slug;$('groupSlug').readOnly=true;
   $('groupName').value=group.name;$('groupLogo').value='';state.groupLogoFile=null;
+  refreshMembers();
   const path=group.logo_path;
   $('groupLogoPreview').hidden=true;$('groupLogoEmpty').hidden=true;
   if(path){$('groupLogoPreview').src=publicUrl(path);$('groupLogoPreview').hidden=false}
   else $('groupLogoEmpty').hidden=false;
+}
+function memberOptions(slug){
+  return state.members.filter(m=>m.group_slug===slug).map(m=>new Option(m.name,m.id));
+}
+function refreshCardMembers(selected=$('cardMember').value){
+  const picker=$('cardMember');
+  picker.replaceChildren(new Option('직접 입력',''),...memberOptions($('cardGroup').value));
+  picker.value=selected||'';
+  if(picker.selectedIndex<0)picker.selectedIndex=0;
+}
+function refreshMembers(id=''){
+  const group=$('groupPicker').value;
+  const picker=$('memberPicker');
+  picker.replaceChildren(new Option('새 멤버 등록',''),...memberOptions(group));
+  picker.value=id;
+  $('memberName').value=state.members.find(m=>m.id===id)?.name||'';
+  $('saveMember').disabled=!state.admin||state.saving||!group;
+}
+async function saveMember(event){
+  event.preventDefault();
+  const group_slug=$('groupPicker').value, name=$('memberName').value.trim();
+  if(!state.admin||state.saving||!group_slug||!name)return;
+  const id=$('memberPicker').value;
+  state.saving=true;accessControls();
+  try{
+    const table=state.client.from('itm_members');
+    const req=id?table.update({name}).eq('id',id).eq('group_slug',group_slug):table.insert({group_slug,name});
+    const {data,error}=await req.select('id').single();
+    if(error)throw error;
+    await loadCatalog();
+    refreshMembers(data.id);toast('멤버를 저장했습니다.');
+  }catch(err){toast(err.code==='23505'?'이 그룹에 같은 이름의 멤버가 있습니다.':'멤버 저장 실패: '+err.message)}
+  finally{state.saving=false;accessControls()}
 }
 function refreshSelectors(){
   const groupOptions=state.groups.map(g=>{
@@ -155,6 +193,7 @@ function clearCard(){
   state.photoImage=null;state.imagePath=null;state.fullArtPath=null;
   $('cardName').value='';$('cardEdition').value='DEBUT COLLECTION';$('cardRarity').value='N';
   $('cardStatus').value='draft';$('cardPhoto').value='';$('cardFullArt').value='';
+  refreshCardMembers('');
   $('cardId').value='';
   setTransform({scale:1,x:0,y:0});
   queuePreview();
@@ -163,7 +202,7 @@ async function loadCard(card){
   if(!card)return;
   state.editingId=card.id;state.photoFile=null;state.fullArtFile=null;
   state.imagePath=card.photo_path||null;state.fullArtPath=card.full_art_path||null;
-  $('cardGroup').value=card.group_slug;
+  $('cardGroup').value=card.group_slug;refreshCardMembers(card.member_id);
   $('cardName').value=card.display_name;
   $('cardEdition').value=card.edition;
   $('cardRarity').value=card.rarity;
@@ -176,31 +215,40 @@ async function loadCard(card){
   if(card.photo_path){
     try{
       const photo=await asImage(card.photo_path);
-      if(state.editingId===card.id){state.photoImage=photo;queuePreview()}
+      if(state.editingId===card.id&&!state.photoFile){state.photoImage=photo;queuePreview()}
     }catch(err){toast('기존 카드 이미지 불러오기 실패: '+err.message)}
   }
   window.scrollTo({top:document.querySelector('.card-section').getBoundingClientRect().top+window.scrollY-20,behavior:'smooth'});
 }
 async function loadCatalog(){
   if(!state.client)return;
-  const [{data:groups,error:groupError},{data:cards,error:cardError}]=await Promise.all([
+  const [{data:groups,error:groupError},{data:cards,error:cardError},members]=await Promise.all([
     state.client.from('itm_groups').select('slug,name,logo_path').order('name'),
-    state.client.from('itm_catalog').select('*').order('created_at',{ascending:false})
+    state.client.from('itm_catalog').select('*').order('created_at',{ascending:false}),
+    state.admin?state.client.from('itm_members').select('id,group_slug,name').order('name'):Promise.resolve({data:[]})
   ]);
   if(groupError)throw groupError;
   if(cardError)throw cardError;
-  state.groups=groups||[];state.cards=cards||[];
-  refreshSelectors();renderLibrary();await syncLogo();
+  if(members.error)throw members.error;
+  state.members=members.data||[];state.groups=groups||[];state.cards=cards||[];
+  refreshSelectors();refreshCardMembers();refreshMembers($('memberPicker').value);renderLibrary();await syncLogo();
 }
 function renderLibrary(){
   const list=$('cardLibrary');
-  list.replaceChildren();$('cardCount').textContent=String(state.cards.length);
-  if(!state.cards.length){
+  const query=$('libraryQuery').value.trim().toLocaleLowerCase();
+  const status=$('libraryStatus').value;
+  const cards=state.cards.filter(c=>{
+    const group=state.groups.find(g=>g.slug===c.group_slug);
+    const member=state.members.find(m=>m.id===c.member_id);
+    return (!status||c.status===status)&&[c.display_name,group?.name,c.group_slug,member?.name,c.edition].join(' ').toLocaleLowerCase().includes(query);
+  });
+  list.replaceChildren();$('cardCount').textContent=String(cards.length);
+  if(!cards.length){
     const empty=document.createElement('p');empty.className='empty';
-    empty.textContent='아직 등록된 카드가 없습니다. 왼쪽에서 첫 카드를 제작해 보세요.';
+    empty.textContent=state.cards.length?'검색 결과가 없습니다.':'아직 등록된 카드가 없습니다. 왼쪽에서 첫 카드를 제작해 보세요.';
     list.append(empty);return;
   }
-  for(const card of state.cards){
+  for(const card of cards){
     const tile=document.createElement('div');tile.className='record';
     const img=document.createElement('img');
     img.alt=card.display_name+' 이미지';
@@ -213,7 +261,7 @@ function renderLibrary(){
     const group=state.groups.find(g=>g.slug===card.group_slug)?.name||card.group_slug;
     small.textContent=group+' · '+card.rarity+' · '+card.edition;
     const status=document.createElement('span');status.className='record-status '+card.status;
-    status.textContent=card.status==='published'?'● 공개 중':'● 임시 저장';
+    status.textContent=card.status==='published'?'● 공개 중':card.status==='private'?'● 비공개':'● 임시 저장';
     const edit=document.createElement('button');edit.className='soft-btn';edit.type='button';
     edit.textContent='편집하기';edit.disabled=!state.admin;edit.onclick=()=>loadCard(card);
     info.append(title,small,status,edit);tile.append(img,info);list.append(tile);
@@ -246,7 +294,7 @@ async function saveGroup(event){
     await loadCatalog();
     $('groupPicker').value=slug;
     $('cardGroup').value=slug;
-    await selectGroup();await syncLogo();
+    refreshCardMembers();await selectGroup();await syncLogo();
     toast('그룹 저장 완료! 이후 이 그룹의 카드에는 등록된 로고가 자동 적용됩니다.');
   }catch(err){toast('그룹 저장 실패: '+(err?.message||err))}
   finally{state.saving=false;accessControls()}
@@ -267,7 +315,7 @@ async function saveCard(event){
     const full_art_path=state.fullArtFile?await uploadFile(state.fullArtFile,'special'):state.fullArtPath||null;
     const transform=currentTransform();
     const row={
-      group_slug,display_name,edition,rarity:$('cardRarity').value,status,
+      member_id:$('cardMember').value||null,group_slug,display_name,edition,rarity:$('cardRarity').value,status,
       photo_path,full_art_path,photo_scale:transform.scale,photo_x:transform.x,photo_y:transform.y,
       updated_at:new Date().toISOString()
     };
@@ -280,7 +328,7 @@ async function saveCard(event){
     $('cardId').value=data.id;$('cardPhoto').value='';$('cardFullArt').value='';
     await loadCatalog();
     $('cardGroup').value=group_slug;await syncLogo();
-    toast(status==='published'?'카드 공개 완료! 등급별 준비 상태에 따라 팩·도감에 반영됩니다.':'임시 저장 완료! 공개하기 전에는 이용자에게 표시되지 않습니다.');
+    toast(status==='published'?'카드 공개 완료! 등급별 준비 상태에 따라 팩·도감에 반영됩니다.':status==='private'?'비공개로 저장했습니다.':'임시 저장했습니다.');
   }catch(err){toast('카드 저장 실패: '+(err?.message||err))}
   finally{state.saving=false;accessControls()}
 }
@@ -296,7 +344,7 @@ function bindImageInput(input,field,fn){
   input.addEventListener('change',async()=>{
     const file=input.files?.[0];
     if(!file)return;
-    try{fileCheck(file);const img=await asImage(file);fn(img,file);queuePreview()}
+    try{fileCheck(file);const img=await asImage(file);if(input.files?.[0]!==file)return;fn(img,file);queuePreview()}
     catch(err){input.value='';toast(err.message)}
   });
 }
@@ -310,9 +358,14 @@ function bindDrag(){
   });
   holder.addEventListener('pointermove',e=>{
     if(!current||e.pointerId!==current.id)return;
-    const bounds=holder.getBoundingClientRect();
-    const x=Math.max(-100,Math.min(100,current.fromX+(e.clientX-current.x)/bounds.width*220));
-    const y=Math.max(-100,Math.min(100,current.fromY+(e.clientY-current.y)/bounds.height*220));
+    const bounds=state.previewCanvas.getBoundingClientRect();
+    const photo=state.photoImage;
+    if(!photo)return;
+    const scale=Math.max(bounds.width/photo.naturalWidth,bounds.height/photo.naturalHeight)*currentTransform().scale;
+    const extraX=(photo.naturalWidth*scale-bounds.width)/2;
+    const extraY=(photo.naturalHeight*scale-bounds.height)/2;
+    const x=Math.max(-100,Math.min(100,current.fromX+(extraX>0.01?(e.clientX-current.x)/extraX*100:0)));
+    const y=Math.max(-100,Math.min(100,current.fromY+(extraY>0.01?(e.clientY-current.y)/extraY*100:0)));
     $('photoX').value=Math.round(x);$('photoY').value=Math.round(y);
     updateCropLabels();queuePreview();
   });
@@ -358,7 +411,16 @@ function bind(){
   $('groupPicker').onchange=selectGroup;
   $('newGroup').onclick=newGroup;
   $('newCard').onclick=()=>{clearCard();syncLogo()};
-  $('cardGroup').onchange=syncLogo;
+  $('memberForm').onsubmit=saveMember;
+  $('memberPicker').onchange=()=>refreshMembers($('memberPicker').value);
+  $('cardGroup').onchange=()=>{refreshCardMembers('');syncLogo()};
+  $('cardMember').onchange=()=>{
+    const member=state.members.find(m=>m.id===$('cardMember').value);
+    if(member)$('cardName').value=member.name;
+    queuePreview();
+  };
+  $('libraryStatus').onchange=renderLibrary;
+  $('libraryQuery').oninput=renderLibrary;
   $('cardRarity').onchange=queuePreview;
   $('cardName').oninput=queuePreview;
   $('cardEdition').oninput=queuePreview;
@@ -373,7 +435,7 @@ function bind(){
   bindImageInput($('cardFullArt'),'full',(img,file)=>{state.fullArtFile=file});
   bindImageInput($('groupLogo'),'logo',(img,file)=>{
     state.groupLogoFile=file;state.groupEditorImage=img;
-    $('groupLogoPreview').src=img.src;$('groupLogoPreview').hidden=false;$('groupLogoEmpty').hidden=true;
+    $('groupLogoPreview').replaceWith(img);img.id='groupLogoPreview';img.alt='그룹 로고';$('groupLogoPreview').hidden=false;$('groupLogoEmpty').hidden=true;
     if($('groupSlug').value===$('cardGroup').value){state.groupImage=img;queuePreview()}
   });
   bindDrag();

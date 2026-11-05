@@ -92,6 +92,7 @@ async function loadPublishedCatalog(){
   ]);
   if(groupsResult.error||cardsResult.error)throw(groupsResult.error||cardsResult.error);
   const groupMap=new Map((groupsResult.data||[]).map(g=>[g.slug,g]));
+  for(const card of LIVE_POOL)byId.delete(card.id);
   LIVE_POOL.length=0;
   for(const row of (cardsResult.data||[])){
     const group=groupMap.get(row.group_slug);
@@ -396,7 +397,7 @@ function toggleAudio(){if(!soundManager){audioPreferenceSet=true;setSound(!state
 // empty until the upcoming card-add tool supplies them as independent layers.
 const artCache=new Map();
 function makeCardArt(card){
-  const cacheKey=card.id+':'+card.rarity+':'+(card.image_url||'');
+  const cacheKey=JSON.stringify([card.id,card.rarity,card.image_url,card.group_logo_url,card.photo_transform]);
   if(artCache.has(cacheKey))return artCache.get(cacheKey);
   const photo=card.image_url?loadedArtwork.get(card.image_url):null;
   const groupLogo=card.group_logo_url?loadedArtwork.get(card.group_logo_url):null;
@@ -804,6 +805,7 @@ async function openPack(count){
   state.busy=true;$('drawOne').disabled=$('drawFive').disabled=true;
   let rolled=[];
   try{
+    if(state.supabase)await loadPublishedCatalog().catch(err=>console.warn('카드 목록 갱신 실패',err));
     if(isNamedAccount()){
       const rpc=LIVE_READY?'itm_open_card_pack':'itm_open_demo_pack';
       const {data,error}=await state.supabase.rpc(rpc,{p_count:count});
@@ -929,20 +931,22 @@ function renderCollection(){
   const unique=ids.length,total=POOL.length+LIVE_POOL.length;
   $('collectionSummary').textContent=`DISCOVERED ${unique} / ${total}   •   OWNED ${ids.reduce((sum,[,q])=>sum+Number(q),0)} CARDS`;
   const grid=$('collectionGrid');grid.replaceChildren();
-  if(!ids.length){const p=document.createElement('p');p.className='collection-empty';p.textContent='아직 수집한 카드가 없어. 첫 번째 팩을 열어봐 ✦';grid.append(p)}
+  if(!ids.length&&!LIVE_POOL.length){const p=document.createElement('p');p.className='collection-empty';p.textContent='아직 수집한 카드가 없어. 첫 번째 팩을 열어봐 ✦';grid.append(p)}
   const ordered=[...POOL,...LIVE_POOL];
   ids.sort((a,b)=>ordered.findIndex(c=>c.id===a[0])-ordered.findIndex(c=>c.id===b[0]));
-  ids.forEach(([id,qty])=>{
+  const ownedIds=new Set(ids.map(([id])=>id));
+  const missing=LIVE_POOL.filter(c=>!ownedIds.has(c.id)).map(c=>[c.id,0]);
+  [...ids,...missing].forEach(([id,qty])=>{
     const card=byId.get(id),box=document.createElement('div');
     box.className='col-item rarity-'+card.rarity.toLowerCase();
     box.style.setProperty('--tier-color',tone(card.rarity));
     box.style.setProperty('--tier-gradient',tierCssGradient(card.rarity));
     const img=document.createElement('img');img.alt=`${card.group} ${card.name}`;
-    img.src=makeCardArt(card).toDataURL();
-    if(card.isLive)void preloadCard(card).then(()=>{
+    img.src=qty?makeCardArt(card).toDataURL():'./assets/itm-card-back.png';
+    if(qty&&card.isLive)void preloadCard(card).then(()=>{
       if(img.isConnected)img.src=makeCardArt(card).toDataURL('image/png');
     }).catch(err=>console.warn('Artwork preview unavailable',err));
-    const q=document.createElement('span');q.className='qty';q.textContent='×'+qty;
+    const q=document.createElement('span');q.className='qty';q.textContent=qty?'×'+qty:'미수집';
     const title=document.createElement('strong');title.textContent=card.group+' · '+card.name;
     const sub=document.createElement('small');sub.style.color=tone(card.rarity);sub.textContent=card.rarity;
     box.append(img,q,title,sub);grid.append(box);
@@ -1193,6 +1197,7 @@ function bind(){
   $('raritySplash').addEventListener('click',()=>{if(!$('raritySplash').hidden)closeRaritySplash()});
   $('concertIntroSkip').onclick=closeConcertIntro;
   $('collectionOpen').onclick=async()=>{
+    if(state.supabase)await loadPublishedCatalog().catch(err=>console.warn('카드 목록 갱신 실패',err));
     if(isNamedAccount())await syncRemote();
     renderCollection();openModal('collectionOverlay');
   };
