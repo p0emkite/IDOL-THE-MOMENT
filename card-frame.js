@@ -1,9 +1,20 @@
-/* Shared ITM front. Foil samples are isolated from the five supplied concept cards.
- * Photos, translucent ribbons and group logos are composed at export resolution.
+/* Shared ITM photocard renderer.
+ *
+ * The five frames in concept-foil.webp and the five lower ornaments in
+ * concept-lower.webp are the source of truth. Never erase, mirror, repaint,
+ * resize a grade plaque, or simulate reflections over the supplied foil.
+ * The owner can replace either WebP directly, keeping its five-strip layout.
  */
 export const ITM_CARD_WIDTH=512;
 export const ITM_CARD_HEIGHT=746;
 
+const FRAME_WIDTH=280;
+const FRAME_HEIGHT=478;
+const FOIL_STRIP_PITCH=290;
+const OUTPUT_INSET=8;
+
+// Each strip starts at index*290 in the artwork. Some strips have a slightly
+// narrower visible frame; use their actual width rather than stretching it.
 const finishes={
   N:   {index:0,width:280,edge:'#c7c5d2',shade:'#3e394c',light:'#fffaff'},
   R:   {index:1,width:277,edge:'#71a5ff',shade:'#192c71',light:'#e7faff'},
@@ -11,6 +22,7 @@ const finishes={
   SSR: {index:3,width:277,edge:'#ffc477',shade:'#6c4220',light:'#fff4d8'},
   UR:  {index:4,width:290,edge:'#ddacff',shade:'#48346e',light:'#ffffef'}
 };
+
 const foil=new Image();
 foil.src=new URL('./assets/frames/concept-foil.webp',import.meta.url).href;
 const lowerFoil=new Image();
@@ -18,167 +30,108 @@ lowerFoil.src=new URL('./assets/frames/concept-lower.webp',import.meta.url).href
 await Promise.allSettled([foil.decode(),lowerFoil.decode()]);
 
 function clamp(n,a,b=1){return Math.min(b,Math.max(a,n))}
+
 function drawCover(ctx,img,x,y,w,h,transform={}){
   const iw=img?.naturalWidth||img?.videoWidth||img?.width||0;
   const ih=img?.naturalHeight||img?.videoHeight||img?.height||0;
   if(!iw||!ih)return false;
-  const requestedScale=Number(transform.scale);
-  const magnification=Number.isFinite(requestedScale)?clamp(requestedScale,0,4):1;
+  const inputScale=Number(transform.scale);
+  const magnification=Number.isFinite(inputScale)?clamp(inputScale,0,4):1;
   const ratio=Math.max(w/iw,h/ih)*magnification;
   if(ratio<=0)return false;
   const dw=iw*ratio,dh=ih*ratio;
-  // Offset is normalised against the maximum image overscan. This ensures
-  // the crop never leaves blank edges, on mobile or desktop.
   const dx=(w-dw)/2+clamp(Number(transform.x)||0,-1,1)*Math.max(0,(dw-w)/2);
   const dy=(h-dh)/2+clamp(Number(transform.y)||0,-1,1)*Math.max(0,(dh-h)/2);
   ctx.drawImage(img,x+dx,y+dy,dw,dh);
   return true;
 }
 
-function stroke(ctx,path,color,width,glow=0){
-  ctx.save();
-  ctx.strokeStyle=color;
-  ctx.lineWidth=width;
-  ctx.shadowBlur=glow;
-  ctx.shadowColor=color;
-  ctx.stroke(path);
-  ctx.restore();
-}
+function drawLowerFoil(ctx,finish){
+  // Preserve the existing solid rarity-coloured panel underneath the ORIGINAL
+  // translucent lower swoosh. Do not redraw the swoosh highlights.
+  const panel=new Path2D();
+  panel.moveTo(7,413);
+  panel.bezierCurveTo(20,483,242,409,274,326);
+  panel.lineTo(274,478);panel.lineTo(7,478);panel.closePath();
+  const tone=ctx.createLinearGradient(40,374,245,480);
+  tone.addColorStop(0,finish.edge);
+  tone.addColorStop(1,finish.shade);
+  ctx.fillStyle=tone;
+  ctx.fill(panel);
 
-function drawGlass(ctx,finish){
-  const shoulder=new Path2D('M 7 76 C 13 53 32 37 60 36');
-  stroke(ctx,shoulder,finish.light,.9);
-  const arch=new Path2D('M 7 116 C 20 66 73 39 139 45 C 159 45 179 48 199 56');
-  stroke(ctx,arch,finish.edge,2.3,6);
-  stroke(ctx,arch,finish.light,1);
-
-  // Each strip carries the original three curves, local reflections and
-  // translucent enamel. Its alpha mask exposes the live photo above the lip.
   if(lowerFoil.naturalWidth){
-    ctx.drawImage(lowerFoil,finish.index*280,0,280,185,0,293,280,185);
+    // Five fixed-width 280-pixel strips, one per rarity. If the asset is
+    // upscaled uniformly later, drawImage still retains the source ratio.
+    const sourceScale=lowerFoil.naturalHeight/185;
+    const stripWidth=lowerFoil.naturalWidth/5;
+    const width=Math.min(stripWidth,FRAME_WIDTH*sourceScale);
+    ctx.drawImage(lowerFoil,finish.index*stripWidth,0,width,lowerFoil.naturalHeight,
+      0,293,FRAME_WIDTH,185);
   }else{
+    // Minimal fallback, only while the original lower WebP is unavailable.
     const lip=new Path2D('M 7 413 C 20 483 242 409 274 326');
-    stroke(ctx,lip,finish.edge,2);
+    ctx.strokeStyle=finish.light;ctx.lineWidth=1.7;ctx.stroke(lip);
   }
 }
 
-// Reflections sit on top of the foil so its opaque rails do not mask the light.
-function foilLight(ctx,x,y,length,height,angle,color,strength){
-  ctx.save();
-  ctx.translate(x,y);ctx.rotate(angle);ctx.scale(length,height);
-  ctx.globalAlpha=strength;
-  const light=ctx.createRadialGradient(0,0,0,0,0,1);
-  light.addColorStop(0,'#fffdf9');
-  light.addColorStop(.09,'#ffffffe0');
-  light.addColorStop(.25,color+'bc');
-  light.addColorStop(.58,color+'48');
-  light.addColorStop(1,color+'00');
-  ctx.fillStyle=light;ctx.fillRect(-1,-1,2,2);
-  ctx.restore();
-}
-
-function polishFoil(ctx,finish){
-  const color=finish.edge;
-  const strength=[.58,.76,.84,.95,1][finish.index];
-  const spectral=finish.index===4;
-  ctx.save();
-  ctx.globalCompositeOperation='screen';
-  // A broad halo around a sharp bevel makes the star read as cut crystal.
-  foilLight(ctx,138,34,43,21,0,color,strength*.76);
-  foilLight(ctx,138,34,23,1.6,0,finish.light,strength);
-  foilLight(ctx,138,33,1.4,12,0,finish.light,strength*.85);
-  // The arc, badge and vertical rails catch different parts of the same light.
-  // Keep the upper-left and upper-right bevels sharply defined. Previous
-  // broad corner flares hid the engraved lines on pale card photos.
-  foilLight(ctx,14,49,12,3,-.91,color,strength*.48);
-  foilLight(ctx,224,43,15,3.2,-.02,spectral?'#ffbded':color,strength*.48);
-  foilLight(ctx,224,43,10,.9,-.02,finish.light,strength*.62);
-  foilLight(ctx,5,182,48,8,Math.PI/2,spectral?'#a6f3ff':color,strength*.78);
-  foilLight(ctx,275,310,48,10,Math.PI/2,color,strength*.85);
-  ctx.restore();
+function drawOriginalFoil(ctx,finish){
+  if(!foil.naturalWidth)return false;
+  const stripWidth=foil.naturalWidth/5;
+  const sourceScale=foil.naturalHeight/FRAME_HEIGHT;
+  const sourceWidth=Math.min(finish.width*sourceScale,stripWidth);
+  const destWidth=sourceWidth/sourceScale;
+  // One direct draw from the original WebP, with NO intermediate bitmap,
+  // masked badges, mirroring, CSS-like glows, or nonuniform scaling.
+  ctx.drawImage(foil,finish.index*stripWidth,0,sourceWidth,foil.naturalHeight,
+    (FRAME_WIDTH-destWidth)/2,0,destWidth,FRAME_HEIGHT);
+  return true;
 }
 
 export function renderITMCard(card,{photo=null,groupLogo=null,photoTransform=null}={}){
   const finish=Object.hasOwn(finishes,card?.rarity)?finishes[card.rarity]:finishes.N;
   const canvas=document.createElement('canvas');
-  canvas.width=2*ITM_CARD_WIDTH;canvas.height=2*ITM_CARD_HEIGHT;
+  canvas.width=ITM_CARD_WIDTH*2;
+  canvas.height=ITM_CARD_HEIGHT*2;
   const ctx=canvas.getContext('2d');
-  // Map the reference artwork to the original frame bounds in the 512 × 746 layout.
-  // The five strips have different source widths but share one displayed card size.
-  const scaleX=493/278;
-  const scaleY=729.5/472;
-  ctx.scale(canvas.width/ITM_CARD_WIDTH,canvas.height/ITM_CARD_HEIGHT);
-  ctx.translate(9.5-scaleX,7-2*scaleY);
-  ctx.scale(scaleX,scaleY);
-  const aspectCorrection=scaleY/scaleX;
+  ctx.imageSmoothingEnabled=true;
   ctx.imageSmoothingQuality='high';
-  const body=new Path2D();body.roundRect(4,34,272,438,25);
-  ctx.save();ctx.clip(body);
-  ctx.fillStyle='#30283e';ctx.fill(body);
-  ctx.save();ctx.scale(aspectCorrection,1);
-  drawCover(ctx,photo,4/aspectCorrection,34,272/aspectCorrection,438,photoTransform||card?.photo_transform||
-    {scale:card?.photo_scale,x:card?.photo_x,y:card?.photo_y});
+
+  // The exported card remains 1024 x 1492 for the game and Studio. The
+  // artwork uses ONE common scale in X and Y, so the original outer frame
+  // (including the central star and corner bevels) is never stretched.
+  const uniformScale=Math.min(
+    (ITM_CARD_WIDTH-OUTPUT_INSET*2)/FOIL_STRIP_PITCH,
+    (ITM_CARD_HEIGHT-OUTPUT_INSET*2)/FRAME_HEIGHT
+  );
+  const left=(ITM_CARD_WIDTH-FRAME_WIDTH*uniformScale)/2;
+  const top=(ITM_CARD_HEIGHT-FRAME_HEIGHT*uniformScale)/2;
+  ctx.setTransform(2*uniformScale,0,0,2*uniformScale,2*left,2*top);
+
+  const body=new Path2D();
+  body.roundRect(4,34,272,438,25);
+  ctx.save();
+  ctx.clip(body);
+  ctx.fillStyle='#30283e';
+  ctx.fill(body);
+  drawCover(ctx,photo,4,34,272,438,photoTransform||card?.photo_transform||{
+    scale:card?.photo_scale,x:card?.photo_x,y:card?.photo_y
+  });
+  drawLowerFoil(ctx,finish);
   ctx.restore();
-  // Solid rarity-tinted lower swoosh: never show the photo through this panel.
-  const lowerFill=new Path2D();
-  lowerFill.moveTo(7,413);
-  lowerFill.bezierCurveTo(20,483,242,409,274,326);
-  lowerFill.lineTo(274,478);lowerFill.lineTo(7,478);lowerFill.closePath();
-  const lowerTone=ctx.createLinearGradient(40,374,245,480);
-  lowerTone.addColorStop(0,finish.edge);
-  lowerTone.addColorStop(1,finish.shade);
-  ctx.fillStyle=lowerTone;ctx.fill(lowerFill);
-  drawGlass(ctx,finish);
-  ctx.restore();
-  if(foil.naturalWidth){
+
+  if(!drawOriginalFoil(ctx,finish)){
     ctx.save();
-    ctx.shadowColor=finish.edge+'96';ctx.shadowBlur=finish.index===4?13:7;
-    // The original atlas includes a full-size grade plaque in its upper-right
-    // corner. The old radial "destination-out" mask erased the bezel/rail as
-    // well, leaving a cloudy halo and a visible notch on every rarity.
-    //
-    // Rebuild ONLY the upper-right corner from this same rarity's pristine,
-    // badge-free upper-left bezel (mirrored horizontally). Its transparent
-    // center leaves the photo untouched; the star and every other frame detail
-    // remain in their original atlas coordinates.
-    const foilLayer=document.createElement('canvas');
-    foilLayer.width=280;foilLayer.height=478;
-    const foilCtx=foilLayer.getContext('2d');
-    foilCtx.imageSmoothingEnabled=true;
-    foilCtx.imageSmoothingQuality='high';
-    const stripX=finish.index*290;
-    foilCtx.drawImage(foil,stripX,0,finish.width,478,0,0,280,478);
-    // SSR/UR source plates have a tiny flared spur to the LEFT of the
-    // plaque. Clear only that detached spur; it is not part of the bezel
-    // or the centered star and otherwise remains as a floating bright chip.
-    foilCtx.clearRect(148,53,30,98);
-    const repair={x:178,y:32,w:102,h:116};
-    foilCtx.clearRect(repair.x,repair.y,repair.w,repair.h);
-    foilCtx.save();
-    foilCtx.beginPath();
-    foilCtx.rect(repair.x,repair.y,repair.w,repair.h);
-    foilCtx.clip();
-    foilCtx.translate(280,0);
-    foilCtx.scale(-1,1);
-    foilCtx.drawImage(foil,stripX,0,finish.width,478,0,0,280,478);
-    foilCtx.restore();
-    const sourceRatio=finish.width/280;
-    ctx.drawImage(foilLayer,0,0);
-    ctx.restore();
-    // Show the supplied grade plaque at exactly 50% of its original size.
-    const badge={x:185,y:35,w:89,h:62};
-    ctx.save();
-    ctx.shadowColor=finish.edge+'75';ctx.shadowBlur=4;
-    ctx.drawImage(foil,finish.index*290+badge.x*sourceRatio,badge.y,
-      badge.w*sourceRatio,badge.h,badge.x+badge.w/2,badge.y,badge.w/2,badge.h/2);
-    ctx.restore();
-  }else{
-    stroke(ctx,body,finish.edge,5);
-    ctx.fillStyle=finish.light;ctx.textAlign='right';ctx.font='bold italic 26px Georgia';
+    ctx.strokeStyle=finish.edge;
+    ctx.lineWidth=5;
+    ctx.stroke(body);
+    ctx.fillStyle=finish.light;
+    ctx.font='bold italic 26px Georgia';
+    ctx.textAlign='right';
     ctx.fillText(card?.rarity||'N',264,87);
+    ctx.restore();
   }
-  polishFoil(ctx,finish);
-  // Member name belongs inside the lower-left field, not outside the frame.
+
+  // These are user-controlled overlays, not modifications of the WebP frame.
   if(card?.name||card?.display_name){
     const caption=String(card.name||card.display_name).trim();
     ctx.save();
@@ -186,22 +139,21 @@ export function renderITMCard(card,{photo=null,groupLogo=null,photoTransform=nul
     ctx.textBaseline='middle';
     ctx.textAlign='left';
     ctx.lineJoin='round';
-    ctx.strokeStyle='#180d30c9';ctx.lineWidth=3;
-    ctx.shadowColor=finish.light;ctx.shadowBlur=3;
+    ctx.strokeStyle='#180d30c9';
+    ctx.lineWidth=3;
     ctx.strokeText(caption,22,452,148);
-    ctx.fillStyle='#fffdfd';ctx.fillText(caption,22,452,148);
+    ctx.fillStyle='#fffdfd';
+    ctx.fillText(caption,22,452,148);
     ctx.restore();
   }
   if(groupLogo){
-    const w=groupLogo.naturalWidth||groupLogo.width,h=groupLogo.naturalHeight||groupLogo.height;
+    const w=groupLogo.naturalWidth||groupLogo.width;
+    const h=groupLogo.naturalHeight||groupLogo.height;
     if(w&&h){
-      ctx.save();
-      ctx.scale(aspectCorrection,1);
-      const requestedLogoScale=Number(card?.logo_scale);
-      const logoScale=Number.isFinite(requestedLogoScale)?clamp(requestedLogoScale,0,3):1;
-      const fit=Math.min(48/aspectCorrection/w,51/h)*logoScale;
-      if(fit>0)ctx.drawImage(groupLogo,238/aspectCorrection-w*fit/2,434-h*fit/2,w*fit,h*fit);
-      ctx.restore();
+      const size=Number(card?.logo_scale);
+      const logoScale=Number.isFinite(size)?clamp(size,0,3):1;
+      const fit=Math.min(48/w,51/h)*logoScale;
+      if(fit>0)ctx.drawImage(groupLogo,238-w*fit/2,434-h*fit/2,w*fit,h*fit);
     }
   }
   return canvas;
