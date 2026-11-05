@@ -123,6 +123,7 @@ body.itm-concert .rarity-splash.rarity-ur .splash-prisms::after{
   50%{background-position:100% 0%;opacity:.85}
 }
 @media(prefers-reduced-motion:reduce){
+  .itm-ur-payoff.active::before{display:none!important}
   body.itm-concert .pack-reveal-stage.ur-impact .stage-main,
   body.itm-concert .stage-card-button.ur-primed,
   body.itm-concert .stage-card-button.ur-impact-card,
