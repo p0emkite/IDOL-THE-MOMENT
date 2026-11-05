@@ -88,102 +88,122 @@ function drawFrame(ctx,rarity){
   roundRect(ctx,27,27,458,692,17);ctx.stroke();
   ctx.globalAlpha=1;
 
-  // The crest's large center star sits visibly across the leading arch,
-  // with its upper point rising above the outer border like the approved art.
-  const crestY=46,starY=32,starRadius=31;
+  // A LARGE central crown star, with the MAIN top border passing through its
+  // exact MIDPOINT: —— ✦ —— (rather than only the top of the star grazing it).
+  // The central gap allows the star to interrupt the main line deliberately.
+  const crownY=52,starRadius=35;
   arcLine(ctx,g=>{
     g.moveTo(33,81);
-    g.bezierCurveTo(105,37,184,42,256,crestY);
-    g.bezierCurveTo(328,42,407,37,479,81);
-  },across,3.2,.98);
+    g.bezierCurveTo(102,41,172,48,218,crownY);
+  },across,3.6,.99);
   arcLine(ctx,g=>{
-    g.moveTo(43,94);
-    g.bezierCurveTo(119,56,188,57,256,crestY+14);
-    g.bezierCurveTo(324,57,393,56,469,94);
-  },'#ffffff',1.35,.42);
-  // The star intentionally straddles the arch: its core is ABOVE the crest.
-  // UR keeps the same soft, desaturated spectrum in all three foil locations.
-  const crownGradient=gradient(ctx,r.stops,225,2,292,70);
+    g.moveTo(294,crownY);
+    g.bezierCurveTo(340,48,410,41,479,81);
+  },across,3.6,.99);
+  // Second, quieter arch sits *below* the star and does not cross its center.
+  arcLine(ctx,g=>{
+    g.moveTo(44,97);g.bezierCurveTo(115,61,169,66,220,69);
+  },'#ffffff',1.25,.41);
+  arcLine(ctx,g=>{
+    g.moveTo(292,69);g.bezierCurveTo(343,66,397,61,468,97);
+  },'#ffffff',1.25,.41);
+  // Light wings reinforce that the TOP LINE reaches the star's horizontal axis.
+  ctx.save();ctx.shadowColor=r.glow;ctx.shadowBlur=prism?20:12;
+  arcLine(ctx,g=>{g.moveTo(207,crownY);g.lineTo(233,crownY);
+    g.moveTo(279,crownY);g.lineTo(305,crownY)},r.light,1.7,.88);
+  ctx.restore();
+  const crownGradient=gradient(ctx,r.stops,218,12,294,93);
   ctx.save();
   ctx.shadowColor=prism?'#e7d8ff':r.glow;
-  ctx.shadowBlur=prism?27:rarity==='N'?13:20;
-  starPath(ctx,256,starY,starRadius,.22);
+  ctx.shadowBlur=prism?26:rarity==='N'?15:22;
+  starPath(ctx,256,crownY,starRadius,.23);
   ctx.fillStyle=crownGradient;ctx.fill();
   ctx.shadowBlur=0;
-  ctx.lineWidth=1.75;ctx.strokeStyle='#fffdf6ed';ctx.stroke();
+  ctx.lineWidth=1.8;ctx.strokeStyle='#fffdf4ef';ctx.stroke();
   ctx.restore();
-  arcLine(ctx,g=>{
-    g.moveTo(242,starY);g.lineTo(213,starY);
-    g.moveTo(270,starY);g.lineTo(299,starY);
-  },r.light,1.2,.58);
 
-  // Bottom: an ascending pointed SWOOSH, not a dome/arch.
-  // A sharp right-side tip and thick left-to-center foil ribbon define the
-  // silhouette. All rarities use exactly this outline and the same logo slot.
-  const swoosh=()=>{
+  // ENAMEL LOWER PANEL: the entire region UNDER the rising swoosh is filled,
+  // from its upper edge all the way to the inner bottom border. The right side
+  // has substantial room/contrast for a real band logo added in the future.
+  const panelTop=()=>{
+    ctx.moveTo(29,691);
+    ctx.bezierCurveTo(145,691,321,613,482,579);
+  };
+  const bottomPanel=()=>{
     ctx.beginPath();
-    ctx.moveTo(29,707);
-    ctx.bezierCurveTo(155,699,344,627,482,590);
-    ctx.bezierCurveTo(377,668,192,720,29,727);
+    panelTop();
+    ctx.lineTo(482,714);
+    ctx.quadraticCurveTo(482,718,477,718);
+    ctx.lineTo(34,718);
+    ctx.quadraticCurveTo(29,718,29,713);
     ctx.closePath();
   };
-  const metal=ctx.createLinearGradient(37,708,487,606);
-  metal.addColorStop(0,r.dark);
-  metal.addColorStop(.23,r.mid);
-  metal.addColorStop(.57,r.light);
-  metal.addColorStop(.76,r.mid);
-  metal.addColorStop(1,prism?'#d4e8ff':r.light);
   ctx.save();
-  ctx.shadowColor=r.glow;ctx.shadowBlur=prism?26:17;
-  ctx.globalAlpha=.96;
-  swoosh();ctx.fillStyle=metal;ctx.fill();
+  bottomPanel();
+  ctx.clip();
+  // Undercoat is opaque and dark enough to retain legibility of translucent
+  // and white group logos, while still carrying a clear rarity-specific color.
+  const undercoat=ctx.createLinearGradient(40,578,464,740);
+  undercoat.addColorStop(0,r.mid);
+  undercoat.addColorStop(.22,r.dark);
+  undercoat.addColorStop(.56,'#241a35');
+  undercoat.addColorStop(1,'#171225');
+  ctx.fillStyle=undercoat;
+  ctx.fillRect(27,572,459,150);
+  // Distinct rich enamel tones, strongest on the upper-left and soft on the
+  // right (where the group logo will eventually be laid on top).
+  const tint=ctx.createLinearGradient(90,590,470,715);
+  tint.addColorStop(0,r.light+'b0');
+  tint.addColorStop(.19,r.mid+'b8');
+  tint.addColorStop(.52,r.dark+'8c');
+  tint.addColorStop(1,r.dark+'60');
+  ctx.globalAlpha=.83;ctx.fillStyle=tint;ctx.fillRect(27,574,459,147);
+  // Glossy broad diagonal reflection; contained inside the filled area.
+  const enamelGlare=ctx.createLinearGradient(60,704,465,592);
+  enamelGlare.addColorStop(0,'#ffffff00');
+  enamelGlare.addColorStop(.31,'#ffffff15');
+  enamelGlare.addColorStop(.46,'#ffffff58');
+  enamelGlare.addColorStop(.58,'#ffffff16');
+  enamelGlare.addColorStop(.75,'#ffffff00');
+  enamelGlare.addColorStop(1,'#ffffff17');
+  ctx.globalAlpha=.62;ctx.fillStyle=enamelGlare;ctx.fillRect(27,573,460,150);
+  // A gentle shade near the logo slot, never a transparent hole.
+  const logoShade=ctx.createLinearGradient(306,0,484,0);
+  logoShade.addColorStop(0,'#100c2000');
+  logoShade.addColorStop(1,'#100d1c8c');
+  ctx.globalAlpha=1;ctx.fillStyle=logoShade;ctx.fillRect(305,579,180,143);
   ctx.restore();
 
-  // Tonal color backing makes the lower panel read like an enamel/foil insert
-  // instead of an empty transparent opening.
-  ctx.save();swoosh();ctx.clip();
-  const tinted=ctx.createLinearGradient(0,598,0,742);
-  tinted.addColorStop(0,'#ffffff92');
-  tinted.addColorStop(.32,'#ffffff35');
-  tinted.addColorStop(.70,r.dark+'64');
-  tinted.addColorStop(1,'#140d29d2');
-  ctx.fillStyle=tinted;ctx.fillRect(27,585,459,150);
-  const specular=ctx.createLinearGradient(27,710,480,598);
-  specular.addColorStop(0,'#ffffff00');
-  specular.addColorStop(.35,'#ffffff32');
-  specular.addColorStop(.57,'#ffffff85');
-  specular.addColorStop(.70,'#ffffff12');
-  specular.addColorStop(1,'#ffffff9b');
-  ctx.globalAlpha=.7;
-  ctx.fillStyle=specular;ctx.fillRect(27,586,459,150);
-  ctx.restore();
-
-  // High-key sweep across the rising edge, plus tapering filament trails.
-  ctx.save();ctx.shadowColor=r.glow;ctx.shadowBlur=prism?25:18;
-  arcLine(ctx,g=>{
-    g.moveTo(29,707);
-    g.bezierCurveTo(155,699,344,627,482,590);
-  },foil,4.7,1);
+  // Signature Nike-like ascending ribbon: bright tapered top-edge flare,
+  // double specular rails, and a polished body BELOW rather than a hollow band.
+  const foilLip=ctx.createLinearGradient(35,698,480,575);
+  r.stops.forEach((color,i)=>foilLip.addColorStop(i/(r.stops.length-1),color));
+  ctx.save();ctx.shadowColor=r.glow;ctx.shadowBlur=prism?27:20;
+  arcLine(ctx,g=>{g.moveTo(29,691);g.bezierCurveTo(145,691,321,613,482,579)},foilLip,5.0,1);
   ctx.restore();
   arcLine(ctx,g=>{
-    g.moveTo(35,712);g.bezierCurveTo(163,703,343,647,468,605);
-  },'#ffffff',2.2,.84);
+    g.moveTo(31,697);g.bezierCurveTo(148,696,330,619,479,584);
+  },'#ffffff',2.0,.91);
+  // Converging light threads read as a swift motion rather than a dome.
+  ctx.save();bottomPanel();ctx.clip();
   arcLine(ctx,g=>{
-    g.moveTo(33,722);g.bezierCurveTo(182,705,336,667,451,621);
-  },r.light,2.2,.76);
+    g.moveTo(33,706);g.bezierCurveTo(150,700,331,634,475,596);
+  },r.light,2.0,.82);
   arcLine(ctx,g=>{
-    g.moveTo(45,727);g.bezierCurveTo(174,713,323,682,431,648);
-  },r.mid,1.25,.62);
-  // Jewel-like highlights travel along the directional ribbon, not around
-  // a static semi-circle. Never place branding or star badges on the card face.
+    g.moveTo(35,714);g.bezierCurveTo(161,710,340,649,470,612);
+  },'#ffffff',1.05,.52);
+  arcLine(ctx,g=>{
+    g.moveTo(45,718);g.bezierCurveTo(159,718,315,670,447,627);
+  },r.mid,1.5,.62);
+  ctx.restore();
+  // Directional glint near the rising tip, without washing out the logo slot.
   ctx.save();
-  const flare=ctx.createRadialGradient(425,608,1,425,608,53);
-  flare.addColorStop(0,'#ffffffbb');
-  flare.addColorStop(.17,r.light+'8e');
-  flare.addColorStop(.7,r.glow+'1a');
+  const flare=ctx.createRadialGradient(465,578,1,465,578,42);
+  flare.addColorStop(0,'#ffffffda');
+  flare.addColorStop(.23,r.light+'a8');
+  flare.addColorStop(.62,r.glow+'32');
   flare.addColorStop(1,'#ffffff00');
-  ctx.globalAlpha=.61;ctx.fillStyle=flare;
-  ctx.fillRect(375,560,108,110);
+  ctx.globalAlpha=.72;ctx.fillStyle=flare;ctx.fillRect(420,538,85,85);
   ctx.restore();
 
   // Rightmost quarter deliberately left unobstructed for a group logo
