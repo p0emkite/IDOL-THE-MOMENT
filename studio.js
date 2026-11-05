@@ -1,4 +1,4 @@
-import {renderITMCard} from './card-frame.js?v=direct-foil-20261105';
+import {renderITMCard} from './card-frame.js?v=single-foil-20261105';
 const $=id=>document.getElementById(id);
 const CONFIG=window.IDOL_CONFIG||{};
 const BUCKET='itm-card-media';

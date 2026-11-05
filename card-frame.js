@@ -1,9 +1,9 @@
 /* Shared ITM photocard renderer.
  *
- * The five frames in concept-foil.webp and the five lower ornaments in
- * concept-lower.webp are the source of truth. Never erase, mirror, repaint,
- * resize a grade plaque, or simulate reflections over the supplied foil.
- * The owner can replace either WebP directly, keeping its five-strip layout.
+ * concept-foil.webp contains ALL five complete frames, including their lower
+ * swooshes, in five consecutive 290px-wide strips. It is the only decorative
+ * image source. Paint the user's photo first, then overlay each source strip
+ * ONCE. Do not split/mask/repaint the source artwork or resize it nonuniformly.
  */
 export const ITM_CARD_WIDTH=512;
 export const ITM_CARD_HEIGHT=746;
@@ -16,18 +16,16 @@ const OUTPUT_INSET=8;
 // Each strip starts at index*290 in the artwork. Some strips have a slightly
 // narrower visible frame; use their actual width rather than stretching it.
 const finishes={
-  N:   {index:0,width:280,edge:'#c7c5d2',shade:'#3e394c',light:'#fffaff'},
-  R:   {index:1,width:277,edge:'#71a5ff',shade:'#192c71',light:'#e7faff'},
-  SR:  {index:2,width:276,edge:'#bc7bff',shade:'#512472',light:'#fae9ff'},
-  SSR: {index:3,width:277,edge:'#ffc477',shade:'#6c4220',light:'#fff4d8'},
-  UR:  {index:4,width:290,edge:'#ddacff',shade:'#48346e',light:'#ffffef'}
+  N:   {index:0,edge:'#c7c5d2',light:'#fffaff'},
+  R:   {index:1,edge:'#71a5ff',light:'#e7faff'},
+  SR:  {index:2,edge:'#bc7bff',light:'#fae9ff'},
+  SSR: {index:3,edge:'#ffc477',light:'#fff4d8'},
+  UR:  {index:4,edge:'#ddacff',light:'#ffffef'}
 };
 
 const foil=new Image();
-foil.src=new URL('./assets/frames/concept-foil.webp',import.meta.url).href;
-const lowerFoil=new Image();
-lowerFoil.src=new URL('./assets/frames/concept-lower.webp',import.meta.url).href;
-await Promise.allSettled([foil.decode(),lowerFoil.decode()]);
+foil.src=new URL('./assets/frames/concept-foil.webp?v=single-foil-20261105',import.meta.url).href;
+await Promise.allSettled([foil.decode()]);
 
 function clamp(n,a,b=1){return Math.min(b,Math.max(a,n))}
 
@@ -46,44 +44,15 @@ function drawCover(ctx,img,x,y,w,h,transform={}){
   return true;
 }
 
-function drawLowerFoil(ctx,finish){
-  // Preserve the existing solid rarity-coloured panel underneath the ORIGINAL
-  // translucent lower swoosh. Do not redraw the swoosh highlights.
-  const panel=new Path2D();
-  panel.moveTo(7,413);
-  panel.bezierCurveTo(20,483,242,409,274,326);
-  panel.lineTo(274,478);panel.lineTo(7,478);panel.closePath();
-  const tone=ctx.createLinearGradient(40,374,245,480);
-  tone.addColorStop(0,finish.edge);
-  tone.addColorStop(1,finish.shade);
-  ctx.fillStyle=tone;
-  ctx.fill(panel);
-
-  if(lowerFoil.naturalWidth){
-    // Five fixed-width 280-pixel strips, one per rarity. If the asset is
-    // upscaled uniformly later, drawImage still retains the source ratio.
-    const sourceScale=lowerFoil.naturalHeight/185;
-    const stripWidth=lowerFoil.naturalWidth/5;
-    const width=Math.min(stripWidth,FRAME_WIDTH*sourceScale);
-    ctx.drawImage(lowerFoil,finish.index*stripWidth,0,width,lowerFoil.naturalHeight,
-      0,293,FRAME_WIDTH,185);
-  }else{
-    // Minimal fallback, only while the original lower WebP is unavailable.
-    const lip=new Path2D('M 7 413 C 20 483 242 409 274 326');
-    ctx.strokeStyle=finish.light;ctx.lineWidth=1.7;ctx.stroke(lip);
-  }
-}
-
 function drawOriginalFoil(ctx,finish){
-  if(!foil.naturalWidth)return false;
+  if(!foil.naturalWidth||!foil.naturalHeight)return false;
+  // Keep every source pixel in this tier's complete 1/5th of the WebP.
+  // In particular, the lower swoosh, top badge and corner rails must be
+  // rendered together: no separate lower image, mask, or width correction.
   const stripWidth=foil.naturalWidth/5;
-  const sourceScale=foil.naturalHeight/FRAME_HEIGHT;
-  const sourceWidth=Math.min(finish.width*sourceScale,stripWidth);
-  const destWidth=sourceWidth/sourceScale;
-  // One direct draw from the original WebP, with NO intermediate bitmap,
-  // masked badges, mirroring, CSS-like glows, or nonuniform scaling.
-  ctx.drawImage(foil,finish.index*stripWidth,0,sourceWidth,foil.naturalHeight,
-    (FRAME_WIDTH-destWidth)/2,0,destWidth,FRAME_HEIGHT);
+  const scale=FRAME_HEIGHT/foil.naturalHeight;
+  ctx.drawImage(foil,finish.index*stripWidth,0,stripWidth,foil.naturalHeight,
+    0,0,stripWidth*scale,FRAME_HEIGHT);
   return true;
 }
 
@@ -96,9 +65,8 @@ export function renderITMCard(card,{photo=null,groupLogo=null,photoTransform=nul
   ctx.imageSmoothingEnabled=true;
   ctx.imageSmoothingQuality='high';
 
-  // The exported card remains 1024 x 1492 for the game and Studio. The
-  // artwork uses ONE common scale in X and Y, so the original outer frame
-  // (including the central star and corner bevels) is never stretched.
+  // The export stays at 1024 x 1492 for the game and Studio. Draw every
+  // strip with a single uniform X/Y scale, preserving its original shape.
   const uniformScale=Math.min(
     (ITM_CARD_WIDTH-OUTPUT_INSET*2)/FOIL_STRIP_PITCH,
     (ITM_CARD_HEIGHT-OUTPUT_INSET*2)/FRAME_HEIGHT
@@ -116,7 +84,6 @@ export function renderITMCard(card,{photo=null,groupLogo=null,photoTransform=nul
   drawCover(ctx,photo,4,34,272,438,photoTransform||card?.photo_transform||{
     scale:card?.photo_scale,x:card?.photo_x,y:card?.photo_y
   });
-  drawLowerFoil(ctx,finish);
   ctx.restore();
 
   if(!drawOriginalFoil(ctx,finish)){
