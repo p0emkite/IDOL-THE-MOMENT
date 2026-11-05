@@ -16,7 +16,7 @@ brandLogo.src = './assets/itm-logo.png';
 brandCardBack.src = './assets/itm-card-back.png';
 function loaded(img){return img.complete && img.naturalWidth > 0;}
 brandLogo.addEventListener('load', () => {
-  if (THREE && renderer && pack) {
+  if (THREE && renderer && pack && !selectedPack()) {
     const old = packTexture;
     packTexture = texture(makePackTexture());
     pack.material[4].map = pack.material[5].map = packTexture;
@@ -65,10 +65,11 @@ async function syncPackArtwork(){
   const id=$('packPicker')?.value,chosen=selectedPack();
   if(!pack||!renderer)return;
   try{
-    const img=chosen?.image_path?await ensureImage(assetUrl(chosen.image_path)):makePackTexture();
+    const img=chosen?.image_path?await ensureImage(assetUrl(chosen.image_path)):null;
     if($('packPicker')?.value!==id||!pack)return;
-    const old=packTexture;packTexture=texture(img);
+    const old=packTexture;packTexture=texture(fitPouchTexture(img));
     for(const k of [4,5]){pack.material[k].map=packTexture;pack.material[k].needsUpdate=true}
+    if(tornFace){tornFace.map=packTexture;tornFace.needsUpdate=true}
     if(old!==packTexture)old?.dispose();
   }catch(err){console.warn('Pack image unavailable',err)}
 }
@@ -154,6 +155,9 @@ const TIERS = [
    gradient:['#54ECFF','#4F9BFF','#9974FF','#F46BE6','#FF83A1','#FFE26A','#71FFC4','#54ECFF']},
 ];
 const PACK_OPEN_DURATION = 4650;
+// The 3D pouch face is 2.55 × 3.83 units: 1024 × 1538 is its exact
+// design-size equivalent. Other ratios are aspect-fitted without stretching.
+const PACK_DESIGN_WIDTH=1024,PACK_DESIGN_HEIGHT=1538;
 function readDemoInventory(){try{localStorage.removeItem('itm-test-pack-inventory-v1')}catch{}return {}}
 function writeDemoInventory(){/* Retired demo cards. */}
 
@@ -541,6 +545,19 @@ function makePackTexture(){
   g.restore();
   return c;
 }
+function fitPouchTexture(image){
+  const c=document.createElement('canvas');c.width=PACK_DESIGN_WIDTH;c.height=PACK_DESIGN_HEIGHT;
+  if(!image)return c;
+  const w=image.naturalWidth||image.width,h=image.naturalHeight||image.height;
+  if(!w||!h)return c;
+  const ctx=c.getContext('2d');
+  // Uniform cover avoids the former vertical stretch. Art outside the pouch
+  // aspect is cropped symmetrically; 1024×1538 assets fit without cropping.
+  const scale=Math.max(c.width/w,c.height/h),dw=w*scale,dh=h*scale;
+  ctx.imageSmoothingQuality='high';
+  ctx.drawImage(image,(c.width-dw)/2,(c.height-dh)/2,dw,dh);
+  return c;
+}
 function texture(c){const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=Math.min(renderer.capabilities.getMaxAnisotropy(),8);return t}
 let backTexture,packTexture,packSheen;
 function sculptFoilGeometry(geometry,uvStart=0,uvSize=1){
@@ -582,21 +599,16 @@ function initScene(){
   for(let i=0;i<4;i++){let ring=new THREE.Mesh(new THREE.TorusGeometry(2+i*.53,.008,5,128),new THREE.MeshBasicMaterial({color:i%2?0xc283f9:0xec81ba,transparent:true,opacity:.22-i*.035,depthWrite:false}));ring.rotation.x=-Math.PI/2;ring.position.y=-3.69+i*.002;scene.add(ring)}
   for(let i=0;i<4;i++){let cone=new THREE.Mesh(new THREE.ConeGeometry(2,10,32,1,true),new THREE.MeshBasicMaterial({color:i%2?0xd576ff:0xff86bf,transparent:true,opacity:.04,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending}));cone.position.set(-4+i*2.65,3.4,-4);cone.rotation.z=.1+(i-2)*.14;cone.rotation.x=Math.PI;scene.add(cone);stageLights.push(cone)}
   const points=1200,positions=new Float32Array(points*3),colors=new Float32Array(points*3);for(let i=0;i<points;i++){positions[i*3]=(rand()-.5)*27;positions[i*3+1]=(rand()-.5)*19;positions[i*3+2]=(rand()-.5)*21-5;const p=new THREE.Color().setHSL(.78+rand()*.17,.65,.55+rand()*.4);colors.set([p.r,p.g,p.b],i*3)}const geom=new THREE.BufferGeometry();geom.setAttribute('position',new THREE.BufferAttribute(positions,3));geom.setAttribute('color',new THREE.BufferAttribute(colors,3));dust=new THREE.Points(geom,new THREE.PointsMaterial({size:.036,vertexColors:true,transparent:true,opacity:.75,depthWrite:false,blending:THREE.AdditiveBlending}));scene.add(dust);
-  backTexture=texture(loaded(brandCardBack)?brandCardBack:makeBackTexture());packTexture=texture(makePackTexture());
-  const face=new THREE.MeshPhysicalMaterial({map:packTexture,metalness:.43,roughness:.21,clearcoat:1,clearcoatRoughness:.1,envMapIntensity:1.65,side:THREE.DoubleSide});const side=new THREE.MeshPhysicalMaterial({color:0xf7a8dc,metalness:.86,roughness:.22,clearcoat:1,envMapIntensity:1.8});
-  pack=new THREE.Mesh(makeSculptedFoilGeometry(),[side,side,side,side,face,face]);pack.rotation.y=-.32;scene.add(pack);
-  // Thin metallic rolled seams physically wrap the pouch instead of being printed.
-  const edgeMaterial=new THREE.MeshPhysicalMaterial({
-    color:0xffc8f4,metalness:.79,roughness:.16,clearcoat:1,envMapIntensity:2
+  backTexture=texture(loaded(brandCardBack)?brandCardBack:makeBackTexture());packTexture=texture(fitPouchTexture(null));
+  // A color-faithful foil print: BasicMaterial is NOT darkened by stage
+  // lights or tone mapping. Alpha transparency removes the black image box.
+  const face=new THREE.MeshBasicMaterial({
+    map:packTexture,color:0xffffff,side:THREE.DoubleSide,
+    transparent:true,alphaTest:.018,depthWrite:true,toneMapped:false
   });
-  for(const x of [-1.246,1.246]){
-    const rail=new THREE.Mesh(new THREE.CylinderGeometry(.022,.022,3.73,8),edgeMaterial);
-    rail.position.set(x,0,.17);pack.add(rail);
-  }
-  for(const y of [-1.826,1.826]){
-    const seam=new THREE.Mesh(new THREE.CylinderGeometry(.018,.018,2.46,8),edgeMaterial);
-    seam.rotation.z=Math.PI/2;seam.position.set(0,y,.19);pack.add(seam);
-  }
+  const side=new THREE.MeshPhysicalMaterial({color:0xffcbef,metalness:.35,roughness:.28,clearcoat:.7});
+  pack=new THREE.Mesh(makeSculptedFoilGeometry(),[side,side,side,side,face,face]);pack.rotation.y=-.32;scene.add(pack);
+  // No rigid bounding rails: only the actual textured foil pouch floats.
   // A real curved transparent specular layer catches light as the pack floats.
   const sheenCanvas=document.createElement('canvas');sheenCanvas.width=512;sheenCanvas.height=1024;
   const sg=sheenCanvas.getContext('2d');
@@ -645,11 +657,13 @@ function initScene(){
      new THREE.MeshBasicMaterial({map:backTexture}),new THREE.MeshBasicMaterial({map:backTexture})]
   );
   openingCard.visible=false;openingCard.position.set(0,-.65,.30);scene.add(openingCard);
-  packRim=new THREE.Mesh(new THREE.BoxGeometry(2.62,3.9,.2),new THREE.MeshBasicMaterial({color:0xcc73ff,transparent:true,opacity:.16,wireframe:true,depthWrite:false}));scene.add(packRim);
+  // The former decorative wireframe box obscured transparent pack edges.
+  packRim=new THREE.Group();packRim.visible=false;
   openingFx=createOpeningEffects({THREE,scene});
   window.addEventListener('resize',resizeScene,{passive:true});resizeScene();
   const raycaster=new THREE.Raycaster(),pointer=new THREE.Vector2();canvas.addEventListener('pointerdown',(e)=>{if(state.phase!=='reveal')return;const b=canvas.getBoundingClientRect();pointer.x=((e.clientX-b.left)/b.width)*2-1;pointer.y=-((e.clientY-b.top)/b.height)*2+1;raycaster.setFromCamera(pointer,camera);const hit=raycaster.intersectObjects(cardMeshes);if(hit.length)revealIndex(hit[0].object.userData.index)});
   renderer.setAnimationLoop(frame);state.three=true;
+  void syncPackArtwork();
 }
 function resizeScene(){if(!renderer)return;const r=$('sceneWrap').getBoundingClientRect();const w=Math.max(250,Math.round(r.width)),h=Math.max(260,Math.round(r.height));renderer.setSize(w,h,false);camera.aspect=w/h;if(!introCameraActive){camera.position.set(0,window.innerWidth<780?-.58:-.70,window.innerWidth<780?12.8:10.4);camera.lookAt(0,.27,0)}camera.updateProjectionMatrix()}
 function frame(now){
@@ -683,8 +697,8 @@ function frame(now){
     pack.rotation.z=Math.sin(t*.48)*.02+diagonal*.027;
     pack.scale.setScalar(opening?1+EASE(clamp(elapsed/2.7,0,1))*.085:1);
     if(packSheen)packSheen.material.opacity=.21+.17*(.5+.5*Math.sin(t*.72+pack.rotation.y*3));
-    pack.visible=(ready||opening)&&tear<=.004;
-    packRim.visible=pack.visible;
+    pack.visible=(ready||opening)&&tear<=.004&&!!selectedPack();
+    packRim.visible=false;
     packRim.position.copy(pack.position);packRim.rotation.copy(pack.rotation);packRim.scale.copy(pack.scale);
     packParts.visible=opening&&tear>.004;
     if(!opening){
