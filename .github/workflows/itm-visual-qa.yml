@@ -11,6 +11,10 @@ on:
       - 'app.js'
       - 'card-frame.js'
       - 'frame-preview.html'
+      - 'studio.html'
+      - 'studio.js'
+      - 'studio.css'
+      - 'supabase/itm_card_studio.sql'
       - 'index.html'
       - 'tests/itm-browser-check.mjs'
 permissions:
