@@ -132,7 +132,7 @@ async function checkStudio(){
   },null,{timeout:15000});
   await page.locator('#cardName').fill('테스트 포토카드');
   await page.locator('#cardRarity').selectOption('UR');
-  await page.locator('#photoZoom').fill('135');
+  await page.evaluate(()=>{const el=document.querySelector('#photoZoom');el.value='135';el.dispatchEvent(new Event('input',{bubbles:true}))});
   report.checks.studio=await page.evaluate(async()=>{
     const canvas=document.querySelector('#previewCanvas');
     const client=window.IDOL_CONFIG;
@@ -140,7 +140,7 @@ async function checkStudio(){
     const api=async path=>{
       if(!configOk)return null;
       const r=await fetch(client.supabaseUrl+'/rest/v1/'+path,{
-        headers:{apikey:client.supabasePublishableKey,Authorization:'Bearer '+client.supabasePublishableKey}
+        headers:{apikey:client.supabasePublishableKey}
       });
       return {status:r.status,body:(await r.text()).slice(0,200)};
     };
