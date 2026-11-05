@@ -121,6 +121,7 @@ async function loadPublishedCatalog(){
   $('packChoice').hidden=false;
   $('drawOne').disabled=$('drawFive').disabled=!AVAILABLE_PACKS.length;
   if(pack&&renderer)void syncPackArtwork();
+  if(!state.three&&state.phase==='ready')resetFallback();
   const groupMap=new Map((groupsResult.data||[]).map(g=>[g.slug,g]));
   for(const card of LIVE_POOL)byId.delete(card.id);
   LIVE_POOL.length=0;
@@ -1020,7 +1021,20 @@ function reset(){
   $('centerHint').innerHTML='<span>✧</span> THE SHOW IS ABOUT TO BEGIN';
 }
 
-function resetFallback(){const f=$('canvasFallback');f.style.flexDirection='column';f.style.flexWrap='nowrap';f.innerHTML='<div class="fallback-pack"><div class="fallback-pack-inner"><img src="./assets/itm-logo.png" alt="ITM" onerror="this.hidden=true" /><b hidden>ITM</b><small>DEBUT COLLECTION</small></div></div><p>3D 라이브러리가 연결되지 않아 가벼운 2D 미리보기를 표시합니다.</p>'}
+function resetFallback(){
+  const f=$('canvasFallback');
+  f.style.flexDirection='column';f.style.flexWrap='nowrap';f.replaceChildren();
+  const chosen=selectedPack();
+  if(chosen?.image_path){
+    const img=document.createElement('img');
+    img.src=assetUrl(chosen.image_path);img.alt=chosen.name+' 카드팩';
+    img.style.cssText='display:block;max-width:min(62vw,245px);max-height:55vh;object-fit:contain;filter:drop-shadow(0 18px 24px #0006)';
+    f.append(img);
+  }
+  const note=document.createElement('p');
+  note.textContent=chosen?'3D를 사용할 수 없어 선택한 '+chosen.name+' 팩을 평면으로 표시합니다.':'공개된 카드팩을 불러오는 중입니다.';
+  f.append(note);
+}
 function renderFallbackCards(){const f=$('canvasFallback');f.innerHTML='';f.style.flexDirection='row';f.style.flexWrap='wrap';state.cards.forEach((c,i)=>{const el=document.createElement('img');el.src=state.revealed.has(i)?makeCardArt(c).toDataURL():(loaded(brandCardBack)?brandCardBack.src:makeBackTexture().toDataURL());el.alt=state.revealed.has(i)?c.name:'뒷면';el.style.cssText='width:clamp(70px,15%,130px);aspect-ratio:1/1.48;object-fit:cover;box-shadow:0 4px 25px #000a;cursor:pointer';el.onclick=()=>revealIndex(i);f.appendChild(el)})}
 function openModal(id){$(id).classList.add('active');$(id).setAttribute('aria-hidden','false')}
 function closeModal(id){$(id).classList.remove('active');$(id).setAttribute('aria-hidden','true')}

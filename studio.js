@@ -233,6 +233,17 @@ function refreshPackEditor(){
   if(state.packs.some(p=>p.id===old))$('packPicker').value=old;
   selectPack($('packPicker').value);
 }
+function updatePackSizeHint(width,height){
+  const target=$('packImageSizeHint');
+  if(!width||!height){
+    target.textContent='3D 팩 권장 해상도는 1024×1538px입니다.';
+    return;
+  }
+  const aligned=Math.abs(width/height-1024/1538)<.02;
+  target.textContent=width+'×'+height+'px'+(aligned?
+    ' · 현재 3D 팩 비율과 맞습니다.':
+    ' · 권장 1024×1538px와 비율이 달라 좌우 또는 상하 일부가 잘립니다. 프레임을 늘려서 왜곡하지는 않습니다.');
+}
 function selectPack(id){
   $('packPicker').value=id||'';
   const pack=state.packs.find(p=>p.id===id);
@@ -241,7 +252,11 @@ function selectPack(id){
   $('packActive').checked=pack?.active??true;
   $('packImagePreview').hidden=!pack?.image_path;
   $('packImageEmpty').hidden=!!pack?.image_path;
-  if(pack?.image_path)$('packImagePreview').src=publicUrl(pack.image_path);
+  updatePackSizeHint();
+  if(pack?.image_path){
+    $('packImagePreview').onload=()=>updatePackSizeHint($('packImagePreview').naturalWidth,$('packImagePreview').naturalHeight);
+    $('packImagePreview').src=publicUrl(pack.image_path);
+  }
   const groups=new Set(pack?.group_slugs||[]);
   const selectedSeries=new Set((pack?.series_filters||[]).map(f=>f.group_slug+'::'+f.name));
   renderChoiceGrid('packGroups',state.groups.map(g=>({key:g.slug,label:g.name})),groups,i=>i.label);
@@ -580,7 +595,10 @@ function bind(){
       // Use a fresh URL for this preview; asImage() revokes its temporary URL.
       const previewURL=URL.createObjectURL(file);
       const preview=$('packImagePreview');
-      preview.onload=()=>URL.revokeObjectURL(previewURL);
+      preview.onload=()=>{
+        updatePackSizeHint(preview.naturalWidth,preview.naturalHeight);
+        URL.revokeObjectURL(previewURL);
+      };
       preview.onerror=()=>{URL.revokeObjectURL(previewURL);toast('팩 이미지 미리보기를 불러오지 못했습니다.')};
       preview.src=previewURL;preview.hidden=false;$('packImageEmpty').hidden=true;
     }catch(err){toast(err.message);e.target.value=''}
