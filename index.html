@@ -16,19 +16,21 @@
   <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="./style.css" />
   <link rel="stylesheet" href="./pack-opening.css" />
-  <link rel="stylesheet" href="./concert-ui.css" />
+  <link rel="stylesheet" href="./concert-ui.css?v=legal-20261106" />
   <link rel="stylesheet" href="./concert-upgrade.css" />
-  <link rel="stylesheet" href="./arena-v3.css" />
-  <link rel="stylesheet" href="./premium-ui.css" />
+  <link rel="stylesheet" href="./arena-v3.css?v=ur-20261106" />
+  <link rel="stylesheet" href="./premium-ui.css?v=clear-pouch-20261106" />
   <link rel="stylesheet" href="./ur-reveal.css?v=20261106" />
   <script src="./config.js"></script>
-  <script type="module" src="./app.js?v=ur-payoff-20261106"></script>
+  <script type="module" src="./app.js?v=managed-pack-ur-20261106"></script>
 </head>
 <body class="itm-concert itm-intro-pending">
   <section class="concert-intro" id="concertIntro" aria-label="ITM 콘서트 진입 연출">
     <div class="concert-curtain left" aria-hidden="true"></div>
     <div class="concert-curtain right" aria-hidden="true"></div>
-    <div class="concert-intro-brand"><img src="./assets/itm-logo.png" alt="ITM" fetchpriority="high" /><span>IDOL : THE MOMENT</span></div>
+    <div class="concert-intro-brand"><img src="./assets/itm-logo.png" alt="ITM" fetchpriority="high" /><span>IDOL : THE MOMENT</span>
+      <p class="concert-intro-legal" id="concertIntroLegal">본 게임은 비공식 비영리 팬게임으로, 어떠한 상업적 수익도 창출하지 않습니다.<br />게임에 사용된 아티스트의 사진 및 로고에 대한 권리는 각 권리자에게 있습니다.</p>
+    </div>
     <button type="button" class="intro-skip" id="concertIntroSkip">SKIP ›</button>
   </section>
   <section class="sound-panel" id="soundPanel" role="region" aria-label="음악 및 효과음 설정" hidden>
@@ -104,7 +106,7 @@
       <section class="control-zone">
         <div class="control-left"><span class="section-number">02 / MAKE IT YOURS</span><div class="control-heading" id="controlHeading">어떤 순간을 열어 볼까요?</div></div>
         <div class="draw-actions" id="drawActions">
-          <label class="pack-choice" id="packChoice" hidden>팩 종류 <select id="packPicker" aria-label="카드팩 종류"><option value="">기본 카드팩</option></select></label>
+          <label class="pack-choice" id="packChoice">팩 종류 <select id="packPicker" aria-label="카드팩 종류" disabled><option value="">카드팩 확인 중</option></select></label>
           <button id="drawOne" class="btn secondary">1회 뽑기</button>
           <button id="drawFive" class="btn primary">5회 뽑기 ✦</button>
         </div>
@@ -199,7 +201,7 @@
       <div class="stage-hint" id="stageHint" role="status" aria-live="polite">카드를 눌러 등급을 확인해 보세요.</div>
     </div>
     <div class="stage-footer">
-      <div class="stage-footer-note" id="stageFooterNote">✦ FIRST SHOWCASE / TEST PACK · 실제 카드는 N~UR 각 등급 공개 후 팩에 등장합니다.</div>
+      <div class="stage-footer-note" id="stageFooterNote">✦ THE MOMENT COLLECTION · 선택한 카드팩에서 획득한 카드는 도감에 기록됩니다.</div>
       <div class="stage-controls">
         <button class="stage-btn primary" id="stageRevealAll">모두 공개 ✦</button>
         <button class="stage-btn primary" id="stageFinish" hidden>개봉 완료 · 돌아가기 ↗</button>
@@ -218,8 +220,7 @@
       <span class="splash-grade" id="splashGrade">UR</span>
       <span class="splash-series" id="splashSeries">DEBUT COLLECTION</span>
       <span class="splash-name" id="splashName">VEGA</span>
-      <div class="splash-caption" id="splashCaption">THE MOMENT IS YOURS</div>
-      <div class="splash-demo">현재는 테스트 카드 아트입니다 · 정식 이미지 추후 적용</div>
+      
     </div>
     <button type="button" class="splash-close" id="splashClose" aria-label="획득 연출 닫기">×</button>
   </section>

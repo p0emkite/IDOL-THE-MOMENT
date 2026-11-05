@@ -116,9 +116,15 @@ body.itm-concert .rarity-splash .splash-grade{
 body.itm-concert .rarity-splash .splash-name{
  color:#ffecb9;
  text-shadow:none!important;
- background:linear-gradient(115deg,#fff8e2 0%,#ffe6a2 21%,#f0c76d 42%,#fffef0 49%,#c89742 66%,#ffe7ae 83%,#fff9e9 100%) 0 0 / 220% 100%;
+ background:linear-gradient(115deg,
+    color-mix(in srgb,var(--ur-name-base,#f0c76d) 28%,white) 0%,
+    color-mix(in srgb,var(--ur-name-base,#f0c76d) 57%,white) 21%,
+    var(--ur-name-base,#f0c76d) 42%,#fffef7 49%,
+    color-mix(in srgb,var(--ur-name-base,#f0c76d) 78%,#4a2157) 66%,
+    color-mix(in srgb,var(--ur-name-base,#f0c76d) 60%,white) 83%,
+    #fffaff 100%) 0 0 / 220% 100%;
  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
- filter:drop-shadow(0 2px 7px #a6612688);
+ filter:drop-shadow(0 2px 7px color-mix(in srgb,var(--ur-name-base,#f0c76d) 45%,transparent));
  animation:itmURShinyText 8s linear infinite reverse;
 }
 @keyframes itmURShinyText{to{background-position:200% 0}}
@@ -148,3 +154,7 @@ body.itm-concert .stage-top{
  body.itm-concert #stageRevealAll:not([hidden]){animation:none!important}
  .ur-screen-transition.playing{animation-duration:.2s!important}
 }
+
+/* UR pre-reveal is a simple fade while every card remains face-down. */
+.ur-screen-transition.playing{animation:itmURBeforeArtFade .9s ease-out both!important}
+@keyframes itmURBeforeArtFade{0%{opacity:0}46%{opacity:1}100%{opacity:0}}

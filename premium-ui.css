@@ -277,3 +277,7 @@ body.itm-concert .pack-choice select{min-height:42px;width:100%;max-width:260px;
 
 /* Hidden attribute takes priority over the administrator-only upload label style. */
 #soundPanel #musicUploadLabel[hidden]{display:none!important}
+
+/* No dark UI veil over the bright 3D foil pouch; no white strobe before UR art. */
+body.itm-concert .scene-wrap:after{display:none!important}
+body.itm-concert .ur-screen-transition.playing::after{display:none!important}
