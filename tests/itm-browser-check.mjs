@@ -119,6 +119,47 @@ async function check(name,device){
   await context.close();
 }
 
+async function checkStudio(){
+  // Test guest preview without any elevated session: no storage mutation.
+  const context=await browser.newContext({viewport:{width:1360,height:900}});
+  const page=await context.newPage();
+  page.on('pageerror',err=>report.consoleErrors.push('studio: '+err.message));
+  await page.goto(root+'studio.html',{waitUntil:'domcontentloaded',timeout:30000});
+  await page.waitForFunction(()=>{
+    const canvas=document.querySelector('#previewCanvas');
+    const ctx=canvas?.getContext('2d');
+    return !!ctx&&ctx.getImageData(500,800,1,1).data[3]>0;
+  },null,{timeout:15000});
+  await page.locator('#cardName').fill('테스트 포토카드');
+  await page.locator('#cardRarity').selectOption('UR');
+  await page.locator('#photoZoom').fill('135');
+  report.checks.studio=await page.evaluate(async()=>{
+    const canvas=document.querySelector('#previewCanvas');
+    const client=window.IDOL_CONFIG;
+    const configOk=!!client?.supabaseUrl&&!!client?.supabasePublishableKey;
+    const api=async path=>{
+      if(!configOk)return null;
+      const r=await fetch(client.supabaseUrl+'/rest/v1/'+path,{
+        headers:{apikey:client.supabasePublishableKey,Authorization:'Bearer '+client.supabasePublishableKey}
+      });
+      return {status:r.status,body:(await r.text()).slice(0,200)};
+    };
+    return {
+      canvas:[canvas.width,canvas.height],
+      grade:document.querySelector('#cardRarity').value,
+      zoom:document.querySelector('#zoomLabel').textContent,
+      saveLocked:document.querySelector('#saveCard').disabled,
+      groupSaveLocked:document.querySelector('#saveGroup').disabled,
+      groupsApi:await api('itm_groups?select=slug'),
+      catalogApi:await api('itm_catalog?select=id')
+    };
+  });
+  const shot='qa/desktop-card-studio.png';
+  await page.screenshot({path:shot,fullPage:false,timeout:15000});
+  report.screenshots.push(shot);
+  await context.close();
+}
+
 async function checkFrameTemplates(){
   // Frame preview FIRST, before software WebGL consumes the Chromium render thread.
   const context=await browser.newContext({viewport:{width:1680,height:940}});
@@ -140,6 +181,7 @@ async function checkFrameTemplates(){
 }
 
 try{
+ await checkStudio();
  await checkFrameTemplates();
  await check('desktop',{width:1680,height:940});
  await check('mobile',{width:390,height:844});
@@ -152,5 +194,6 @@ try{
 if(report.consoleErrors.some(x=>/Uncaught|TypeError|ReferenceError|Failed to resolve module/i.test(x)))process.exitCode=1;
 if(!report.checks.desktop?.webgl||!report.checks.mobile?.webgl)process.exitCode=1;
 if(report.checks.frameTemplates?.count!==5||!report.checks.frameTemplates?.sizes.every(([w,h])=>w===1024&&h===1492))process.exitCode=1;
+if(report.checks.studio?.grade!=='UR'||!report.checks.studio?.saveLocked||report.checks.studio?.groupsApi?.status!==200||report.checks.studio?.catalogApi?.status!==200)process.exitCode=1;
 if(!report.checks.open?.reveal||report.checks.open?.actualCards!==5)process.exitCode=1;
 if(!report.checks.landscapeUR?.gradeFullyVisible||!report.checks.landscapeUR?.nameFullyVisible)process.exitCode=1;
