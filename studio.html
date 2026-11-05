@@ -49,7 +49,7 @@
       <form id="packForm">
         <label>기존 팩 <select id="packPicker"><option value="">새 팩 만들기</option></select></label>
         <label>팩 이름 <input id="packName" maxlength="100" required placeholder="예: IVE 앨범 1집 팩"/></label>
-        <label>팩 이미지 (PNG · JPG · WebP) <input id="packImage" type="file" accept="image/png,image/jpeg,image/webp"/></label>
+        <label>팩 이미지 (PNG · JPG · WebP · 권장 1024×1538px) <input id="packImage" type="file" accept="image/png,image/jpeg,image/webp"/></label>
         <div class="logo-display"><img id="packImagePreview" hidden alt="카드팩 이미지 미리보기"/><span id="packImageEmpty">팩 이미지를 등록할 수 있습니다.</span></div>
         <p class="helper">그룹과 시리즈를 선택하지 않으면 해당 항목은 전체 허용됩니다. 두 조건을 선택한 경우 모두 만족하는 카드만 등장합니다.</p>
         <label>등장 그룹</label><div id="packGroups" class="choice-grid"></div>
@@ -83,6 +83,18 @@
         </div>
         <label>UR 전체 화면 연출용 사진 (선택) <input id="cardFullArt" type="file" accept="image/jpeg,image/png,image/webp"/></label>
         <p class="helper">UR 획득 시 프레임 없이 표시할 원본 일러스트를 따로 지정할 수 있습니다.</p>
+        <div id="urNameColorSetting" class="ur-color-setting" hidden>
+          <label for="urNameColor">UR 전체 화면 연출 · 멤버 이름 광택 색상</label>
+          <div class="ur-color-controls">
+            <input id="urNameColor" type="color" value="#f0c76d" aria-label="UR 이름 색상 직접 선택"/>
+            <button type="button" data-ur-name-color="#f0c76d">골드</button>
+            <button type="button" data-ur-name-color="#f57bc6">핑크</button>
+            <button type="button" data-ur-name-color="#a788ff">퍼플</button>
+            <button type="button" data-ur-name-color="#79c9ff">블루</button>
+            <span id="urColorPreview" class="ur-color-preview" aria-hidden="true"></span>
+          </div>
+          <p class="helper">선택한 색을 바탕으로 이름에 반짝이는 금속 그라데이션이 적용됩니다.</p>
+        </div>
         <div class="field-row bottom-fields">
           <label>공개 상태 <select id="cardStatus"><option value="draft">임시 저장 (비공개)</option><option value="private">비공개</option><option value="published">공개 (팩·도감 반영)</option></select></label>
           <label>카드 ID <input id="cardId" readonly placeholder="새 카드"/></label>

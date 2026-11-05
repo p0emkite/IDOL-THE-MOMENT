@@ -100,3 +100,13 @@ input[type=range]{width:100%;accent-color:#e5a2e9;margin:0 0 15px}.range-control
 .pack-section .check-row{margin:12px 0 18px!important}
 .pack-section .logo-display img{object-fit:contain;max-width:95%;max-height:80px}
 @media(max-width:420px){#packGroups{grid-template-columns:minmax(0,1fr)}}
+
+/* UR full-screen name gradient base swatches. */
+.ur-color-setting{margin:3px 0 20px;padding:15px;border:1px solid #bd9ae052;border-radius:13px;background:#180f25}
+.ur-color-setting>label{display:block;margin:0 0 12px}
+.ur-color-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:9px}
+.ur-color-controls input[type=color]{width:48px;min-width:48px;height:38px;padding:3px;border:1px solid #b995e4;background:#1b102d;border-radius:9px;cursor:pointer}
+.ur-color-controls button{border:1px solid #d1b5dd69;border-radius:8px;background:#271a35;color:#f6edff;padding:9px 11px;font-size:11px}
+.ur-color-controls button.selected{border-color:#f9a9ed;box-shadow:0 0 0 1px #f9a9ed;background:#4a2b55}
+.ur-color-preview{width:70px;height:17px;border-radius:8px;border:1px solid #fff6;box-shadow:0 0 14px #fff3}
+.pack-series-placeholder{grid-column:1/-1;margin:0;padding:12px;border:1px dashed #ba99d64a;border-radius:10px}

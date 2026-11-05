@@ -210,6 +210,23 @@ function renderChoiceGrid(target,items,selected,formatter){
     label.append(input,title);box.append(label);
   }
 }
+function refreshPackSeriesChoices(selectedBefore=null){
+  const groups=new Set(chosenInputs('packGroups'));
+  const selected=selectedBefore||new Set(chosenInputs('packSeries'));
+  if(!groups.size){
+    const note=document.createElement('p');
+    note.className='helper pack-series-placeholder';
+    note.textContent='먼저 등장 그룹을 선택해 주세요. 그룹을 선택하지 않으면 팩에는 모든 그룹의 카드가 등장할 수 있습니다.';
+    $('packSeries').replaceChildren(note);
+    return;
+  }
+  const scoped=state.series.filter(s=>groups.has(s.group_slug))
+    .map(s=>({key:s.group_slug+'::'+s.name,group:s.group_slug,name:s.name}));
+  renderChoiceGrid('packSeries',scoped,selected,item=>{
+    const group=state.groups.find(g=>g.slug===item.group);
+    return (group?.name||item.group)+' / '+item.name;
+  });
+}
 function refreshPackEditor(){
   const old=$('packPicker').value;
   $('packPicker').replaceChildren(new Option('새 팩 만들기',''),...state.packs.map(p=>new Option((p.active?'':'[비공개] ')+p.name,p.id)));
@@ -228,7 +245,7 @@ function selectPack(id){
   const groups=new Set(pack?.group_slugs||[]);
   const selectedSeries=new Set((pack?.series_filters||[]).map(f=>f.group_slug+'::'+f.name));
   renderChoiceGrid('packGroups',state.groups.map(g=>({key:g.slug,label:g.name})),groups,i=>i.label);
-  renderChoiceGrid('packSeries',state.series.map(x=>({key:x.group_slug+'::'+x.name,name:x.name,group:x.group_slug})),selectedSeries,i=>i.group+' / '+i.name);
+  refreshPackSeriesChoices(selectedSeries);
   $('deletePack').disabled=!state.admin||!id;
   accessControls();
 }
@@ -269,12 +286,21 @@ async function deletePack(){
   finally{state.saving=false;accessControls()}
 }
 
+function refreshURColorControls(){
+  const input=$('urNameColor');
+  $('urNameColorSetting').hidden=$('cardRarity').value!=='UR';
+  document.querySelectorAll('[data-ur-name-color]').forEach(button=>{
+    button.classList.toggle('selected',button.dataset.urNameColor.toLowerCase()===input.value.toLowerCase());
+  });
+  $('urColorPreview').style.background='linear-gradient(110deg, white, '+input.value+', white, '+input.value+')';
+}
 function clearCard(){
   state.editingId=null;state.photoFile=null;state.fullArtFile=null;
   state.photoImage=null;state.imagePath=null;state.fullArtPath=null;
   $('cardName').value='';$('cardEdition').value='DEBUT COLLECTION';$('cardRarity').value='N';
   $('logoZoom').value='100';
   $('cardStatus').value='draft';$('cardPhoto').value='';$('cardFullArt').value='';
+  $('urNameColor').value='#f0c76d';refreshURColorControls();
   refreshCardMembers('');
   $('cardId').value='';
   setTransform({scale:1,x:0,y:0});
@@ -288,6 +314,8 @@ async function loadCard(card){
   $('cardName').value=card.display_name;
   $('cardEdition').value=card.edition;
   $('cardRarity').value=card.rarity;
+  $('urNameColor').value=card.ur_name_color||'#f0c76d';
+  refreshURColorControls();
   $('cardStatus').value=card.status;
   $('cardId').value=card.id;
   $('cardPhoto').value='';$('cardFullArt').value='';
@@ -408,6 +436,7 @@ async function saveCard(event){
       member_id:$('cardMember').value||null,group_slug,display_name,edition,rarity:$('cardRarity').value,status,
       photo_path,full_art_path,photo_scale:transform.scale,photo_x:transform.x,photo_y:transform.y,
       logo_scale:Number($('logoZoom').value)/100,
+      ur_name_color:$('urNameColor').value,
       updated_at:new Date().toISOString()
     };
     const req=state.editingId?state.client.from('itm_catalog').update(row).eq('id',state.editingId):
@@ -518,14 +547,18 @@ function bind(){
   };
   $('libraryStatus').onchange=renderLibrary;
   $('libraryQuery').oninput=renderLibrary;
-  $('cardRarity').onchange=queuePreview;
+  $('cardRarity').onchange=()=>{refreshURColorControls();queuePreview()};
   $('cardName').oninput=queuePreview;
   $('cardEdition').oninput=queuePreview;
   $('resetCrop').onclick=()=>setTransform({scale:1,x:0,y:0});
   ['photoZoom','photoX','photoY','logoZoom'].forEach(id=>$(id).oninput=()=>{updateCropLabels();queuePreview()});
   for(const btn of document.querySelectorAll('[data-rarity]')){
-    btn.onclick=()=>{$('cardRarity').value=btn.dataset.rarity;queuePreview()};
+    btn.onclick=()=>{$('cardRarity').value=btn.dataset.rarity;refreshURColorControls();queuePreview()};
   }
+  document.querySelectorAll('[data-ur-name-color]').forEach(button=>{
+    button.onclick=()=>{$('urNameColor').value=button.dataset.urNameColor;refreshURColorControls()};
+  });
+  $('urNameColor').oninput=refreshURColorControls;
   $('exportPreview').onclick=exportPreview;
   $('refreshCards').onclick=()=>loadCatalog().then(()=>toast('목록 새로고침 완료')).catch(err=>toast(err.message));
   bindImageInput($('cardPhoto'),'photo',(img,file)=>{state.photoImage=img;state.photoFile=file});
@@ -538,6 +571,7 @@ function bind(){
   $('packForm').onsubmit=savePack;
   $('newPack').onclick=()=>selectPack('');
   $('packPicker').onchange=()=>selectPack($('packPicker').value);
+  $('packGroups').addEventListener('change',()=>refreshPackSeriesChoices());
   $('deletePack').onclick=deletePack;
   $('packImage').onchange=async e=>{
     const file=e.target.files?.[0];if(!file)return;
