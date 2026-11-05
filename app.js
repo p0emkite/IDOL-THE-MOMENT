@@ -51,6 +51,69 @@ const POOL = [
   ['itm-demo-ur','VEGA','AURORA','UR','#ff9edc',.74],
 ].map(([id,name,group,rarity,tint,seed]) => ({id,name,group,rarity,tint,seed,edition:'DEBUT COLLECTION',image_url:null}));
 const byId = new Map(POOL.map(c=>[c.id,c]));
+const LIVE_POOL=[];
+let LIVE_READY=false;
+const loadedArtwork=new Map();
+const artworkPromises=new Map();
+function readLiveInventory(){try{return JSON.parse(localStorage.getItem('itm-live-card-inventory-v1')||'{}')||{}}catch{return {}}}
+function writeLiveInventory(){try{localStorage.setItem('itm-live-card-inventory-v1',JSON.stringify(state.liveInventory))}catch{}}
+function assetUrl(path){return path?state.supabase.storage.from('itm-card-media').getPublicUrl(path).data.publicUrl:null}
+async function ensureImage(url){
+  if(!url)return null;
+  if(loadedArtwork.has(url))return loadedArtwork.get(url);
+  if(artworkPromises.has(url))return artworkPromises.get(url);
+  const promise=new Promise((resolve,reject)=>{
+    const img=new Image();img.decoding='async';img.crossOrigin='anonymous';
+    img.onload=()=>{loadedArtwork.set(url,img);resolve(img)};
+    img.onerror=()=>reject(new Error('이미지를 불러오지 못했습니다: '+url.split('/').pop()));
+    img.src=url;
+  });
+  artworkPromises.set(url,promise);
+  try{return await promise}finally{artworkPromises.delete(url)}
+}
+async function preloadCard(card){
+  if(!card?.isLive)return;
+  await Promise.all([ensureImage(card.image_url),ensureImage(card.group_logo_url)]);
+}
+function drawLiveLocal(count){
+  return Array.from({length:count},()=>{
+    let roll=rand()*100;
+    let key='N';
+    for(const tier of TIERS){if(roll<tier.chance){key=tier.key;break}roll-=tier.chance}
+    const matches=LIVE_POOL.filter(c=>c.rarity===key);
+    return matches[Math.floor(rand()*matches.length)];
+  });
+}
+async function loadPublishedCatalog(){
+  if(!state.supabase)return false;
+  const [groupsResult,cardsResult]=await Promise.all([
+    state.supabase.from('itm_groups').select('slug,name,logo_path'),
+    state.supabase.from('itm_catalog').select('id,group_slug,display_name,edition,rarity,photo_path,full_art_path,photo_scale,photo_x,photo_y,status').eq('status','published')
+  ]);
+  if(groupsResult.error||cardsResult.error)throw(groupsResult.error||cardsResult.error);
+  const groupMap=new Map((groupsResult.data||[]).map(g=>[g.slug,g]));
+  LIVE_POOL.length=0;
+  for(const row of (cardsResult.data||[])){
+    const group=groupMap.get(row.group_slug);
+    const card={
+      id:row.id,name:row.display_name,group:group?.name||row.group_slug,
+      group_slug:row.group_slug,rarity:row.rarity,
+      edition:row.edition,isLive:true,
+      image_url:assetUrl(row.photo_path),
+      group_logo_url:assetUrl(group?.logo_path),
+      full_art_url:assetUrl(row.full_art_path),
+      photo_transform:{scale:Number(row.photo_scale),x:Number(row.photo_x),y:Number(row.photo_y)}
+    };
+    LIVE_POOL.push(card);byId.set(card.id,card);
+  }
+  LIVE_READY=TIERS.every(t=>LIVE_POOL.some(c=>c.rarity===t.key));
+  if($('stageFooterNote')){
+    $('stageFooterNote').textContent=LIVE_READY?
+      '✦ THE MOMENT COLLECTION · 공개 카드가 팩과 도감에 실시간 반영됩니다.':
+      '✦ FIRST SHOWCASE / TEST PACK · 실제 카드는 N~UR 각 등급 공개 후 팩에 등장합니다.';
+  }
+  return LIVE_READY;
+}
 // Shared grade palette: every tier has a gradient, with intense rainbow holography for UR.
 // Odds are unchanged. The same palette powers Canvas, 3D card edges and CSS UI.
 const TIERS = [
@@ -65,13 +128,15 @@ const PACK_OPEN_DURATION = 4650;
 function readDemoInventory(){try{return JSON.parse(localStorage.getItem('itm-test-pack-inventory-v1')||'{}')||{}}catch{return {}}}
 function writeDemoInventory(){try{localStorage.setItem('itm-test-pack-inventory-v1',JSON.stringify(state.demoInventory))}catch{}}
 
-const state = {phase:'ready',cards:[],revealed:new Set(),inventory:readLocal(),demoInventory:readDemoInventory(),remoteDemoInventory:{},supabase:null,user:null,accountName:null,accountMode:'login',entryRequired:false,playerId:null,hasRecovery:false,authError:null,backendReady:false,accountBusy:false,issuedRecovery:null,three:false,audio:false,busy:false};
+const state = {phase:'ready',cards:[],revealed:new Set(),inventory:readLocal(),demoInventory:readDemoInventory(),remoteDemoInventory:{},liveInventory:readLiveInventory(),remoteLiveInventory:{},supabase:null,user:null,accountName:null,accountMode:'login',entryRequired:false,playerId:null,hasRecovery:false,authError:null,backendReady:false,accountBusy:false,issuedRecovery:null,three:false,audio:false,busy:false};
 const ENTRY_KEY='itm-entry-choice-v1';
 const ACCOUNT_PATTERN=/^[a-z][a-z0-9_]{3,19}$/;
 const accountEmail=name=>'itm.'+name+'@accounts.itm.example';
 const accountNameOf=user=>{const m=String(user?.email||'').match(/^itm\.([a-z][a-z0-9_]{3,19})@accounts\.itm\.example$/);return m?m[1]:null;};
 const isNamedAccount=()=>!!(state.accountName&&state.playerId);
-const visibleInventory=()=>isNamedAccount()?state.remoteDemoInventory:state.demoInventory;
+const visibleInventory=()=>isNamedAccount()?
+  {...state.remoteDemoInventory,...state.remoteLiveInventory}:
+  {...state.demoInventory,...state.liveInventory};
 function saveEntryChoice(value){try{localStorage.setItem(ENTRY_KEY,value)}catch{}}
 function guestChosen(){try{return localStorage.getItem(ENTRY_KEY)==='guest'}catch{return false}}
 function syncCanvasPointerEvents(){const canvas=$('threeCanvas');if(canvas)canvas.classList.toggle('itm-canvas-interactive',state.phase==='reveal');}
@@ -328,10 +393,14 @@ function toggleAudio(){if(!soundManager){audioPreferenceSet=true;setSound(!state
 // empty until the upcoming card-add tool supplies them as independent layers.
 const artCache=new Map();
 function makeCardArt(card){
-  const cacheKey=card.id+':'+card.rarity;
+  const cacheKey=card.id+':'+card.rarity+':'+(card.image_url||'');
   if(artCache.has(cacheKey))return artCache.get(cacheKey);
-  const canvas=renderITMCard(card);
-  artCache.set(cacheKey,canvas);
+  const photo=card.image_url?loadedArtwork.get(card.image_url):null;
+  const groupLogo=card.group_logo_url?loadedArtwork.get(card.group_logo_url):null;
+  // In production the same renderer composites separately stored media with
+  // the single, approved N–UR frame. The output is never pre-flattened.
+  const canvas=renderITMCard(card,{photo,groupLogo,photoTransform:card.photo_transform});
+  if(!card.isLive||photo)artCache.set(cacheKey,canvas);
   return canvas;
 }
 function makeBackTexture(){const c=document.createElement('canvas');c.width=512;c.height=746;const g=c.getContext('2d');const b=g.createLinearGradient(0,0,512,746);b.addColorStop(0,'#300d51');b.addColorStop(.5,'#100d2c');b.addColorStop(1,'#68307b');g.fillStyle=b;g.fillRect(0,0,512,746);g.strokeStyle='#e7a3f7';g.lineWidth=8;g.strokeRect(18,18,476,710);g.strokeStyle='#ffffff70';g.lineWidth=1.4;g.strokeRect(34,34,444,678);for(let i=0;i<7;i++){g.save();g.translate(256,360);g.rotate(i*Math.PI/7);g.strokeStyle='#e99cea44';g.beginPath();g.ellipse(0,0,160,250,0,0,Math.PI*2);g.stroke();g.restore()}g.textAlign='center';g.fillStyle='#ffaedc';g.font='120px serif';g.fillStyle='#fff';g.font='900 43px system-ui';g.fillText('ITM',256,457);g.font='bold 15px system-ui';g.fillStyle='#e9badb';g.fillText('IDOL : THE MOMENT',256,493);return c}
@@ -727,16 +796,22 @@ async function openPack(count){
   let rolled=[];
   try{
     if(isNamedAccount()){
-      const {data,error}=await state.supabase.rpc('itm_open_demo_pack',{p_count:count});
+      const rpc=LIVE_READY?'itm_open_card_pack':'itm_open_demo_pack';
+      const {data,error}=await state.supabase.rpc(rpc,{p_count:count});
       if(error)throw error;
-      rolled=(data||[]).map(x=>byId.get(x.id)).filter(Boolean);
+      rolled=(data||[]).map(x=>byId.get(String(x.id))).filter(Boolean);
       if(rolled.length!==count)throw Error('서버 카드 결과를 확인할 수 없어.');
       await syncRemote();
+    }else if(LIVE_READY){
+      rolled=drawLiveLocal(count);
+      for(const card of rolled)state.liveInventory[card.id]=(state.liveInventory[card.id]||0)+1;
+      writeLiveInventory();updateCounts();
     }else{
       rolled=drawDemo(count);
       for(const card of rolled)state.demoInventory[card.id]=(state.demoInventory[card.id]||0)+1;
       writeDemoInventory();updateCounts();
     }
+    await Promise.all(rolled.map(preloadCard));
   }catch(err){
     state.busy=false;$('drawOne').disabled=$('drawFive').disabled=false;
     toast('카드팩 개봉 실패: '+(err?.message||String(err)));return;
@@ -837,13 +912,40 @@ function resetFallback(){const f=$('canvasFallback');f.style.flexDirection='colu
 function renderFallbackCards(){const f=$('canvasFallback');f.innerHTML='';f.style.flexDirection='row';f.style.flexWrap='wrap';state.cards.forEach((c,i)=>{const el=document.createElement('img');el.src=state.revealed.has(i)?makeCardArt(c).toDataURL():(loaded(brandCardBack)?brandCardBack.src:makeBackTexture().toDataURL());el.alt=state.revealed.has(i)?c.name:'뒷면';el.style.cssText='width:clamp(70px,15%,130px);aspect-ratio:1/1.48;object-fit:cover;box-shadow:0 4px 25px #000a;cursor:pointer';el.onclick=()=>revealIndex(i);f.appendChild(el)})}
 function openModal(id){$(id).classList.add('active');$(id).setAttribute('aria-hidden','false')}
 function closeModal(id){$(id).classList.remove('active');$(id).setAttribute('aria-hidden','true')}
-function renderCollection(){const ids=Object.entries(visibleInventory()).filter(([id,q])=>Number(q)>0&&byId.has(id));const unique=ids.length;$('collectionSummary').textContent=`DISCOVERED ${unique} / ${POOL.length}   •   OWNED ${ids.reduce((sum,[,q])=>sum+Number(q),0)} CARDS`;const grid=$('collectionGrid');grid.replaceChildren();if(!ids.length){const p=document.createElement('p');p.className='collection-empty';p.textContent='아직 수집한 카드가 없어. 첫 번째 팩을 열어봐 ✦';grid.append(p)}ids.sort((a,b)=>POOL.findIndex(c=>c.id===a[0])-POOL.findIndex(c=>c.id===b[0])).forEach(([id,qty])=>{let card=byId.get(id),box=document.createElement('div');box.className='col-item rarity-'+card.rarity.toLowerCase();box.style.setProperty('--tier-color',tone(card.rarity));box.style.setProperty('--tier-gradient',tierCssGradient(card.rarity));let img=document.createElement('img');img.src=makeCardArt(card).toDataURL();img.alt=`${card.group} ${card.name}`;let q=document.createElement('span');q.className='qty';q.textContent='×'+qty;let title=document.createElement('strong');title.textContent=card.group+' · '+card.name;let sub=document.createElement('small');sub.style.color=tone(card.rarity);sub.textContent=card.rarity;box.append(img,q,title,sub);grid.append(box)})}
+function renderCollection(){
+  const ids=Object.entries(visibleInventory()).filter(([id,q])=>Number(q)>0&&byId.has(id));
+  const unique=ids.length,total=POOL.length+LIVE_POOL.length;
+  $('collectionSummary').textContent=`DISCOVERED ${unique} / ${total}   •   OWNED ${ids.reduce((sum,[,q])=>sum+Number(q),0)} CARDS`;
+  const grid=$('collectionGrid');grid.replaceChildren();
+  if(!ids.length){const p=document.createElement('p');p.className='collection-empty';p.textContent='아직 수집한 카드가 없어. 첫 번째 팩을 열어봐 ✦';grid.append(p)}
+  const ordered=[...POOL,...LIVE_POOL];
+  ids.sort((a,b)=>ordered.findIndex(c=>c.id===a[0])-ordered.findIndex(c=>c.id===b[0]));
+  ids.forEach(([id,qty])=>{
+    const card=byId.get(id),box=document.createElement('div');
+    box.className='col-item rarity-'+card.rarity.toLowerCase();
+    box.style.setProperty('--tier-color',tone(card.rarity));
+    box.style.setProperty('--tier-gradient',tierCssGradient(card.rarity));
+    const img=document.createElement('img');img.alt=`${card.group} ${card.name}`;
+    img.src=makeCardArt(card).toDataURL();
+    if(card.isLive)void preloadCard(card).then(()=>{
+      if(img.isConnected)img.src=makeCardArt(card).toDataURL('image/png');
+    }).catch(err=>console.warn('Artwork preview unavailable',err));
+    const q=document.createElement('span');q.className='qty';q.textContent='×'+qty;
+    const title=document.createElement('strong');title.textContent=card.group+' · '+card.name;
+    const sub=document.createElement('small');sub.style.color=tone(card.rarity);sub.textContent=card.rarity;
+    box.append(img,q,title,sub);grid.append(box);
+  });
+}
 
 async function syncRemote(){
   if(!state.supabase||!state.playerId)return false;
-  const {data,error}=await state.supabase.from('itm_demo_inventory').select('card_id,quantity');
-  if(error){toast('도감 동기화 오류: '+error.message);return false}
-  state.remoteDemoInventory=Object.fromEntries((data||[]).map(r=>[r.card_id,r.quantity]));
+  const [demo,live]=await Promise.all([
+    state.supabase.from('itm_demo_inventory').select('card_id,quantity'),
+    state.supabase.from('itm_card_inventory').select('card_id,quantity')
+  ]);
+  if(demo.error||live.error){toast('도감 동기화 오류: '+(demo.error||live.error).message);return false}
+  state.remoteDemoInventory=Object.fromEntries((demo.data||[]).map(r=>[r.card_id,r.quantity]));
+  state.remoteLiveInventory=Object.fromEntries((live.data||[]).map(r=>[r.card_id,r.quantity]));
   updateCounts();
   if($('collectionOverlay').classList.contains('active'))renderCollection();
   return true;
@@ -897,6 +999,10 @@ async function activateNamedUser(user){
   const {data:backup,error:backupError}=await state.supabase.rpc('has_recovery_code');
   state.hasRecovery=!backupError&&!!backup;
   await syncRemote();updateLogin();
+  try{
+    const {data:isAdmin}=await state.supabase.rpc('itm_studio_is_admin');
+    $('studioOpen').hidden=!isAdmin;
+  }catch{}
 }
 async function initBackend(){
   if(!CONFIG.supabaseUrl||!CONFIG.supabasePublishableKey){
@@ -908,6 +1014,7 @@ async function initBackend(){
       const mod=await import('https://esm.sh/@supabase/supabase-js@2.57.0');
       state.supabase=mod.createClient(CONFIG.supabaseUrl,CONFIG.supabasePublishableKey);
     }
+    try{await loadPublishedCatalog()}catch(e){console.warn('Card catalog unavailable; demo remains active',e)}
     const {data,error}=await state.supabase.auth.getSession();
     if(error)throw error;
     const user=data?.session?.user;
@@ -975,7 +1082,9 @@ async function logoutAccount(){
   try{if(state.supabase){const {error}=await state.supabase.auth.signOut();if(error)throw error}}
   catch(err){state.accountBusy=false;return setAccountMessage('로그아웃 실패: '+(err?.message||String(err)))}
   state.accountBusy=false;state.user=null;state.accountName=null;state.playerId=null;
-  state.remoteDemoInventory={};state.hasRecovery=false;state.issuedRecovery=null;
+  state.remoteDemoInventory={};state.remoteLiveInventory={};
+  $('studioOpen').hidden=true;
+  state.hasRecovery=false;state.issuedRecovery=null;
   try{localStorage.removeItem(ENTRY_KEY)}catch{}
   updateCounts();accountOpen(true);
   toast('로그아웃했어. 계정 도감은 서버에 보관돼.');
@@ -1071,7 +1180,10 @@ function bind(){
   $('splashClose').onclick=(event)=>{event.stopPropagation();closeRaritySplash()};
   $('raritySplash').addEventListener('click',()=>{if(!$('raritySplash').hidden)closeRaritySplash()});
   $('concertIntroSkip').onclick=closeConcertIntro;
-  $('collectionOpen').onclick=async()=>{if(isNamedAccount())await syncRemote();renderCollection();openModal('collectionOverlay')};
+  $('collectionOpen').onclick=async()=>{
+    if(isNamedAccount())await syncRemote();
+    renderCollection();openModal('collectionOverlay');
+  };
   $('collectionClose').onclick=()=>closeModal('collectionOverlay');
   $('oddsOpen').onclick=()=>openModal('oddsOverlay');$('oddsClose').onclick=()=>closeModal('oddsOverlay');
   $('loginButton').onclick=()=>accountOpen(false);$('accountClose').onclick=accountClose;
