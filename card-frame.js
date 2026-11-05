@@ -48,13 +48,18 @@ function starPath(ctx,cx,cy,rOuter,rInner=.16){
   ctx.bezierCurveTo(cx-q*.58,cy-q*.38,cx-q*.42,cy-q*.56,cx,cy-r);
   ctx.closePath();
 }
-function drawCover(ctx,img,x,y,w,h){
+function drawCover(ctx,img,x,y,w,h,transform={}){
   const iw=img?.naturalWidth||img?.videoWidth||img?.width||0;
   const ih=img?.naturalHeight||img?.videoHeight||img?.height||0;
   if(!iw||!ih)return false;
-  const ratio=Math.max(w/iw,h/ih);
+  const magnification=clamp(Number(transform.scale)||1,1,4);
+  const ratio=Math.max(w/iw,h/ih)*magnification;
   const dw=iw*ratio,dh=ih*ratio;
-  ctx.drawImage(img,x+(w-dw)/2,y+(h-dh)/2,dw,dh);
+  // Offset is normalised against the maximum image overscan. This ensures
+  // the crop never leaves blank edges, on mobile or desktop.
+  const dx=(w-dw)/2+clamp(Number(transform.x)||0,-1,1)*Math.max(0,(dw-w)/2);
+  const dy=(h-dh)/2+clamp(Number(transform.y)||0,-1,1)*Math.max(0,(dh-h)/2);
+  ctx.drawImage(img,x+dx,y+dy,dw,dh);
   return true;
 }
 function blankPhotoArea(ctx){
@@ -248,7 +253,7 @@ function drawLogoLayer(ctx,logo){
  * photo=null and groupLogo=null leave both regions intentionally empty.
  * Canvas output is compatible with existing 3D, reveal, collection and export.
  */
-export function renderITMCard(card,{photo=null,groupLogo=null}={}){
+export function renderITMCard(card,{photo=null,groupLogo=null,photoTransform=null}={}){
   const canvas=document.createElement('canvas');
   canvas.width=1024;canvas.height=1492;
   const ctx=canvas.getContext('2d');
@@ -256,7 +261,7 @@ export function renderITMCard(card,{photo=null,groupLogo=null}={}){
   ctx.save();
   roundRect(ctx,9,9,494,728,26);ctx.clip();
   if(photo){
-    if(!drawCover(ctx,photo,0,0,512,746))blankPhotoArea(ctx);
+    if(!drawCover(ctx,photo,0,0,512,746,photoTransform||card?.photo_transform||{scale:card?.photo_scale,x:card?.photo_x,y:card?.photo_y}))blankPhotoArea(ctx);
   }else blankPhotoArea(ctx);
   ctx.restore();
   drawFrame(ctx,card?.rarity||'N');
