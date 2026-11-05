@@ -42,12 +42,12 @@ body.itm-concert #stageFinish:not([hidden]){display:inline-flex!important;align-
 }
 
 /* Gold warns that SR+ has arrived, but does not reveal which of SR/SSR/UR. */
-body.itm-concert .stage-card-button:is(.rarity-sr,.rarity-ssr,.rarity-ur):not(.is-revealed) .stage-card-back{
+body.itm-concert .stage-card-button:is(.rarity-sr,.rarity-ssr,.rarity-ur):not(.is-revealed):is(:hover,:focus-visible) .stage-card-back{
  border:3px solid #ffdf73!important;
  box-shadow:0 0 0 1px #fff3ae,0 0 12px 3px #ffca45ea,0 0 31px 5px #ffbe446e,0 14px 32px #05020fdd!important;
  animation:itmGoldOutline 2.6s ease-in-out infinite;
 }
-body.itm-concert .stage-card-button:is(.rarity-sr,.rarity-ssr,.rarity-ur):not(.is-revealed) .stage-card-back:before{
+body.itm-concert .stage-card-button:is(.rarity-sr,.rarity-ssr,.rarity-ur):not(.is-revealed):is(:hover,:focus-visible) .stage-card-back:before{
  content:"";position:absolute;inset:0;pointer-events:none;z-index:4;
  border-radius:8px;
  background:linear-gradient(120deg,transparent 18%,#fff6c67a 48%,transparent 58%) -160% 0 / 240% 100% no-repeat;
