@@ -33,6 +33,22 @@ async function check(name,device){
   await page.screenshot({path:screenshot,fullPage:false});
   report.screenshots.push(screenshot);
   if(name==='desktop'){
+    // Validate every empty-photo, empty-logo grade frame and capture their UI.
+    const preview=await context.newPage();
+    preview.on('pageerror',err=>report.consoleErrors.push('frame-preview: '+err.message));
+    await preview.goto(root+'frame-preview.html',{waitUntil:'domcontentloaded',timeout:30000});
+    await preview.waitForFunction(()=>document.querySelectorAll('#gallery figure img').length===5&&
+      [...document.querySelectorAll('#gallery figure img')].every(x=>x.complete&&x.naturalWidth===1024),
+      null,{timeout:15000});
+    report.checks.frameTemplates=await preview.evaluate(()=>({
+      count:document.querySelectorAll('#gallery figure').length,
+      sizes:[...document.querySelectorAll('#gallery figure img')].map(x=>[x.naturalWidth,x.naturalHeight]),
+      tiers:[...document.querySelectorAll('#gallery figcaption strong')].map(x=>x.textContent)
+    }));
+    const previewShot='qa/desktop-frame-templates.png';
+    await preview.screenshot({path:previewShot,fullPage:false,timeout:15000});
+    report.screenshots.push(previewShot);
+    await preview.close();
     await page.locator('#audioToggle').click();
     const audioStats=await page.evaluate(()=>({
       visible:!document.getElementById('soundPanel').hidden,
@@ -129,5 +145,6 @@ try{
 }
 if(report.consoleErrors.some(x=>/Uncaught|TypeError|ReferenceError|Failed to resolve module/i.test(x)))process.exitCode=1;
 if(!report.checks.desktop?.webgl||!report.checks.mobile?.webgl)process.exitCode=1;
+if(report.checks.frameTemplates?.count!==5||!report.checks.frameTemplates?.sizes.every(([w,h])=>w===1024&&h===1492))process.exitCode=1;
 if(!report.checks.open?.reveal||report.checks.open?.actualCards!==5)process.exitCode=1;
 if(!report.checks.landscapeUR?.gradeFullyVisible||!report.checks.landscapeUR?.nameFullyVisible)process.exitCode=1;
