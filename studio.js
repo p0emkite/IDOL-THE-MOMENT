@@ -1,4 +1,4 @@
-import {renderITMCard} from './card-frame.js';
+import {renderITMCard} from './card-frame.js?v=pack-studio-20261105';
 const $=id=>document.getElementById(id);
 const CONFIG=window.IDOL_CONFIG||{};
 const BUCKET='itm-card-media';
