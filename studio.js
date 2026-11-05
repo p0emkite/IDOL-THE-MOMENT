@@ -541,8 +541,14 @@ function bind(){
   $('deletePack').onclick=deletePack;
   $('packImage').onchange=async e=>{
     const file=e.target.files?.[0];if(!file)return;
-    try{fileCheck(file);state.packFile=file;const img=await asImage(file);
-      $('packImagePreview').src=img.src;$('packImagePreview').hidden=false;$('packImageEmpty').hidden=true;
+    try{
+      fileCheck(file);state.packFile=file;
+      // Use a fresh URL for this preview; asImage() revokes its temporary URL.
+      const previewURL=URL.createObjectURL(file);
+      const preview=$('packImagePreview');
+      preview.onload=()=>URL.revokeObjectURL(previewURL);
+      preview.onerror=()=>{URL.revokeObjectURL(previewURL);toast('팩 이미지 미리보기를 불러오지 못했습니다.')};
+      preview.src=previewURL;preview.hidden=false;$('packImageEmpty').hidden=true;
     }catch(err){toast(err.message);e.target.value=''}
   };
   bindDrag();
