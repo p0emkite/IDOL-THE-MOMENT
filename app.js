@@ -173,7 +173,7 @@ function guestChosen(){try{return localStorage.getItem(ENTRY_KEY)==='guest'}catc
 function syncCanvasPointerEvents(){const canvas=$('threeCanvas');if(canvas)canvas.classList.toggle('itm-canvas-interactive',state.phase==='reveal');}
 let scene,renderer,camera,pack,packRim,packParts,packTop,packBottom,packSeam,tornSide,tornFace,openingCard,cardMeshes=[],dust,halos,stageLights=[],openingFx=null,THREE,clock,lastTime=0,openingAt=0,audioContext=null;
 
-let soundManager=null,urPayoff=null,urRevealTimer=0,urRevealPending=false;
+let soundManager=null,urPayoff=null,urRevealTimer=0,urRevealPending=false,urQueuedReveal=null;
 let concertStage=null,hoverChimeAt=0,splashTimer=null,urCoverTimer=null,audioPreferenceSet=false,introTimers=[],introCameraActive=false,introCameraStart=0;
 const RARITY_CLASSES=['rarity-n','rarity-r','rarity-sr','rarity-ssr','rarity-ur'];
 function setSound(on){
@@ -211,7 +211,7 @@ function closeConcertIntro(){
   introCameraActive=false;
   document.body.classList.remove('itm-intro-pending','itm-intro-active');
   const el=$('concertIntro');
-  if(el){el.hidden=true;el.classList.remove('opening')}
+  if(el){el.hidden=true;el.classList.remove('opening','legal-visible')}
   if(camera){
     camera.fov=42;
     camera.position.set(0,window.innerWidth<780?-.58:-.70,window.innerWidth<780?12.8:10.4);
@@ -219,21 +219,29 @@ function closeConcertIntro(){
   }
 }
 function showConcertIntro(){
-  // Skip may have already dismissed the entry screen while assets were loading.
   if(!document.body.classList.contains('itm-intro-pending'))return;
   const el=$('concertIntro');
   document.body.classList.remove('itm-intro-pending');
   const reduced=matchMedia('(prefers-reduced-motion:reduce)').matches;
-  if(reduced){closeConcertIntro();return}
-  introCameraActive=!!concertStage;
-  if(state.audio)soundManager?.initialPlay();
-  document.body.classList.add('itm-intro-active');
-  introCameraStart=performance.now();
-  void el.offsetWidth;
-  // Short, elegant straight-on approach: no audience fly-around or orbit.
-  introTimers.push(setTimeout(()=>el.classList.add('opening'),180));
-  introTimers.push(setTimeout(()=>{el.hidden=true},1300));
-  introTimers.push(setTimeout(closeConcertIntro,2860));
+  let seen=false;
+  try{seen=localStorage.getItem('itm-legal-seen-v1')==='yes';localStorage.setItem('itm-legal-seen-v1','yes')}catch{}
+  const legalDuration=seen?1200:3000;
+  el.style.setProperty('--legal-duration',legalDuration+'ms');
+  el.classList.add('legal-visible');
+  // First visit: .3s in + 2.4s hold + .3s out. Repeat visits: 1.2s total.
+  introTimers.push(setTimeout(()=>{
+    el.classList.remove('legal-visible');
+    if(el.hidden)return;
+    if(reduced){closeConcertIntro();return}
+    introCameraActive=!!concertStage;
+    if(state.audio)soundManager?.initialPlay();
+    document.body.classList.add('itm-intro-active');
+    introCameraStart=performance.now();
+    void el.offsetWidth;
+    introTimers.push(setTimeout(()=>el.classList.add('opening'),180));
+    introTimers.push(setTimeout(()=>{el.hidden=true},1300));
+    introTimers.push(setTimeout(closeConcertIntro,2860));
+  },legalDuration));
 }
 function setConcertRarity(rarity){
   const stage=$('packRevealStage');
@@ -248,22 +256,36 @@ function hoverRaritySound(card){
   hoverChimeAt=now;
   chime({SR:784,SSR:988,UR:1175}[card.rarity],.053);
 }
-function closeRaritySplash(){
+function closeRaritySplash({complete=true}={}){
   clearTimeout(splashTimer);clearTimeout(urCoverTimer);
   splashTimer=null;urCoverTimer=null;
   $('raritySplash').hidden=true;
   const cover=$('urScreenTransition');
   if(cover){cover.hidden=true;cover.classList.remove('playing')}
+  const queued=urQueuedReveal;urQueuedReveal=null;
+  if(!complete||!queued)return;
+  // The full-screen art has closed. Only NOW prepare the 300ms silence and
+  // execute the original flip, fireworks, shake, impact and sound payoff.
+  const button=$('stageCardTrack')?.children[queued.index];
+  urPayoff?.prepare(button);
+  clearTimeout(urRevealTimer);
+  urRevealTimer=setTimeout(()=>{
+    urRevealTimer=0;urRevealPending=false;
+    $('stageRevealAll').disabled=false;
+    if(state.phase!=='reveal')return;
+    if(queued.all)revealAll(true);
+    else revealIndex(queued.index,false,true);
+  },300);
 }
 function showRaritySplash(card){
   if(!card||card.rarity!=='UR')return;
   const splash=$('raritySplash');
   splash.className='rarity-splash rarity-'+card.rarity.toLowerCase();
+  splash.style.setProperty('--ur-name-base',/^#[\da-f]{6}$/i.test(card.ur_name_color||'')?card.ur_name_color:'#f0c76d');
   splash.hidden=false;
   $('splashGrade').textContent=card.rarity;
   $('splashSeries').textContent=card.group+' · '+card.edition;
   $('splashName').textContent=card.name;
-  $('splashCaption').textContent='A LEGENDARY MOMENT';
   const source=card.full_art_url||card.image_url||'./assets/itm-ur-performance.svg';
   $('splashArt').src=source;
   $('splashArt').onerror=()=>{$('splashArt').onerror=null;$('splashArt').src=makeCardArt(card).toDataURL('image/png')};
@@ -271,7 +293,8 @@ function showRaritySplash(card){
   $('splashBlur').style.backgroundImage='url("'+source+'")';
   const fireworks=$('splashFireworks'),fragment=document.createDocumentFragment();
   fireworks.replaceChildren();
-  const palette=card.rarity==='UR'?['#8beaff','#b991ff','#ffd289','#ff96d8']:['#ffe1a0','#ffb75a','#ffdbe9'];
+  // The reveal payoff remains on the stage AFTER this full-screen art closes.
+  const palette=['#8beaff','#b991ff','#ffd289','#ff96d8'];
   for(let i=0;i<45;i++){
     const p=document.createElement('i');
     p.style.setProperty('--sx',((i*67+13)%99)+'%');
@@ -291,13 +314,23 @@ function queueRaritySplash(card){
   if(!cover){showRaritySplash(card);return}
   cover.hidden=false;cover.classList.remove('playing');
   void cover.offsetWidth;cover.classList.add('playing');
-  // At the exact-black frame, introduce the full-bleed art behind the cover.
+  // Keep the card completely face-down during the fade-to-black.
   splashTimer=setTimeout(()=>{
-    if(state.phase==='reveal')showRaritySplash(card);
-  },780);
+    if(state.phase==='reveal'&&urRevealPending)showRaritySplash(card);
+  },410);
   urCoverTimer=setTimeout(()=>{
     cover.hidden=true;cover.classList.remove('playing');
-  },2150);
+  },900);
+}
+function beginURCinematic(index,all=false){
+  if(urRevealPending||state.phase!=='reveal')return;
+  const card=state.cards[index];
+  if(!card||card.rarity!=='UR')return;
+  urRevealPending=true;
+  urQueuedReveal={index,all};
+  $('stageRevealAll').disabled=true;
+  // Do not add .is-revealed or UR impact effects until the user closes art.
+  queueRaritySplash(card);
 }
 const EASE = t => 1-Math.pow(1-Math.min(1,Math.max(0,t)),3);
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
@@ -904,16 +937,7 @@ async function openPack(count){
 function revealIndex(i,silent=false,skipURLead=false){
   if(state.phase!=='reveal'||urRevealPending||state.revealed.has(i)||i<0||i>=state.cards.length)return;
   if(!silent&&!skipURLead&&state.cards[i].rarity==='UR'){
-    urRevealPending=true;
-    const button=$('stageCardTrack')?.children[i];
-    urPayoff?.prepare(button);
-    $('stageRevealAll').disabled=true;
-    urRevealTimer=setTimeout(()=>{
-      urRevealTimer=0;urRevealPending=false;
-      $('stageRevealAll').disabled=false;
-      if(state.phase==='reveal'&&!state.revealed.has(i))revealIndex(i,false,true);
-    },300);
-    return;
+    beginURCinematic(i,false);return;
   }
   state.revealed.add(i);
   const card=state.cards[i],button=$('stageCardTrack')?.children[i],tier=TIERS.find(t=>t.key===card.rarity);
@@ -943,7 +967,6 @@ function revealIndex(i,silent=false,skipURLead=false){
     setConcertRarity(card.rarity);
     if(card.rarity==='UR')concertStage?.burst('UR');
     stageBurst(card);
-    queueRaritySplash(card);
   }
   $('stageHint').textContent=(tier?.label||card.rarity)+' · '+card.group+' '+card.name+' 발견!';
   updateStageProgress();
@@ -965,15 +988,7 @@ function revealAll(skipURLead=false){
   const bestIndex=hiddenIndices.reduce((a,i)=>rank[state.cards[i].rarity]>rank[state.cards[a].rarity]?i:a);
   const highest=state.cards[bestIndex];
   if(!skipURLead&&highest.rarity==='UR'){
-    urRevealPending=true;
-    urPayoff?.prepare($('stageCardTrack')?.children[bestIndex]);
-    $('stageRevealAll').disabled=true;
-    urRevealTimer=setTimeout(()=>{
-      urRevealTimer=0;urRevealPending=false;
-      $('stageRevealAll').disabled=false;
-      if(state.phase==='reveal')revealAll(true);
-    },300);
-    return;
+    beginURCinematic(bestIndex,true);return;
   }
   hiddenIndices.forEach(i=>revealIndex(i,true));
   if(highest.rarity==='UR'){
@@ -987,13 +1002,12 @@ function revealAll(skipURLead=false){
   setConcertRarity(highest.rarity);
   if(highest.rarity==='UR')concertStage?.burst('UR');
   stageBurst(highest);
-  queueRaritySplash(highest);
 }
 function reset(){
-  clearTimeout(urRevealTimer);urRevealTimer=0;urRevealPending=false;
+  clearTimeout(urRevealTimer);urRevealTimer=0;urRevealPending=false;urQueuedReveal=null;
   urPayoff?.cancel();
   $('stageRevealAll').disabled=false;
-  closeRaritySplash();concertStage?.endOpening();openingFx?.reset();setConcertRarity('DEFAULT');
+  closeRaritySplash({complete:false});concertStage?.endOpening();openingFx?.reset();setConcertRarity('DEFAULT');
   document.body.classList.remove('pack-cinematic','pack-revealing');
   const stage=$('packRevealStage');stage.hidden=true;stage.setAttribute('aria-hidden','true');
   $('stageBurst').className='stage-burst';$('stageRarityBanner').className='stage-rarity-banner';
