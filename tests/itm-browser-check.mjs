@@ -17,7 +17,10 @@ async function check(name,device){
   // Never capture an authentication overlay as if it were the game lobby.
   const overlay=page.locator('#accountOverlay.active');
   await overlay.waitFor({state:'visible',timeout:35000});
-  await page.locator('#guestPlay').click({timeout:15000});
+  // The concert intro can keep the account panel animating in software WebGL.
+  // Skip the cosmetic entrance before the actual guest-play interaction.
+  await page.evaluate(()=>document.getElementById('concertIntroSkip')?.click());
+  await page.locator('#guestPlay').click({force:true,timeout:15000});
   await overlay.waitFor({state:'hidden',timeout:15000});
   await page.waitForTimeout(4500);
   const stats=await page.evaluate(()=>{
@@ -26,6 +29,12 @@ async function check(name,device){
     return {webgl:scene.width>0&&fallback.hidden,canvas:[scene.width,scene.height],
       buttons:['drawOne','drawFive'].map(id=>{const b=document.getElementById(id);return {id,visible:b?.getBoundingClientRect().width>0,disabled:b?.disabled}}),
       soundPanel:!!document.getElementById('soundPanel'),
+      soundDefault:{
+        enabled:document.getElementById('soundMaster')?.checked,
+        bgm:document.getElementById('bgmVolume')?.value,
+        sfx:document.getElementById('sfxVolume')?.value,
+        guestUploadHidden:document.getElementById('musicUploadLabel')?.hidden
+      },
       viewport:[innerWidth,innerHeight],sceneRect:[Math.round(r.width),Math.round(r.height)]};
   });
   report.checks[name]=stats;
@@ -150,6 +159,9 @@ async function checkStudio(){
       zoom:document.querySelector('#zoomLabel').textContent,
       saveLocked:document.querySelector('#saveCard').disabled,
       groupSaveLocked:document.querySelector('#saveGroup').disabled,
+      packManagerCollapsed:!document.querySelector('.pack-section')?.open,
+      packSaveLocked:document.getElementById('savePack')?.disabled,
+      packControls:['packGroups','packSeries','packImage','packActive'].every(id=>!!document.getElementById(id)),
       groupsApi:await api('itm_groups?select=slug'),
       catalogApi:await api('itm_catalog?select=id')
     };
@@ -194,6 +206,12 @@ try{
 if(report.consoleErrors.some(x=>/Uncaught|TypeError|ReferenceError|Failed to resolve module/i.test(x)))process.exitCode=1;
 if(!report.checks.desktop?.webgl||!report.checks.mobile?.webgl)process.exitCode=1;
 if(report.checks.frameTemplates?.count!==5||!report.checks.frameTemplates?.sizes.every(([w,h])=>w===1024&&h===1492))process.exitCode=1;
-if(report.checks.studio?.grade!=='UR'||!report.checks.studio?.saveLocked||report.checks.studio?.groupsApi?.status!==200||report.checks.studio?.catalogApi?.status!==200)process.exitCode=1;
+if(report.checks.studio?.grade!=='UR'||!report.checks.studio?.saveLocked||
+ !report.checks.studio?.packManagerCollapsed||!report.checks.studio?.packSaveLocked||!report.checks.studio?.packControls||
+ report.checks.studio?.groupsApi?.status!==200||report.checks.studio?.catalogApi?.status!==200)process.exitCode=1;
+if(report.checks.desktop?.soundDefault?.enabled!==true||
+ report.checks.desktop?.soundDefault?.bgm!=='50'||
+ report.checks.desktop?.soundDefault?.sfx!=='50'||
+ report.checks.desktop?.soundDefault?.guestUploadHidden!==true)process.exitCode=1;
 if(!report.checks.open?.reveal||report.checks.open?.actualCards!==5)process.exitCode=1;
 if(!report.checks.landscapeUR?.gradeFullyVisible||!report.checks.landscapeUR?.nameFullyVisible)process.exitCode=1;
