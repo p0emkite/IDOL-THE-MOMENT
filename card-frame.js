@@ -73,147 +73,146 @@ function blankPhotoArea(ctx){
 }
 function drawFrame(ctx,rarity){
   const r=FINISH[rarity]||FINISH.N;
-  const foil=gradient(ctx,r.stops,0,34,512,682);
-  const across=gradient(ctx,r.stops,0,0,512,0);
+  const foil=gradient(ctx,r.stops,0,44,512,675);
+  const across=gradient(ctx,r.stops,40,42,472,42);
   const prism=rarity==='UR';
   ctx.save();
-  // Outer rounded metal band with subtle sculpted bevel. Same width for ALL.
-  ctx.shadowColor=r.glow;ctx.shadowBlur=prism?18:rarity==='SSR'?13:8;
+
+  // The star is centered ON the upper border, not below an interior arch.
+  // Raise the card shoulders to y=43 to give the 36px crown room to project
+  // above the card without getting cut by the 1024×1492 canvas.
+  const borderTop=43,crownX=256,crownY=borderTop,crownRadius=36;
+  ctx.save();
+  ctx.shadowColor=r.glow;
+  ctx.shadowBlur=prism?20:rarity==='SSR'?16:10;
   ctx.strokeStyle=foil;ctx.lineWidth=9;
-  roundRect(ctx,14,14,484,718,25);ctx.stroke();
-  ctx.shadowBlur=0;
-  ctx.strokeStyle='#fff8';ctx.lineWidth=1.65;
-  roundRect(ctx,19,19,474,708,21);ctx.stroke();
-  ctx.strokeStyle=r.dark;ctx.globalAlpha=.67;ctx.lineWidth=2.6;
-  roundRect(ctx,27,27,458,692,17);ctx.stroke();
+  roundRect(ctx,14,borderTop,484,732-borderTop,25);ctx.stroke();
+  ctx.restore();
+  ctx.strokeStyle='#fff9';ctx.lineWidth=1.6;
+  roundRect(ctx,19,borderTop+5,474,727-(borderTop+5),21);ctx.stroke();
+  ctx.globalAlpha=.67;ctx.strokeStyle=r.dark;ctx.lineWidth=2.45;
+  roundRect(ctx,27,borderTop+13,458,719-(borderTop+13),17);ctx.stroke();
   ctx.globalAlpha=1;
 
-  // A LARGE central crown star, with the MAIN top border passing through its
-  // exact MIDPOINT: —— ✦ —— (rather than only the top of the star grazing it).
-  // The central gap allows the star to interrupt the main line deliberately.
-  const crownY=52,starRadius=35;
+  // Make ——✦—— literally one continuous central axis: the luminous left
+  // and right rails end at the star's lateral tips (x ± crownRadius).
+  // The original approved example has the star protruding ABOVE this rail.
+  ctx.save();ctx.shadowColor=r.glow;ctx.shadowBlur=prism?18:12;
   arcLine(ctx,g=>{
-    g.moveTo(33,81);
-    g.bezierCurveTo(102,41,172,48,218,crownY);
-  },across,3.6,.99);
-  arcLine(ctx,g=>{
-    g.moveTo(294,crownY);
-    g.bezierCurveTo(340,48,410,41,479,81);
-  },across,3.6,.99);
-  // Second, quieter arch sits *below* the star and does not cross its center.
-  arcLine(ctx,g=>{
-    g.moveTo(44,97);g.bezierCurveTo(115,61,169,66,220,69);
-  },'#ffffff',1.25,.41);
-  arcLine(ctx,g=>{
-    g.moveTo(292,69);g.bezierCurveTo(343,66,397,61,468,97);
-  },'#ffffff',1.25,.41);
-  // Light wings reinforce that the TOP LINE reaches the star's horizontal axis.
-  ctx.save();ctx.shadowColor=r.glow;ctx.shadowBlur=prism?20:12;
-  arcLine(ctx,g=>{g.moveTo(207,crownY);g.lineTo(233,crownY);
-    g.moveTo(279,crownY);g.lineTo(305,crownY)},r.light,1.7,.88);
+    g.moveTo(42,crownY);g.lineTo(crownX-crownRadius,crownY);
+    g.moveTo(crownX+crownRadius,crownY);g.lineTo(470,crownY);
+  },across,3.6,.97);
   ctx.restore();
-  const crownGradient=gradient(ctx,r.stops,218,12,294,93);
+  // Delicate lower arch enhances depth, but does not relocate the star.
+  arcLine(ctx,g=>{
+    g.moveTo(34,108);g.bezierCurveTo(93,78,165,75,219,76);
+  },r.light,2.0,.71);
+  arcLine(ctx,g=>{
+    g.moveTo(43,123);g.bezierCurveTo(108,94,169,94,218,96);
+  },'#ffffff',1.0,.31);
+  arcLine(ctx,g=>{
+    g.moveTo(293,76);g.bezierCurveTo(345,75,415,78,479,108);
+  },r.light,1.8,.55);
   ctx.save();
-  ctx.shadowColor=prism?'#e7d8ff':r.glow;
-  ctx.shadowBlur=prism?26:rarity==='N'?15:22;
-  starPath(ctx,256,crownY,starRadius,.23);
+  const crownGradient=gradient(ctx,r.stops,221,7,291,79);
+  ctx.shadowColor=prism?'#e8d8ff':r.glow;ctx.shadowBlur=prism?25:19;
+  starPath(ctx,crownX,crownY,crownRadius,.21);
   ctx.fillStyle=crownGradient;ctx.fill();
-  ctx.shadowBlur=0;
-  ctx.lineWidth=1.8;ctx.strokeStyle='#fffdf4ef';ctx.stroke();
+  ctx.shadowBlur=0;ctx.strokeStyle='#fffdf5ed';ctx.lineWidth=1.8;ctx.stroke();
   ctx.restore();
 
-  // ENAMEL LOWER PANEL: the entire region UNDER the rising swoosh is filled,
-  // from its upper edge all the way to the inner bottom border. The right side
-  // has substantial room/contrast for a real band logo added in the future.
-  const panelTop=()=>{
-    ctx.moveTo(29,691);
-    ctx.bezierCurveTo(145,691,321,613,482,579);
+  // Filled enamel plate BELOW the swoosh: complete coverage until the
+  // bottom edge, including the future band-logo position on the right.
+  // The overall silhouette swoops up on the right instead of forming a dome.
+  const upperEdge=g=>{
+    g.moveTo(28,676);
+    g.bezierCurveTo(128,681,316,592,484,540);
   };
-  const bottomPanel=()=>{
-    ctx.beginPath();
-    panelTop();
-    ctx.lineTo(482,714);
-    ctx.quadraticCurveTo(482,718,477,718);
-    ctx.lineTo(34,718);
-    ctx.quadraticCurveTo(29,718,29,713);
+  const panel=()=>{
+    ctx.beginPath();upperEdge(ctx);
+    ctx.lineTo(484,714);ctx.quadraticCurveTo(484,719,478,719);
+    ctx.lineTo(34,719);ctx.quadraticCurveTo(28,719,28,713);
     ctx.closePath();
   };
-  ctx.save();
-  bottomPanel();
-  ctx.clip();
-  // Undercoat is opaque and dark enough to retain legibility of translucent
-  // and white group logos, while still carrying a clear rarity-specific color.
-  const undercoat=ctx.createLinearGradient(40,578,464,740);
-  undercoat.addColorStop(0,r.mid);
-  undercoat.addColorStop(.22,r.dark);
-  undercoat.addColorStop(.56,'#241a35');
-  undercoat.addColorStop(1,'#171225');
-  ctx.fillStyle=undercoat;
-  ctx.fillRect(27,572,459,150);
-  // Distinct rich enamel tones, strongest on the upper-left and soft on the
-  // right (where the group logo will eventually be laid on top).
-  const tint=ctx.createLinearGradient(90,590,470,715);
-  tint.addColorStop(0,r.light+'b0');
-  tint.addColorStop(.19,r.mid+'b8');
-  tint.addColorStop(.52,r.dark+'8c');
-  tint.addColorStop(1,r.dark+'60');
-  ctx.globalAlpha=.83;ctx.fillStyle=tint;ctx.fillRect(27,574,459,147);
-  // Glossy broad diagonal reflection; contained inside the filled area.
-  const enamelGlare=ctx.createLinearGradient(60,704,465,592);
-  enamelGlare.addColorStop(0,'#ffffff00');
-  enamelGlare.addColorStop(.31,'#ffffff15');
-  enamelGlare.addColorStop(.46,'#ffffff58');
-  enamelGlare.addColorStop(.58,'#ffffff16');
-  enamelGlare.addColorStop(.75,'#ffffff00');
-  enamelGlare.addColorStop(1,'#ffffff17');
-  ctx.globalAlpha=.62;ctx.fillStyle=enamelGlare;ctx.fillRect(27,573,460,150);
-  // A gentle shade near the logo slot, never a transparent hole.
-  const logoShade=ctx.createLinearGradient(306,0,484,0);
-  logoShade.addColorStop(0,'#100c2000');
-  logoShade.addColorStop(1,'#100d1c8c');
-  ctx.globalAlpha=1;ctx.fillStyle=logoShade;ctx.fillRect(305,579,180,143);
+  ctx.save();panel();ctx.clip();
+  // A substantial enamel area, not thin hairline strokes.
+  const enamel=ctx.createLinearGradient(30,716,487,540);
+  enamel.addColorStop(0,r.dark);
+  enamel.addColorStop(.22,r.mid);
+  enamel.addColorStop(.50,r.light);
+  enamel.addColorStop(.75,r.mid);
+  enamel.addColorStop(1,r.dark);
+  ctx.fillStyle=enamel;ctx.fillRect(25,525,463,199);
+  // A broad smooth lit-metal reflection adds materiality.
+  const reflection=ctx.createLinearGradient(45,728,475,572);
+  reflection.addColorStop(0,'#ffffff00');
+  reflection.addColorStop(.29,'#ffffff18');
+  reflection.addColorStop(.48,'#ffffff72');
+  reflection.addColorStop(.61,'#ffffff1c');
+  reflection.addColorStop(.88,'#ffffff00');
+  reflection.addColorStop(1,'#ffffff20');
+  ctx.globalAlpha=.72;ctx.fillStyle=reflection;ctx.fillRect(27,532,460,190);
+  // Right-hand logo area remains colored but a shade more even, so uploaded
+  // transparent logos will be distinguishable and not swallowed by glare.
+  const logoBase=ctx.createLinearGradient(319,620,485,680);
+  logoBase.addColorStop(0,'#ffffff00');
+  logoBase.addColorStop(.62,r.dark+'0e');
+  logoBase.addColorStop(1,r.dark+'40');
+  ctx.globalAlpha=.68;ctx.fillStyle=logoBase;
+  ctx.fillRect(318,594,168,121);
   ctx.restore();
 
-  // Signature Nike-like ascending ribbon: bright tapered top-edge flare,
-  // double specular rails, and a polished body BELOW rather than a hollow band.
-  const foilLip=ctx.createLinearGradient(35,698,480,575);
-  r.stops.forEach((color,i)=>foilLip.addColorStop(i/(r.stops.length-1),color));
-  ctx.save();ctx.shadowColor=r.glow;ctx.shadowBlur=prism?27:20;
-  arcLine(ctx,g=>{g.moveTo(29,691);g.bezierCurveTo(145,691,321,613,482,579)},foilLip,5.0,1);
+  // One full, wide luminous satin swoosh. This deliberately replaces the old
+  // stack of wispy parallel lines with a single polished band that tapers.
+  const swooshBand=()=>{
+    ctx.beginPath();upperEdge(ctx);
+    ctx.bezierCurveTo(330,637,152,706,30,703);
+    ctx.quadraticCurveTo(25,695,28,676);
+    ctx.closePath();
+  };
+  const bandMetal=ctx.createLinearGradient(35,687,484,546);
+  bandMetal.addColorStop(0,r.light);
+  bandMetal.addColorStop(.15,'#ffffff');
+  bandMetal.addColorStop(.34,r.mid);
+  bandMetal.addColorStop(.53,r.light);
+  bandMetal.addColorStop(.76,r.mid);
+  bandMetal.addColorStop(1,'#fffaf9');
+  ctx.save();ctx.shadowColor=r.glow;ctx.shadowBlur=prism?24:18;
+  swooshBand();ctx.fillStyle=bandMetal;ctx.fill();
+  ctx.restore();
+  // Beveled top lip and *one* fine specular highlight, not drawn hair.
+  ctx.save();ctx.shadowColor=r.glow;ctx.shadowBlur=prism?22:14;
+  arcLine(ctx,upperEdge,'#fff9f2',4.0,.94);
   ctx.restore();
   arcLine(ctx,g=>{
-    g.moveTo(31,697);g.bezierCurveTo(148,696,330,619,479,584);
-  },'#ffffff',2.0,.91);
-  // Converging light threads read as a swift motion rather than a dome.
-  ctx.save();bottomPanel();ctx.clip();
+    g.moveTo(29,686);g.bezierCurveTo(136,689,319,603,483,551);
+  },r.light,2.0,.79);
+  // Subtle broad orbital ribbon over the photo, behind the eventual logo:
+  // the smooth grand curve from the reference, not parallel scratching.
+  ctx.save();ctx.globalAlpha=.52;
   arcLine(ctx,g=>{
-    g.moveTo(33,706);g.bezierCurveTo(150,700,331,634,475,596);
-  },r.light,2.0,.82);
-  arcLine(ctx,g=>{
-    g.moveTo(35,714);g.bezierCurveTo(161,710,340,649,470,612);
-  },'#ffffff',1.05,.52);
-  arcLine(ctx,g=>{
-    g.moveTo(45,718);g.bezierCurveTo(159,718,315,670,447,627);
-  },r.mid,1.5,.62);
-  ctx.restore();
-  // Directional glint near the rising tip, without washing out the logo slot.
-  ctx.save();
-  const flare=ctx.createRadialGradient(465,578,1,465,578,42);
-  flare.addColorStop(0,'#ffffffda');
-  flare.addColorStop(.23,r.light+'a8');
-  flare.addColorStop(.62,r.glow+'32');
-  flare.addColorStop(1,'#ffffff00');
-  ctx.globalAlpha=.72;ctx.fillStyle=flare;ctx.fillRect(420,538,85,85);
+    g.moveTo(33,625);
+    g.bezierCurveTo(56,723,172,718,285,650);
+    g.bezierCurveTo(365,601,423,555,482,533);
+  },r.light,2.5,.72);
   ctx.restore();
 
-  // Rightmost quarter deliberately left unobstructed for a group logo
-  // supplied by the future "add card" tool. No brand/name placeholder.
+  // A sparkling flare near the rising tip, confined to the swipe edge.
+  const tipGlow=ctx.createRadialGradient(464,545,1,464,545,48);
+  tipGlow.addColorStop(0,'#ffffffc8');
+  tipGlow.addColorStop(.22,r.light+'a5');
+  tipGlow.addColorStop(.65,r.glow+'25');
+  tipGlow.addColorStop(1,'#ffffff00');
+  ctx.globalAlpha=.57;ctx.fillStyle=tipGlow;ctx.fillRect(418,495,94,106);
+  ctx.globalAlpha=1;
   ctx.restore();
 }
 function drawGradeTab(ctx,rarity){
   const r=FINISH[rarity]||FINISH.N;
   const prism=rarity==='UR';
   ctx.save();
+  // Badge follows the raised upper card rail; never overlaps the crown.
+  ctx.translate(0,28);
   // Consistent angled ribbon / pill silhouette at upper-RIGHT on all cards.
   // Interior colors match the frame, including the UR rainbow spectrum.
   const path=()=>{
