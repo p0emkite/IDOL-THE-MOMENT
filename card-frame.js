@@ -88,43 +88,76 @@ function drawFrame(ctx,rarity){
   roundRect(ctx,27,27,458,692,17);ctx.stroke();
   ctx.globalAlpha=1;
 
-  // The distinctive ITM crown: an open arch from the card shoulders to a
-  // single centrally floating four-point star. No upper-right star cluster.
+  // Top crown sits directly ON the sweeping crest instead of beneath it.
+  // Its top point grazes the card edge, like the approved reference.
+  const crownY=25;
   arcLine(ctx,g=>{
-    g.moveTo(33,75);g.bezierCurveTo(89,37,168,46,256,40);
-    g.bezierCurveTo(344,46,423,37,479,75);
-  },across,2.8,.97);
+    g.moveTo(33,75);g.bezierCurveTo(99,33,175,31,256,crownY);
+    g.bezierCurveTo(337,31,413,33,479,75);
+  },across,3.1,.98);
   arcLine(ctx,g=>{
-    g.moveTo(44,89);g.bezierCurveTo(114,49,190,59,256,52);
-    g.bezierCurveTo(324,59,397,49,467,89);
-  },'#ffffff',1.1,.37);
-  // Top-center star itself receives the UR rainbow, not flat violet.
-  const crownGradient=gradient(ctx,r.stops,225,9,293,65);
-  ctx.save();ctx.shadowColor=prism?'#dddcff':r.glow;
-  ctx.shadowBlur=prism?20:rarity==='N'?8:13;
-  starPath(ctx,256,35,24,.22);
+    g.moveTo(44,89);g.bezierCurveTo(118,50,191,45,256,crownY+13);
+    g.bezierCurveTo(321,45,394,50,467,89);
+  },'#ffffff',1.3,.46);
+  // UR crown remains a soft pastel rainbow; no extra corner star cluster.
+  const crownGradient=gradient(ctx,r.stops,230,0,285,51);
+  ctx.save();ctx.shadowColor=prism?'#e6dbff':r.glow;
+  ctx.shadowBlur=prism?21:rarity==='N'?9:15;
+  starPath(ctx,256,crownY,22,.22);
   ctx.fillStyle=crownGradient;ctx.fill();
-  ctx.shadowBlur=0;ctx.strokeStyle='#ffffffd9';ctx.lineWidth=1.55;ctx.stroke();
+  ctx.shadowBlur=0;ctx.strokeStyle='#ffffffed';ctx.lineWidth=1.65;ctx.stroke();
   ctx.restore();
-  arcLine(ctx,g=>{g.moveTo(249,7);g.lineTo(249,12);g.moveTo(263,7);g.lineTo(263,12)},'#fff',.9,.45);
 
-  // Bottom curved orbital trails. The bottom-right negative space is
-  // explicitly reserved for the future *group logo*, and has no ITM logo.
-  const lower=ctx.createLinearGradient(0,572,0,741);
-  lower.addColorStop(0,'#110e2100');lower.addColorStop(.70,'#16112665');
-  lower.addColorStop(1,'#100c1bb3');
-  ctx.fillStyle=lower;ctx.fillRect(31,570,450,144);
+  // Color-filled lower panel, shaped along the orbital ribbons rather than a
+  // rectangular overlay. The surface remains photo-forward and consistent
+  // across all tiers, with softer rainbow iridescence on UR only.
+  const panelPath=()=>{
+    ctx.beginPath();
+    ctx.moveTo(30,692);
+    ctx.bezierCurveTo(140,676,254,602,361,604);
+    ctx.bezierCurveTo(418,603,462,626,482,646);
+    ctx.lineTo(482,715);ctx.lineTo(30,715);ctx.closePath();
+  };
+  ctx.save();
+  panelPath();ctx.clip();
+  const deepTone=ctx.createLinearGradient(0,602,0,716);
+  deepTone.addColorStop(0,'#150e2904');
+  deepTone.addColorStop(.35,r.dark+'86');
+  deepTone.addColorStop(.72,r.dark+'c8');
+  deepTone.addColorStop(1,'#1b132be8');
+  ctx.fillStyle=deepTone;ctx.fillRect(29,595,457,125);
+  // Foil wash adds unmistakable tier color to the filled area.
+  ctx.globalAlpha=prism?.49:.39;
+  ctx.fillStyle=gradient(ctx,r.stops,45,606,471,713);
+  ctx.fillRect(29,598,457,122);
+  ctx.globalAlpha=1;
+  const sheen=ctx.createLinearGradient(55,628,435,720);
+  sheen.addColorStop(0,'#ffffff09');
+  sheen.addColorStop(.43,'#ffffff2e');
+  sheen.addColorStop(.73,'#ffffff03');
+  sheen.addColorStop(1,'#ffffff24');
+  ctx.fillStyle=sheen;ctx.fillRect(29,598,457,122);
+  ctx.restore();
+
+  // Multiple luminous rails give the lower portion the same polished,
+  // dimensional character as the approved concept, without a logo/name box.
+  ctx.save();ctx.shadowColor=r.glow;ctx.shadowBlur=prism?16:11;
   arcLine(ctx,g=>{
-    g.moveTo(29,692);g.bezierCurveTo(136,676,244,608,359,604);
-    g.bezierCurveTo(417,601,456,621,484,642);
-  },foil,3.1,.95);
+    g.moveTo(29,692);g.bezierCurveTo(140,676,254,602,361,604);
+    g.bezierCurveTo(418,603,462,626,482,646);
+  },foil,4,.95);
+  ctx.restore();
   arcLine(ctx,g=>{
-    g.moveTo(30,713);g.bezierCurveTo(140,686,245,629,369,628);
-    g.bezierCurveTo(419,627,455,640,481,666);
-  },'#fff',1.25,.43);
+    g.moveTo(31,703);g.bezierCurveTo(147,682,260,624,373,626);
+    g.bezierCurveTo(423,626,458,641,480,663);
+  },'#ffffff',1.75,.72);
   arcLine(ctx,g=>{
-    g.moveTo(37,725);g.bezierCurveTo(151,694,259,648,388,651);
-  },r.mid,1.5,.7);
+    g.moveTo(36,714);g.bezierCurveTo(159,687,270,646,389,650);
+    g.bezierCurveTo(425,652,455,665,478,680);
+  },r.light,2.0,.82);
+  arcLine(ctx,g=>{
+    g.moveTo(45,720);g.bezierCurveTo(157,700,266,663,392,668);
+  },r.mid,1.35,.55);
 
   // Rightmost quarter deliberately left unobstructed for a group logo
   // supplied by the future "add card" tool. No brand/name placeholder.
