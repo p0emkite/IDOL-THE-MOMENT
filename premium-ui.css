@@ -254,3 +254,13 @@ body.itm-concert .topbar{
   body.itm-concert .hero,
   body.itm-concert .scene-wrap{background-attachment:scroll!important}
 }
+
+
+/* Result card: hide the oversized rectangular matte, not the artwork. */
+body.itm-concert .stage-card-button .stage-card-front{
+  /* Keep the existing two-pixel box-model inset so the approved art is not resized. */
+  border:2px solid transparent!important;
+  background:transparent!important;
+  /* The actual foil frame is painted by card-frame.js; remove only the wrapper shadow. */
+  box-shadow:none!important;
+}
