@@ -131,19 +131,33 @@ export function renderITMCard(card,{photo=null,groupLogo=null,photoTransform=nul
   if(foil.naturalWidth){
     ctx.save();
     ctx.shadowColor=finish.edge+'96';ctx.shadowBlur=finish.index===4?13:7;
-    // The badge is part of the original foil atlas. Omit its native-sized
-    // rectangle, then repaint only that badge at half its original size.
-    const badge={x:185,y:35,w:89,h:62};
-    ctx.beginPath();ctx.rect(0,0,280,478);
-    ctx.rect(badge.x,badge.y,badge.w,badge.h);
-    ctx.clip('evenodd');
-    ctx.drawImage(foil,finish.index*290,0,finish.width,478,0,0,280,478);
-    ctx.restore();
+    // Isolate the original foil to erase the oversized grade plate WITHOUT
+    // leaving a square matte or damaging the artwork/photo underneath.
+    const foilLayer=document.createElement('canvas');
+    foilLayer.width=280;foilLayer.height=478;
+    const foilCtx=foilLayer.getContext('2d');
+    foilCtx.drawImage(foil,finish.index*290,0,finish.width,478,0,0,280,478);
+    foilCtx.save();
+    foilCtx.globalCompositeOperation='destination-out';
+    foilCtx.translate(229,90);foilCtx.scale(1.0,.91);
+    const plateErase=foilCtx.createRadialGradient(0,0,35,0,0,78);
+    plateErase.addColorStop(0,'rgba(255,255,255,1)');
+    plateErase.addColorStop(.64,'rgba(255,255,255,.99)');
+    plateErase.addColorStop(1,'rgba(255,255,255,0)');
+    foilCtx.fillStyle=plateErase;foilCtx.fillRect(-79,-79,158,158);
+    foilCtx.restore();
     const sourceRatio=finish.width/280;
+    // Keep the right-hand rail continuous where the soft mask touched it.
+    foilCtx.drawImage(foil,finish.index*290+272*sourceRatio,37,
+      8*sourceRatio,124,272,37,8,124);
+    ctx.drawImage(foilLayer,0,0);
+    ctx.restore();
+    // Show the supplied grade plaque at exactly 50% of its original size.
+    const badge={x:185,y:35,w:89,h:62};
     ctx.save();
     ctx.shadowColor=finish.edge+'75';ctx.shadowBlur=4;
     ctx.drawImage(foil,finish.index*290+badge.x*sourceRatio,badge.y,
-      badge.w*sourceRatio,badge.h, badge.x+badge.w/2,badge.y,badge.w/2,badge.h/2);
+      badge.w*sourceRatio,badge.h,badge.x+badge.w/2,badge.y,badge.w/2,badge.h/2);
     ctx.restore();
   }else{
     stroke(ctx,body,finish.edge,5);
