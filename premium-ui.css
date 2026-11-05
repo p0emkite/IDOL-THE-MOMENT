@@ -231,3 +231,26 @@ body.itm-concert .ur-screen-transition.playing::after{
     100%{opacity:0}
   }
 }
+
+
+/* Pastel aurora environment matches the new 3D sky dome, including the
+   first frame before WebGL loads and the optional 2D fallback. */
+body.itm-concert,
+body.itm-concert .hero,
+body.itm-concert .scene-wrap{
+  background:
+    radial-gradient(ellipse 45% 74% at 15% 38%,#f09cdb91 0%,transparent 76%),
+    radial-gradient(ellipse 50% 72% at 84% 40%,#89cfef98 0%,transparent 79%),
+    radial-gradient(ellipse 53% 72% at 52% 36%,#b994e8aa 0%,transparent 76%),
+    linear-gradient(116deg,#31204f 0%,#694579 42%,#5a6497 78%,#30365f 100%)!important;
+}
+body.itm-concert .scene-wrap canvas{
+  background:transparent!important;
+}
+body.itm-concert .topbar{
+  background:linear-gradient(180deg,#28143a83 0%,#28143a08 96%)!important;
+}
+@media(prefers-reduced-motion:reduce){
+  body.itm-concert .hero,
+  body.itm-concert .scene-wrap{background-attachment:scroll!important}
+}
