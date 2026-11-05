@@ -110,12 +110,35 @@ export function createConcertStage({THREE,scene,renderer,oldBeams=[]}) {
     rod([x-sign*.24,-2.62,z+.1],[x-sign*.24,5.1,z+.1],.034,rig);
     panel(x,-.1,z+.25,.13,5.7,.12,mat(0xf593c5,.38));
   }
-  // Visible stage monitor footlights, rigged LED battens and glossy lenses.
+  // Real illuminated fixture faces with soft sprites: not black rectangular bars.
+  const haloCanvas=document.createElement('canvas');haloCanvas.width=128;haloCanvas.height=128;
+  const haloCtx=haloCanvas.getContext('2d');
+  const haloGrad=haloCtx.createRadialGradient(64,64,3,64,64,63);
+  haloGrad.addColorStop(0,'#ffffffff');
+  haloGrad.addColorStop(.13,'#fff5fffa');
+  haloGrad.addColorStop(.32,'#fff1fa98');
+  haloGrad.addColorStop(.61,'#fba4e92a');
+  haloGrad.addColorStop(1,'#ff98f500');
+  haloCtx.fillStyle=haloGrad;haloCtx.fillRect(0,0,128,128);
+  const haloTexture=new THREE.CanvasTexture(haloCanvas);
+  haloTexture.colorSpace=THREE.SRGBColorSpace;
+  function glowSprite(x,y,z,color,sx=1,sy=1){
+    const flare=new THREE.Sprite(new THREE.SpriteMaterial({
+      map:haloTexture,color,transparent:true,opacity:.62,
+      depthWrite:false,blending:THREE.AdditiveBlending
+    }));
+    flare.position.set(x,y,z);flare.scale.set(sx,sy,1);
+    venue.add(flare);glowMeshes.push(flare);
+    return flare;
+  }
+  // High-resolution row of independently lit lamps along the upper truss.
   for(let i=0;i<13;i++){
     const x=(i-6)*1.44;
-    panel(x,4.89,-4.55,.73,.19,.47,rigDark);
-    const lens=panel(x,4.70,-4.18,.57,.09,.09,mat(i%4===0?0xffe5ef:0xffb3e2,.79));
+    panel(x,4.92,-4.58,.68,.24,.45,rig);
+    panel(x,4.75,-4.21,.65,.12,.13,metal(0xd29ebc,.28,.44));
+    const lens=panel(x,4.71,-4.11,.48,.105,.075,mat(i%4===0?0xffffff:0xffcbe9,.92));
     glowMeshes.push(lens);
+    glowSprite(x,4.69,-3.96,i%4===0?0xffe1f3:0xffa5de,1.06,.56);
     panel(x,-2.58,wallZ(x)+.31,.56,.11,.15,mat(i%3===0?0xffd1ea:0xffa2d5,.7));
   }
   // Side stage lighting towers are now lattice trusses in real perspective.
@@ -193,9 +216,14 @@ export function createConcertStage({THREE,scene,renderer,oldBeams=[]}) {
     spot.position.set(x,y,z);
     spot.target.position.set(targetX,-1.68,-.5);
     venue.add(spot,spot.target);
-    spots.push({spot,targetX,phase:i*1.7});
-    panel(x,y+.15,z,.51,.3,.42,rigDark);
-    panel(x,y-.1,z+.2,.41,.09,.08,mat(color,.79));
+    panel(x,y+.19,z,.54,.29,.49,rig);
+    panel(x,y-.11,z+.24,.48,.13,.10,metal(0xf1c8e3,.24,.57));
+    const bulb=mesh(new THREE.SphereGeometry(.16,16,10),new THREE.MeshBasicMaterial({
+      color:0xffe9f9,toneMapped:false
+    }),[x,y-.12,z+.34]);
+    bulb.scale.set(1.22,.65,.41);
+    const flare=glowSprite(x,y-.12,z+.49,color,1.27,1.13);
+    spots.push({spot,targetX,phase:i*1.7,bulb,flare});
     const dest=new THREE.Vector3(targetX,-2.0,-.5);
     const from=new THREE.Vector3(x,y,z),dir=dest.clone().sub(from);
     const beam=mesh(new THREE.ConeGeometry(2.1,dir.length(),48,1,true),beamMat(color));
@@ -344,11 +372,16 @@ export function createConcertStage({THREE,scene,renderer,oldBeams=[]}) {
       }
     }
     if(lastDraw<0||t-lastDraw>(isMobile()?.18:.13)){drawLED(t);lastDraw=t}
-    for(const {spot,targetX,phase} of spots){
-      spot.intensity=blackout?.18:5.9+.58*Math.sin(t*.35+phase);
+    for(const {spot,targetX,phase,bulb,flare} of spots){
+      spot.intensity=blackout?.08:5.9+.58*Math.sin(t*.35+phase);
       spot.target.position.x=targetX+Math.sin(t*.32+phase)*.9;
       spot.target.updateMatrixWorld();
-      spot.color.lerp(tint,.015);
+      spot.color.lerp(tint,.026);
+      if(bulb)bulb.material.color.lerp(blackout?new THREE.Color('#201422'):tint,.055);
+      if(flare){
+        flare.material.color.lerp(tint,.04);
+        flare.material.opacity=blackout?.03:.66+.10*Math.sin(t*.9+phase);
+      }
     }
     for(const {beam,from,targetX,phase} of rays){
       const dest=new THREE.Vector3(targetX+Math.sin(t*.32+phase)*.9,-2.0,-.5);
@@ -357,8 +390,11 @@ export function createConcertStage({THREE,scene,renderer,oldBeams=[]}) {
       beam.quaternion.setFromUnitVectors(new THREE.Vector3(0,-1,0),dir.normalize());
       beam.material.uniforms.uStrength.value=blackout?.003:.13+.017*Math.sin(t*.66+phase);
     }
-    for(let i=0;i<glowMeshes.length;i++)
-      glowMeshes[i].material.opacity=.54+.13*Math.sin(t*.61+i*.44);
+    for(let i=0;i<glowMeshes.length;i++){
+      const glow=glowMeshes[i];
+      if(glow.isSprite)continue;
+      glow.material.opacity=.72+.13*Math.sin(t*.61+i*.44);
+    }
     for(let i=0;i<batons.length;i++){
       const b=batons[i];
       dummy.position.set(b.x+Math.sin(t*.42+b.phase)*.05,b.y+.49*b.k+Math.sin(t*1.41+b.phase)*.065,b.z);
