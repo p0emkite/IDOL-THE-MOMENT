@@ -41,12 +41,34 @@ async function check(name,device){
     report.checks.sound=audioStats;
     await page.locator('#audioToggle').click();
     await page.locator('#drawFive').click({timeout:12000});
-    // A GPU-heavy arena can delay rendering slightly; verify the actual result,
-    // not whether it had appeared at an arbitrary 5.8 second mark.
-    await page.waitForFunction(()=>{
-      const stage=document.getElementById('packRevealStage');
-      return stage&&!stage.hidden&&document.querySelectorAll('#stageCardTrack .stage-card-button').length===5;
-    },null,{timeout:22000});
+    report.checks.afterPackClick=await page.evaluate(()=>({
+      heading:document.getElementById('sceneHeading')?.textContent,
+      buttonDisabled:document.getElementById('drawFive')?.disabled,
+      cinematic:document.body.classList.contains('pack-cinematic'),
+      overlay:document.getElementById('accountOverlay')?.className
+    }));
+    // Software WebGL runs much slower than native GPU hardware.
+    // Poll on a timer rather than a requestAnimationFrame callback.
+    try{
+      await page.waitForFunction(()=>{
+        const stage=document.getElementById('packRevealStage');
+        return stage&&!stage.hidden&&document.querySelectorAll('#stageCardTrack .stage-card-button').length===5;
+      },null,{timeout:40000,polling:300});
+    }catch(error){
+      report.checks.openTimeout=await page.evaluate(()=>({
+        heading:document.getElementById('sceneHeading')?.textContent,
+        bodyClasses:document.body.className,
+        overlay:document.getElementById('accountOverlay')?.className,
+        buttonDisabled:document.getElementById('drawFive')?.disabled,
+        hint:document.getElementById('stageHint')?.textContent,
+        count:document.querySelectorAll('#stageCardTrack .stage-card-button').length,
+        toast:document.querySelector('[role="alert"]')?.textContent
+      }));
+      const stalled='qa/desktop-stalled.png';
+      await page.screenshot({path:stalled,fullPage:false});
+      report.screenshots.push(stalled);
+      throw error;
+    }
     report.checks.open=await page.evaluate(()=>({
       reveal:!document.getElementById('packRevealStage').hidden,
       actualCards:document.querySelectorAll('#stageCardTrack .stage-card-button').length
@@ -60,7 +82,7 @@ async function check(name,device){
     await page.waitForFunction(()=>{
       const stage=document.getElementById('packRevealStage');
       return stage&&!stage.hidden&&document.querySelectorAll('#stageCardTrack .stage-card-button').length===5;
-    },null,{timeout:22000});
+    },null,{timeout:40000,polling:300});
     const ur=page.locator('#stageCardTrack .stage-card-button.rarity-ur');
     await ur.scrollIntoViewIfNeeded();
     await ur.click({timeout:12000});
