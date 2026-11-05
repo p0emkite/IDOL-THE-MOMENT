@@ -33,22 +33,6 @@ async function check(name,device){
   await page.screenshot({path:screenshot,fullPage:false});
   report.screenshots.push(screenshot);
   if(name==='desktop'){
-    // Validate every empty-photo, empty-logo grade frame and capture their UI.
-    const preview=await context.newPage();
-    preview.on('pageerror',err=>report.consoleErrors.push('frame-preview: '+err.message));
-    await preview.goto(root+'frame-preview.html',{waitUntil:'domcontentloaded',timeout:30000});
-    await preview.waitForFunction(()=>document.querySelectorAll('#gallery figure img').length===5&&
-      [...document.querySelectorAll('#gallery figure img')].every(x=>x.complete&&x.naturalWidth===1024),
-      null,{timeout:15000});
-    report.checks.frameTemplates=await preview.evaluate(()=>({
-      count:document.querySelectorAll('#gallery figure').length,
-      sizes:[...document.querySelectorAll('#gallery figure img')].map(x=>[x.naturalWidth,x.naturalHeight]),
-      tiers:[...document.querySelectorAll('#gallery figcaption strong')].map(x=>x.textContent)
-    }));
-    const previewShot='qa/desktop-frame-templates.png';
-    await preview.screenshot({path:previewShot,fullPage:false,timeout:15000});
-    report.screenshots.push(previewShot);
-    await preview.close();
     await page.locator('#audioToggle').click();
     const audioStats=await page.evaluate(()=>({
       visible:!document.getElementById('soundPanel').hidden,
@@ -134,7 +118,29 @@ async function check(name,device){
   }
   await context.close();
 }
+
+async function checkFrameTemplates(){
+  // Frame preview FIRST, before software WebGL consumes the Chromium render thread.
+  const context=await browser.newContext({viewport:{width:1680,height:940}});
+  const preview=await context.newPage();
+  preview.on('pageerror',err=>report.consoleErrors.push('frame-preview: '+err.message));
+  await preview.goto(root+'frame-preview.html',{waitUntil:'domcontentloaded',timeout:30000});
+  await preview.waitForFunction(()=>document.querySelectorAll('#gallery figure img').length===5&&
+    [...document.querySelectorAll('#gallery figure img')].every(x=>x.complete&&x.naturalWidth===1024),
+    null,{timeout:15000});
+  report.checks.frameTemplates=await preview.evaluate(()=>({
+    count:document.querySelectorAll('#gallery figure').length,
+    sizes:[...document.querySelectorAll('#gallery figure img')].map(x=>[x.naturalWidth,x.naturalHeight]),
+    tiers:[...document.querySelectorAll('#gallery figcaption strong')].map(x=>x.textContent)
+  }));
+  const previewShot='qa/desktop-frame-templates.png';
+  await preview.screenshot({path:previewShot,fullPage:false,timeout:15000});
+  report.screenshots.push(previewShot);
+  await context.close();
+}
+
 try{
+ await checkFrameTemplates();
  await check('desktop',{width:1680,height:940});
  await check('mobile',{width:390,height:844});
  await check('landscape',{width:844,height:390});
