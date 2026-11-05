@@ -22,8 +22,10 @@ function drawCover(ctx,img,x,y,w,h,transform={}){
   const iw=img?.naturalWidth||img?.videoWidth||img?.width||0;
   const ih=img?.naturalHeight||img?.videoHeight||img?.height||0;
   if(!iw||!ih)return false;
-  const magnification=clamp(Number(transform.scale)||1,1,4);
+  const requestedScale=Number(transform.scale);
+  const magnification=Number.isFinite(requestedScale)?clamp(requestedScale,0,4):1;
   const ratio=Math.max(w/iw,h/ih)*magnification;
+  if(ratio<=0)return false;
   const dw=iw*ratio,dh=ih*ratio;
   // Offset is normalised against the maximum image overscan. This ensures
   // the crop never leaves blank edges, on mobile or desktop.
@@ -115,12 +117,33 @@ export function renderITMCard(card,{photo=null,groupLogo=null,photoTransform=nul
   drawCover(ctx,photo,4/aspectCorrection,34,272/aspectCorrection,438,photoTransform||card?.photo_transform||
     {scale:card?.photo_scale,x:card?.photo_x,y:card?.photo_y});
   ctx.restore();
+  // Solid rarity-tinted lower swoosh: never show the photo through this panel.
+  const lowerFill=new Path2D();
+  lowerFill.moveTo(7,413);
+  lowerFill.bezierCurveTo(20,483,242,409,274,326);
+  lowerFill.lineTo(274,478);lowerFill.lineTo(7,478);lowerFill.closePath();
+  const lowerTone=ctx.createLinearGradient(40,374,245,480);
+  lowerTone.addColorStop(0,finish.edge);
+  lowerTone.addColorStop(1,finish.shade);
+  ctx.fillStyle=lowerTone;ctx.fill(lowerFill);
   drawGlass(ctx,finish);
   ctx.restore();
   if(foil.naturalWidth){
     ctx.save();
     ctx.shadowColor=finish.edge+'96';ctx.shadowBlur=finish.index===4?13:7;
+    // The badge is part of the original foil atlas. Omit its native-sized
+    // rectangle, then repaint only that badge at half its original size.
+    const badge={x:185,y:35,w:89,h:62};
+    ctx.beginPath();ctx.rect(0,0,280,478);
+    ctx.rect(badge.x,badge.y,badge.w,badge.h);
+    ctx.clip('evenodd');
     ctx.drawImage(foil,finish.index*290,0,finish.width,478,0,0,280,478);
+    ctx.restore();
+    const sourceRatio=finish.width/280;
+    ctx.save();
+    ctx.shadowColor=finish.edge+'75';ctx.shadowBlur=4;
+    ctx.drawImage(foil,finish.index*290+badge.x*sourceRatio,badge.y,
+      badge.w*sourceRatio,badge.h, badge.x+badge.w/2,badge.y,badge.w/2,badge.h/2);
     ctx.restore();
   }else{
     stroke(ctx,body,finish.edge,5);
@@ -128,12 +151,30 @@ export function renderITMCard(card,{photo=null,groupLogo=null,photoTransform=nul
     ctx.fillText(card?.rarity||'N',264,87);
   }
   polishFoil(ctx,finish);
+  // Member name belongs inside the lower-left field, not outside the frame.
+  if(card?.name||card?.display_name){
+    const caption=String(card.name||card.display_name).trim();
+    ctx.save();
+    ctx.font='800 17px Pretendard, "Noto Sans KR", Arial, sans-serif';
+    ctx.textBaseline='middle';
+    ctx.textAlign='left';
+    ctx.lineJoin='round';
+    ctx.strokeStyle='#180d30c9';ctx.lineWidth=3;
+    ctx.shadowColor=finish.light;ctx.shadowBlur=3;
+    ctx.strokeText(caption,22,452,148);
+    ctx.fillStyle='#fffdfd';ctx.fillText(caption,22,452,148);
+    ctx.restore();
+  }
   if(groupLogo){
     const w=groupLogo.naturalWidth||groupLogo.width,h=groupLogo.naturalHeight||groupLogo.height;
     if(w&&h){
+      ctx.save();
       ctx.scale(aspectCorrection,1);
-      const fit=Math.min(48/aspectCorrection/w,51/h);
-      ctx.drawImage(groupLogo,238/aspectCorrection-w*fit/2,434-h*fit/2,w*fit,h*fit);
+      const requestedLogoScale=Number(card?.logo_scale);
+      const logoScale=Number.isFinite(requestedLogoScale)?clamp(requestedLogoScale,0,3):1;
+      const fit=Math.min(48/aspectCorrection/w,51/h)*logoScale;
+      if(fit>0)ctx.drawImage(groupLogo,238/aspectCorrection-w*fit/2,434-h*fit/2,w*fit,h*fit);
+      ctx.restore();
     }
   }
   return canvas;
