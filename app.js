@@ -1,4 +1,4 @@
-import {mountAudioPanel} from './audio-manager.js';
+import {mountAudioPanel} from './audio-manager.js?v=pack-studio-20261105';
 import {createOpeningEffects} from './opening-effects.js';
 import {renderITMCard} from './card-frame.js';
 /* ITM — IDOL : THE MOMENT | Standalone, fan-made 3D prototype
