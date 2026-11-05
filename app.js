@@ -814,7 +814,10 @@ async function openPack(count){
       for(const card of rolled)state.demoInventory[card.id]=(state.demoInventory[card.id]||0)+1;
       writeDemoInventory();updateCounts();
     }
-    await Promise.all(rolled.map(preloadCard));
+    await Promise.all(rolled.map(async card=>{
+      try{await preloadCard(card)}
+      catch(err){console.warn('Card art unavailable; reveal still continues',err)}
+    }));
   }catch(err){
     state.busy=false;$('drawOne').disabled=$('drawFive').disabled=false;
     toast('카드팩 개봉 실패: '+(err?.message||String(err)));return;
