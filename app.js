@@ -583,18 +583,28 @@ function frame(now){
     const progress=opening?clamp(elapsed/(PACK_OPEN_DURATION/1000),0,1):0;
     const tear=opening?clamp((elapsed-2.52)/1.30,0,1):0;
     const split=EASE(tear);
-    // Micro-tremor, accelerated shake, then a quick physical snap before the tear.
-    const charge=opening?EASE(clamp(elapsed/.85,0,1))*(1-EASE(clamp((elapsed-2.38)/.39,0,1))):0;
-    const oscillation=19+Math.min(2.4,elapsed)*9;
-    const snap=opening?Math.sin(Math.PI*clamp((elapsed-2.48)/.39,0,1))*.09:0;
+    // Two to three graceful diagonal shifts, damping to a full stop.
+    // Keyframed ease-in-out replaces the previous high-frequency tremor.
+    const swayKeys=[[0,0],[.18,-1],[.40,.86],[.62,-.48],[.81,.22],[1,0]];
+    const swayProgress=clamp((elapsed-.24)/1.16,0,1);
+    let diagonal=0;
+    if(opening&&swayProgress>0&&swayProgress<1){
+      for(let i=0;i<swayKeys.length-1;i++){
+        const [from,amplitude]=swayKeys[i],[to,nextAmplitude]=swayKeys[i+1];
+        if(swayProgress<=to){
+          diagonal=amplitude+(nextAmplitude-amplitude)*EASE(clamp((swayProgress-from)/(to-from),0,1));
+          break;
+        }
+      }
+    }
     const floatX=Math.sin(t*.53)*.095+Math.sin(t*.22)*.06;
-    pack.position.set(floatX+(opening?charge*Math.sin(t*12)*.017:0),
-      Math.sin(t*1.06)*.12+(opening?EASE(clamp(elapsed/2.1,0,1))*.18+snap:0),
+    pack.position.set(floatX+diagonal*.115,
+      Math.sin(t*1.06)*.12-diagonal*.075+(opening?EASE(clamp(elapsed/2.7,0,1))*.11:0),
       Math.cos(t*.37)*.032);
-    pack.rotation.y=-.16+Math.sin(t*.54)*.16+(opening?charge*Math.sin(t*oscillation)*.075:0);
-    pack.rotation.x=Math.sin(t*.66)*.025+(opening?charge*Math.sin(t*23)*.026:0);
-    pack.rotation.z=Math.sin(t*.48)*.02+(opening?charge*Math.sin(t*(oscillation+7))*.062+snap*.16:0);
-    pack.scale.setScalar(opening?1+EASE(clamp(elapsed/2.7,0,1))*.095+snap*.085:1);
+    pack.rotation.y=-.16+Math.sin(t*.54)*(opening?.055:.16)+diagonal*.009;
+    pack.rotation.x=Math.sin(t*.66)*.025;
+    pack.rotation.z=Math.sin(t*.48)*.02+diagonal*.027;
+    pack.scale.setScalar(opening?1+EASE(clamp(elapsed/2.7,0,1))*.085:1);
     if(packSheen)packSheen.material.opacity=.21+.17*(.5+.5*Math.sin(t*.72+pack.rotation.y*3));
     pack.visible=(ready||opening)&&tear<=.004;
     packRim.visible=pack.visible;
@@ -613,7 +623,7 @@ function frame(now){
       packBottom.position.y=-.95/2-split*.59;
       packBottom.rotation.z=split*.052;
       packSeam.material.opacity=(1-tear)*.92;
-      packSeam.scale.x=.87+.13*Math.sin(t*42);
+      packSeam.scale.x=1;
     }
     if(openingCard){
       const emerge=clamp((elapsed-2.94)/1.16,0,1);
