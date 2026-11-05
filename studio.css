@@ -11,7 +11,7 @@ main{max-width:1600px;margin:auto;padding:0 32px 70px}.intro{padding:44px 0 28px
 .tools{display:grid;grid-template-columns:minmax(220px,.76fr) minmax(320px,1.03fr) minmax(310px,.93fr);gap:20px;align-items:start}
 .section-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:23px}.section-heading h2{font-size:18px;margin:9px 0 0;font-weight:780}
 form label{display:flex;flex-direction:column;gap:9px;font-size:12px;color:#e6d8ec;font-weight:620;letter-spacing:.015em;margin:0 0 18px}
-input:not([type=file]):not([type=range]),select{background:#110c20;border:1px solid #a98cc74e;border-radius:11px;color:#faf5ff;min-height:43px;padding:10px 12px;outline:none;width:100%}
+input:not([type=file]):not([type=range]):not([type=checkbox]),select{background:#110c20;border:1px solid #a98cc74e;border-radius:11px;color:#faf5ff;min-height:43px;padding:10px 12px;outline:none;width:100%}
 input:focus,select:focus{border-color:#f6bcec!important;box-shadow:0 0 0 2px #f6bcec24}
 input[type=file]{max-width:100%;font-size:11px;color:#d7c8e4}input[type=file]::file-selector-button{padding:8px 10px;background:#362643;color:#f4dff5;border:1px solid #bfa6ce63;border-radius:7px;margin-right:8px}
 .field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}.helper{color:#b3a4c5;font-size:11px;line-height:1.7;margin:0 0 22px}
@@ -44,13 +44,59 @@ input[type=range]{width:100%;accent-color:#e5a2e9;margin:0 0 15px}.range-control
 .library-filters{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:12px;margin-bottom:16px}
 @media(max-width:700px){.tools{grid-template-columns:minmax(0,1fr)}.preview-section{position:static}.library-filters{grid-template-columns:1fr}}
 
-/* Collapsible pack manager & multi-select filters. */
+/* Pack manager: compact checkbox tiles, not ordinary full-width form inputs. */
+.pack-section{min-width:0}
 .pack-section summary{cursor:pointer;font-weight:800}
 .pack-section[open] summary{margin-bottom:20px}
-.choice-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin:0 0 20px}
-.choice-item,.check-row{display:flex!important;flex-direction:row!important;align-items:center;gap:8px!important;
-  margin:0!important;padding:10px;border:1px solid #ba9ad73b;background:#171020;border-radius:10px;
-  font-size:12px;cursor:pointer;overflow-wrap:anywhere}
-.choice-item input,.check-row input{width:16px;height:16px;flex:none;accent-color:#e8a5f5}
-.check-row{margin:12px 0 18px!important}
+.pack-section #packForm{min-width:0}
+.choice-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:9px;margin:0 0 20px;min-width:0}
+#packGroups{grid-template-columns:repeat(2,minmax(0,1fr))}
+#packSeries{grid-template-columns:minmax(0,1fr)}
+.pack-section .choice-item,
+.pack-section .check-row{
+  display:grid!important;
+  grid-template-columns:20px minmax(0,1fr);
+  align-items:center;
+  column-gap:12px!important;
+  min-height:49px;
+  min-width:0;
+  margin:0!important;
+  padding:11px 13px;
+  border:1px solid #ba9ad73b;
+  background:#171020;
+  border-radius:10px;
+  font-size:12px;
+  letter-spacing:normal;
+  cursor:pointer;
+  overflow:hidden;
+}
+.pack-section .choice-item:hover,
+.pack-section .check-row:hover{border-color:#e4aeefa8;background:#24182f}
+.pack-section .choice-item input[type=checkbox],
+.pack-section .check-row input[type=checkbox]{
+  appearance:auto;
+  width:18px!important;
+  min-width:18px!important;
+  height:18px!important;
+  min-height:18px!important;
+  max-width:18px;
+  padding:0!important;
+  margin:0!important;
+  flex:0 0 18px;
+  border:0;
+  accent-color:#e8a5f5;
+  box-shadow:none;
+  justify-self:center;
+}
+.pack-section .choice-item span{
+  display:block;
+  min-width:0;
+  width:auto;
+  line-height:1.55;
+  white-space:normal;
+  overflow-wrap:break-word;
+  word-break:normal;
+}
+.pack-section .check-row{margin:12px 0 18px!important}
 .pack-section .logo-display img{object-fit:contain;max-width:95%;max-height:80px}
+@media(max-width:420px){#packGroups{grid-template-columns:minmax(0,1fr)}}
