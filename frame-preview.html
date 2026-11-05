@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<title>ITM — MOMENT FRAME · Design Preview</title>
+<style>
+:root{color-scheme:dark;font-family:Pretendard,"Noto Sans KR",Inter,system-ui,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;color:#f8f0ff;
+ background:radial-gradient(ellipse 65% 48% at 48% 8%,#704b9b 0%,transparent 77%),
+ radial-gradient(ellipse 45% 45% at 10% 72%,#34587f 0%,transparent 86%),
+ radial-gradient(ellipse 48% 50% at 87% 66%,#634d80 0%,transparent 78%),#110d23;}
+header{text-align:center;padding:55px 20px 15px}
+h1{font-size:clamp(24px,4vw,43px);letter-spacing:.1em;margin:0;font-weight:800}
+header p{color:#d9cbe8;font-size:14px;line-height:1.8;max-width:660px;margin:16px auto}
+.gallery{display:flex;flex-wrap:wrap;gap:24px;justify-content:center;align-items:flex-start;
+ max-width:1650px;margin:48px auto 30px;padding:0 26px}
+figure{margin:0;flex:0 0 clamp(175px,17.7vw,276px);min-width:0}
+figure img{display:block;width:100%;height:auto;aspect-ratio:512/746;filter:drop-shadow(0 22px 18px #0007)}
+figcaption{text-align:center;margin-top:14px;display:flex;flex-direction:column;gap:5px}
+figcaption strong{font-family:Georgia,serif;font-style:italic;font-size:24px}
+figcaption span{color:#cbbbd8;font-size:11px;letter-spacing:.13em}
+footer{padding:16px 24px 44px;text-align:center;font-size:12px;color:#c3b6da;line-height:1.9}
+a{color:#f3d7ff}
+</style>
+</head>
+<body>
+<header>
+  <h1>ITM · MOMENT FRAME</h1>
+  <p>최종 카드 프레임 5종. 사진 영역과 우측 하단 그룹 로고 영역은
+  향후 카드 추가 기능을 위해 의도적으로 비워두었습니다.</p>
+</header>
+<main class="gallery" id="gallery"></main>
+<footer>프레임만 미리보기 · 기존 카드 뽑기·도감과 동일한 렌더러 사용<br/>
+<a href="./">ITM 본 페이지로 돌아가기</a></footer>
+<script type="module">
+import {renderITMCard} from './card-frame.js';
+const names={N:'NORMAL',R:'RARE',SR:'SUPER RARE',SSR:'SPECIAL SUPER RARE',UR:'ULTRA RARE'};
+const gallery=document.getElementById('gallery');
+for(const rarity of Object.keys(names)){
+ const img=document.createElement('img');
+ img.src=renderITMCard({rarity}).toDataURL('image/png');
+ img.alt=rarity+' 프레임 — 사진 및 그룹 로고 미배치';
+ const fig=document.createElement('figure');
+ const label=document.createElement('figcaption');
+ const tier=document.createElement('strong');tier.textContent=rarity;
+ const name=document.createElement('span');name.textContent=names[rarity];
+ label.append(tier,name);fig.append(img,label);gallery.append(fig);
+}
+</script>
+</body>
+</html>
