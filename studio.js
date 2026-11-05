@@ -192,6 +192,83 @@ function refreshSelectors(){
   $('groupPicker').replaceChildren(new Option('새 그룹 만들기',''),...state.groups.map(g=>new Option(g.name+' ('+g.slug+')',g.slug)));
   $('groupPicker').value=state.groups.some(x=>x.slug===existing)?existing:'';
 }
+
+/* Editions are scoped to their own group, and newly entered album names
+   are registered when the first card of that series is saved. */
+function refreshSeriesOptions(){
+  const slug=$('cardGroup').value;
+  $('groupSeriesList').replaceChildren(...state.series.filter(x=>x.group_slug===slug).map(x=>new Option(x.name,x.name)));
+}
+function renderChoiceGrid(target,items,selected,formatter){
+  const box=$(target);box.replaceChildren();
+  if(!items.length){box.textContent='아직 등록된 항목이 없습니다.';return}
+  for(const item of items){
+    const label=document.createElement('label');label.className='choice-item';
+    const input=document.createElement('input');input.type='checkbox';input.value=item.key;
+    input.checked=selected.has(item.key);
+    const title=document.createElement('span');title.textContent=formatter(item);
+    label.append(input,title);box.append(label);
+  }
+}
+function refreshPackEditor(){
+  const old=$('packPicker').value;
+  $('packPicker').replaceChildren(new Option('새 팩 만들기',''),...state.packs.map(p=>new Option((p.active?'':'[비공개] ')+p.name,p.id)));
+  if(state.packs.some(p=>p.id===old))$('packPicker').value=old;
+  selectPack($('packPicker').value);
+}
+function selectPack(id){
+  $('packPicker').value=id||'';
+  const pack=state.packs.find(p=>p.id===id);
+  state.packFile=null;state.packImagePath=pack?.image_path||null;
+  $('packImage').value='';$('packName').value=pack?.name||'';
+  $('packActive').checked=pack?.active??true;
+  $('packImagePreview').hidden=!pack?.image_path;
+  $('packImageEmpty').hidden=!!pack?.image_path;
+  if(pack?.image_path)$('packImagePreview').src=publicUrl(pack.image_path);
+  const groups=new Set(pack?.group_slugs||[]);
+  const selectedSeries=new Set((pack?.series_filters||[]).map(f=>f.group_slug+'::'+f.name));
+  renderChoiceGrid('packGroups',state.groups.map(g=>({key:g.slug,label:g.name})),groups,i=>i.label);
+  renderChoiceGrid('packSeries',state.series.map(x=>({key:x.group_slug+'::'+x.name,name:x.name,group:x.group_slug})),selectedSeries,i=>i.group+' / '+i.name);
+  $('deletePack').disabled=!state.admin||!id;
+  accessControls();
+}
+function chosenInputs(id){return [...$(id).querySelectorAll('input:checked')].map(x=>x.value)}
+async function savePack(event){
+  event.preventDefault();
+  if(!state.admin||state.saving)return toast('팩 저장은 관리자만 가능합니다.');
+  const name=$('packName').value.trim(),id=$('packPicker').value;
+  if(!name)return toast('팩 이름을 입력해 주세요.');
+  state.saving=true;accessControls();
+  try{
+    const image_path=state.packFile?await uploadFile(state.packFile,'packs'):state.packImagePath;
+    const groups=chosenInputs('packGroups');
+    const series=chosenInputs('packSeries').map(v=>{
+      const i=v.indexOf('::');return {group_slug:v.slice(0,i),name:v.slice(i+2)};
+    });
+    const record={name,image_path,group_slugs:groups,series_filters:series,active:$('packActive').checked,updated_at:new Date().toISOString()};
+    const req=id?state.client.from('itm_packs').update(record).eq('id',id):state.client.from('itm_packs').insert(record);
+    const {data,error}=await req.select('id').single();
+    if(error)throw error;
+    state.packFile=null;
+    await loadCatalog();
+    $('packPicker').value=data.id;selectPack(data.id);
+    toast('팩 종류와 등장 그룹·시리즈를 저장했습니다.');
+  }catch(err){toast('팩 저장 실패: '+(err?.message||err))}
+  finally{state.saving=false;accessControls()}
+}
+async function deletePack(){
+  const id=$('packPicker').value;
+  if(!state.admin||!id||state.saving)return;
+  if(!confirm('이 팩을 삭제하시겠습니까? 기존 카드와 도감은 유지됩니다.'))return;
+  state.saving=true;accessControls();
+  try{
+    const {error}=await state.client.from('itm_packs').delete().eq('id',id);
+    if(error)throw error;
+    await loadCatalog();selectPack('');toast('팩을 삭제했습니다.');
+  }catch(err){toast('팩 삭제 실패: '+(err?.message||err))}
+  finally{state.saving=false;accessControls()}
+}
+
 function clearCard(){
   state.editingId=null;state.photoFile=null;state.fullArtFile=null;
   state.photoImage=null;state.imagePath=null;state.fullArtPath=null;
