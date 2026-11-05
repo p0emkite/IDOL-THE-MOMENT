@@ -38,6 +38,16 @@ export function createOpeningEffects({THREE,scene}){
   const seam=createGlow(1.5,-1.4,.96,.72);
   const heart=createGlow(2.3,0,.25,.59);
   const stageFlare=createGlow(5.1,0,.45,.42);
+  // Layered light escapes from the *inside* of the unsealed pouch.
+  // A narrow core and rising plume make the actual opening the brightest beat.
+  const innerCore=createGlow(2.1,0,.94,.80);
+  const lightPlume=createGlow(3.1,0,1.53,.74);
+  const plumeHalo=createGlow(4.2,0,1.38,.58);
+  const breakFlash=createGlow(3.0,0,.98,.87);
+  // Real lighting on the foil/card, in addition to the screen-space glow.
+  const interiorLight=new THREE.PointLight(0xffcdf4,0,4.8,2);
+  interiorLight.position.set(0,.98,.72);
+  group.add(interiorLight);
   const slitCanvas=document.createElement('canvas');slitCanvas.width=512;slitCanvas.height=32;
   const pen=slitCanvas.getContext('2d');
   const slitGrad=pen.createLinearGradient(0,0,512,0);
@@ -93,7 +103,13 @@ export function createOpeningEffects({THREE,scene}){
     tier=palette[next]?next:'N';
     const [primary,secondary]=palette[tier];
     const col=new THREE.Color(primary);
-    for(const light of [charge,seam,heart,stageFlare])light.material.color.copy(col);
+    for(const light of [charge,seam,heart,stageFlare,innerCore,lightPlume,plumeHalo,breakFlash]){
+      light.material.color.copy(col);
+    }
+    // The core remains almost white; colored outer light expresses the rarity.
+    innerCore.material.color.set(tier==='UR'?'#fefaff':'#fff4fe');
+    breakFlash.material.color.set(tier==='UR'?'#ffffff':'#fff7ff');
+    interiorLight.color.set(tier==='UR'?'#e6e0ff':primary);
     strip.material.color.copy(col);
     rings.forEach(r=>r.material.color.copy(col));
     spokes.forEach((sp,i)=>sp.material.color.set(i%4===0?secondary:primary));
@@ -107,6 +123,9 @@ export function createOpeningEffects({THREE,scene}){
   function reset(){
     group.visible=false;charge.material.opacity=0;seam.material.opacity=0;
     heart.material.opacity=0;stageFlare.material.opacity=0;strip.material.opacity=0;
+    innerCore.material.opacity=0;lightPlume.material.opacity=0;
+    plumeHalo.material.opacity=0;breakFlash.material.opacity=0;
+    interiorLight.intensity=0;
     rings.forEach(r=>r.material.opacity=0);
     sparks.material.opacity=0;
   }
@@ -128,24 +147,42 @@ export function createOpeningEffects({THREE,scene}){
     seam.position.x=-1.34+2.68*tracing;
     seam.material.opacity=cleave*.77;
     seam.scale.set(.69+cleave*.30,.42+cleave*.19,1);
-    // The interior illuminates as the top tears off.
-    const inner=bump(elapsed,2.56,3.14,4.10,4.64);
-    heart.material.opacity=inner*(tier==='N'?.25:.43);
-    heart.scale.set(2.4+inner*1.1,1.8+inner*1.55,1);
-    stageFlare.material.opacity=bump(elapsed,3.00,3.27,3.75,4.34)*(tier==='UR'?.31:.19);
-    stageFlare.scale.set(4.3+inner*1.9,2.2+inner*1.0,1);
+    // The interior *erupts* when the seal separates (light becomes the action,
+    // not extra violent pack shaking). The source swells in three distinct beats.
+    const tierPower=tier==='UR'?1.29:tier==='SSR'?1.19:tier==='SR'?1.10:1;
+    const openingPulse=bump(elapsed,2.48,2.78,3.47,4.22);
+    const inner=bump(elapsed,2.54,2.91,3.93,4.57);
+    const launch=bump(elapsed,3.02,3.23,3.69,4.25);
+    const snapFlash=bump(elapsed,2.50,2.59,2.72,2.92);
+    const flicker=1+.095*Math.sin(elapsed*17)+.045*Math.sin(elapsed*31);
+    heart.material.opacity=Math.min(.94,inner*(tier==='N'?.57:.78)*flicker);
+    heart.scale.set(2.2+inner*1.5,1.7+inner*1.7,1);
+    innerCore.material.opacity=Math.min(.94,openingPulse*.82*tierPower);
+    innerCore.scale.set(1.17+openingPulse*.87,1.18+openingPulse*1.38,1);
+    lightPlume.material.opacity=Math.min(.85,inner*.58*tierPower);
+    lightPlume.position.y=1.23+inner*.61;
+    lightPlume.scale.set(1.28+inner*.42,2.35+inner*2.0,1);
+    plumeHalo.material.opacity=Math.min(.65,inner*.37*tierPower);
+    plumeHalo.position.y=1.28+inner*.32;
+    plumeHalo.scale.set(2.32+inner*.9,2.0+inner*1.43,1);
+    breakFlash.material.opacity=Math.min(.93,snapFlash*.9*tierPower);
+    breakFlash.scale.set(2.18+snapFlash*.9,.64+snapFlash*.52,1);
+    interiorLight.intensity=inner*(tier==='UR'?9.0:tier==='SSR'?7.8:tier==='SR'?6.7:5.1)
+      *(1+.08*Math.sin(elapsed*14));
+    stageFlare.material.opacity=Math.min(.72,launch*(tier==='UR'?.63:.41)*tierPower);
+    stageFlare.scale.set(3.6+launch*2.4,1.5+launch*2.2,1);
     for(let i=0;i<rings.length;i++){
       const when=i===0?2.59:3.32;
       const age=elapsed-when,ratio=clamp(age/.85);
       const r=rings[i];
-      r.material.opacity=age>=0&&age<.85?(1-smooth(ratio))*(tier==='N'?.38:.66):0;
-      r.scale.setScalar(.12+ratio*2.75);
+      r.material.opacity=age>=0&&age<.85?(1-smooth(ratio))*(tier==='N'?.55:.80):0;
+      r.scale.setScalar(.1+ratio*(i===0?2.95:3.35));
       r.rotation.z=elapsed*.18;
     }
-    const spokesAmt=bump(elapsed,3.07,3.30,3.62,4.06);
+    const spokesAmt=bump(elapsed,3.01,3.22,3.67,4.17);
     for(let i=0;i<spokes.length;i++){
       const ray=spokes[i],angle=Math.PI*2*i/spokes.length;
-      ray.material.opacity=spokesAmt*(tier==='UR'?.29:.18);
+      ray.material.opacity=spokesAmt*(tier==='UR'?.40:.27);
       ray.position.set(Math.cos(angle)*(.36+spokesAmt*.45),
         .61+Math.sin(angle)*(.36+spokesAmt*.45),.65);
       ray.scale.y=.55+spokesAmt*1.5;
@@ -158,12 +195,12 @@ export function createOpeningEffects({THREE,scene}){
       const level=age>0&&age<1.50?Math.min(1,age/.17)*(1-smooth((age-.20)/1.30)):0;
       peak=Math.max(peak,level);
       const v=velocities[i];
-      positions[3*i]=v.x*motion*.62;
-      positions[3*i+1]=(second?.45:.96)+v.y*motion*.76-1.30*motion*motion;
-      positions[3*i+2]=.45+v.z*motion;
+      positions[3*i]=v.x*motion*.71;
+      positions[3*i+1]=(second?.45:.96)+v.y*motion*.94-1.36*motion*motion;
+      positions[3*i+2]=.48+v.z*motion;
     }
     geom.attributes.position.needsUpdate=true;
-    sparkMat.opacity=peak*(tier==='UR'?.88:tier==='SSR'?.77:.59);
+    sparkMat.opacity=peak*(tier==='UR'?.94:tier==='SSR'?.85:.73);
   }
   reset();
   return {setTier,update,reset};
