@@ -99,16 +99,22 @@ export function renderITMCard(card,{photo=null,groupLogo=null,photoTransform=nul
   const canvas=document.createElement('canvas');
   canvas.width=2*ITM_CARD_WIDTH;canvas.height=2*ITM_CARD_HEIGHT;
   const ctx=canvas.getContext('2d');
-  // Keep the tall silhouette of the artwork within ITM's existing export size.
-  const scale=canvas.height/478;
-  ctx.translate((canvas.width-finish.width*scale)/2,0);
-  ctx.scale(scale*finish.width/280,scale);
+  // Map the reference artwork to the original frame bounds in the 512 × 746 layout.
+  // The five strips have different source widths but share one displayed card size.
+  const scaleX=493/278;
+  const scaleY=729.5/472;
+  ctx.scale(canvas.width/ITM_CARD_WIDTH,canvas.height/ITM_CARD_HEIGHT);
+  ctx.translate(9.5-scaleX,7-2*scaleY);
+  ctx.scale(scaleX,scaleY);
+  const aspectCorrection=scaleY/scaleX;
   ctx.imageSmoothingQuality='high';
   const body=new Path2D();body.roundRect(4,34,272,438,25);
   ctx.save();ctx.clip(body);
   ctx.fillStyle='#30283e';ctx.fill(body);
-  drawCover(ctx,photo,4,34,272,438,photoTransform||card?.photo_transform||
+  ctx.save();ctx.scale(aspectCorrection,1);
+  drawCover(ctx,photo,4/aspectCorrection,34,272/aspectCorrection,438,photoTransform||card?.photo_transform||
     {scale:card?.photo_scale,x:card?.photo_x,y:card?.photo_y});
+  ctx.restore();
   drawGlass(ctx,finish);
   ctx.restore();
   if(foil.naturalWidth){
@@ -125,8 +131,9 @@ export function renderITMCard(card,{photo=null,groupLogo=null,photoTransform=nul
   if(groupLogo){
     const w=groupLogo.naturalWidth||groupLogo.width,h=groupLogo.naturalHeight||groupLogo.height;
     if(w&&h){
-      const fit=Math.min(48/w,51/h);
-      ctx.drawImage(groupLogo,238-w*fit/2,434-h*fit/2,w*fit,h*fit);
+      ctx.scale(aspectCorrection,1);
+      const fit=Math.min(48/aspectCorrection/w,51/h);
+      ctx.drawImage(groupLogo,238/aspectCorrection-w*fit/2,434-h*fit/2,w*fit,h*fit);
     }
   }
   return canvas;
