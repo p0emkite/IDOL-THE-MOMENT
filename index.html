@@ -6,6 +6,13 @@
   <meta name="theme-color" content="#090612" />
   <meta name="description" content="IDOL : THE MOMENT — 3D idol photocard collection game." />
   <title>ITM — IDOL : THE MOMENT</title>
+  <link rel="preload" as="image" href="./assets/itm-logo.png" fetchpriority="high" />
+  <style>
+    html { background: #050308; }
+    body.itm-intro-pending > :not(#concertIntro) { visibility: hidden; }
+    #concertIntro { z-index: 1000; }
+    body.itm-intro-active :is(#accountOverlay, .topbar, .control-zone, .odds-link) { visibility: hidden; }
+  </style>
   <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="./style.css" />
   <link rel="stylesheet" href="./pack-opening.css" />
@@ -14,9 +21,15 @@
   <link rel="stylesheet" href="./arena-v3.css" />
   <link rel="stylesheet" href="./premium-ui.css" />
   <script src="./config.js"></script>
-  <script type="module" src="./app.js"></script>
+  <script type="module" src="./app.js?v=intro-first"></script>
 </head>
-<body class="itm-concert">
+<body class="itm-concert itm-intro-pending">
+  <section class="concert-intro" id="concertIntro" aria-label="ITM 콘서트 진입 연출">
+    <div class="concert-curtain left" aria-hidden="true"></div>
+    <div class="concert-curtain right" aria-hidden="true"></div>
+    <div class="concert-intro-brand"><img src="./assets/itm-logo.png" alt="ITM" fetchpriority="high" /><span>IDOL : THE MOMENT</span></div>
+    <button type="button" class="intro-skip" id="concertIntroSkip">SKIP ›</button>
+  </section>
   <section class="sound-panel" id="soundPanel" role="region" aria-label="음악 및 효과음 설정" hidden>
     <div class="sound-title"><span>♪ ITM SOUND STUDIO</span><span>1 → 2 → 3 ↻</span></div>
     <div class="sound-switch"><label for="soundMaster">전체 사운드</label><input class="sound-toggle" type="checkbox" id="soundMaster" /></div>
@@ -211,12 +224,7 @@
     <button type="button" class="splash-close" id="splashClose" aria-label="획득 연출 닫기">×</button>
   </section>
   <div class="ur-screen-transition" id="urScreenTransition" aria-hidden="true" hidden></div>
-  <section class="concert-intro" id="concertIntro" aria-label="ITM 콘서트 진입 연출" hidden>
-    <div class="concert-curtain left" aria-hidden="true"></div>
-    <div class="concert-curtain right" aria-hidden="true"></div>
-    <div class="concert-intro-brand"><img src="./assets/itm-logo.png" alt="ITM" /><span>IDOL : THE MOMENT</span></div>
-    <button type="button" class="intro-skip" id="concertIntroSkip">SKIP ›</button>
-  </section>
+
   <button class="odds-link" id="oddsOpen">ⓘ 등급별 확률</button>
 </body>
 </html>

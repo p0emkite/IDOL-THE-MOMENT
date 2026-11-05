@@ -147,7 +147,7 @@ function syncCanvasPointerEvents(){const canvas=$('threeCanvas');if(canvas)canva
 let scene,renderer,camera,pack,packRim,packParts,packTop,packBottom,packSeam,tornSide,tornFace,openingCard,cardMeshes=[],dust,halos,stageLights=[],openingFx=null,THREE,clock,lastTime=0,openingAt=0,audioContext=null;
 
 let soundManager=null;
-let concertStage=null,hoverChimeAt=0,splashTimer=null,urCoverTimer=null,audioPreferenceSet=false,introShown=false,introTimers=[],introCameraActive=false,introCameraStart=0;
+let concertStage=null,hoverChimeAt=0,splashTimer=null,urCoverTimer=null,audioPreferenceSet=false,introTimers=[],introCameraActive=false,introCameraStart=0;
 const RARITY_CLASSES=['rarity-n','rarity-r','rarity-sr','rarity-ssr','rarity-ur'];
 function setSound(on){
   state.audio=on;
@@ -182,7 +182,7 @@ function fillConcertCrowd(){
 function closeConcertIntro(){
   introTimers.forEach(clearTimeout);introTimers=[];
   introCameraActive=false;
-  document.body.classList.remove('itm-intro-active');
+  document.body.classList.remove('itm-intro-pending','itm-intro-active');
   const el=$('concertIntro');
   if(el){el.hidden=true;el.classList.remove('opening')}
   if(camera){
@@ -191,12 +191,11 @@ function closeConcertIntro(){
     camera.lookAt(0,.27,0);camera.updateProjectionMatrix();
   }
 }
-function showConcertIntro(force=false){
-  if(introShown&&!force)return;
-  introShown=true;
-  closeConcertIntro();
-  const el=$('concertIntro');if(!el)return;
-  el.hidden=false;
+function showConcertIntro(){
+  // Skip may have already dismissed the entry screen while assets were loading.
+  if(!document.body.classList.contains('itm-intro-pending'))return;
+  const el=$('concertIntro');
+  document.body.classList.remove('itm-intro-pending');
   const reduced=matchMedia('(prefers-reduced-motion:reduce)').matches;
   if(reduced){closeConcertIntro();return}
   introCameraActive=!!concertStage;
@@ -206,7 +205,7 @@ function showConcertIntro(force=false){
   void el.offsetWidth;
   // Short, elegant straight-on approach: no audience fly-around or orbit.
   introTimers.push(setTimeout(()=>el.classList.add('opening'),180));
-  introTimers.push(setTimeout(()=>{el.hidden=true},600));
+  introTimers.push(setTimeout(()=>{el.hidden=true},1300));
   introTimers.push(setTimeout(closeConcertIntro,2860));
 }
 function setConcertRarity(rarity){
@@ -1004,7 +1003,6 @@ function chooseGuest(){
   closeModal('accountOverlay');
   updateCounts();updateLogin();
   toast('게스트 모드 · 수집 기록은 이 브라우저에만 저장됩니다.');
-  showConcertIntro(true);
 }
 async function activateNamedUser(user){
   if(!user||!accountNameOf(user))throw Error('ITM 계정 정보를 확인할 수 없습니다.');
@@ -1037,12 +1035,10 @@ async function initBackend(){
     if(user&&accountNameOf(user)&&!user.is_anonymous){
       await activateNamedUser(user);
       saveEntryChoice('account');
-      showConcertIntro();
     }else{
       state.accountName=null;state.playerId=null;state.user=null;
       updateCounts();updateLogin();
       if(!guestChosen())accountOpen(true);
-      else showConcertIntro();
     }
   }catch(err){
     state.authError=err?.message||String(err);
@@ -1085,7 +1081,6 @@ async function submitAccount(event){
     $('accountPassword').value='';
     state.entryRequired=false;saveEntryChoice('account');updateLogin();
     closeModal('accountOverlay');
-    showConcertIntro(true);
     toast(signup?(imported?'회원가입 완료! 게스트 도감도 이전했습니다.':'ITM 계정 생성 완료!'):'로그인 성공! 클라우드 도감을 불러왔습니다.');
   }catch(err){
     setAccountMessage('계정 처리 실패: '+(err?.message||String(err)));
@@ -1166,12 +1161,6 @@ async function init3D(){
       const mod=await import('./premium-stage.js');
       concertStage=mod.createConcertStage({THREE,scene,renderer,oldBeams:stageLights});
       concertStage.reset();
-      // Never restart a completed or active intro when WebGL finishes loading.
-      // The previous forced replay looked like two camera revolutions.
-      if(introShown&&!state.entryRequired&&!$('concertIntro').hidden&&!introCameraActive){
-        introCameraActive=true;
-        introCameraStart=performance.now();
-      }
     }catch(err){console.warn('Concert stage enhancement unavailable',err)}
     resizeScene();
     if(state.phase==='reveal'&&state.cards.length&&!document.body.classList.contains('itm-concert'))addCards();
@@ -1233,4 +1222,17 @@ function bind(){
     }
   });
 }
-bind();init3D();initBackend();
+bind();
+const stageReady=init3D();
+initBackend();
+
+async function enterConcert(){
+  const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+  const logo=$('concertIntro').querySelector('img');
+  await Promise.race([logo.decode().catch(()=>{}),delay(3000)]);
+  // Give the static brand a painted frame even on a fully cached visit.
+  await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+  await Promise.all([delay(450),Promise.race([stageReady,delay(8000)])]);
+  showConcertIntro();
+}
+enterConcert();
