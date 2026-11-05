@@ -52,12 +52,30 @@ const POOL = [
 ].map(([id,name,group,rarity,tint,seed]) => ({id,name,group,rarity,tint,seed,edition:'DEBUT COLLECTION',image_url:null}));
 const byId = new Map(POOL.map(c=>[c.id,c]));
 const LIVE_POOL=[];
+const AVAILABLE_PACKS=[];
 let LIVE_READY=false;
 const loadedArtwork=new Map();
 const artworkPromises=new Map();
 function readLiveInventory(){try{return JSON.parse(localStorage.getItem('itm-live-card-inventory-v1')||'{}')||{}}catch{return {}}}
 function writeLiveInventory(){try{localStorage.setItem('itm-live-card-inventory-v1',JSON.stringify(state.liveInventory))}catch{}}
 function assetUrl(path){return path?state.supabase.storage.from('itm-card-media').getPublicUrl(path).data.publicUrl:null}
+function selectedPack(){return AVAILABLE_PACKS.find(p=>p.id===$('packPicker')?.value)||null}
+function packCardAllowed(c,p){
+  if(!p)return true;
+  const groups=p.group_slugs||[],series=p.series_filters||[];
+  return (!groups.length||groups.includes(c.group_slug))&&(!series.length||series.some(f=>f.group_slug===c.group_slug&&f.name===c.edition));
+}
+async function syncPackArtwork(){
+  const id=$('packPicker')?.value,chosen=selectedPack();
+  if(!pack||!renderer)return;
+  try{
+    const img=chosen?.image_path?await ensureImage(assetUrl(chosen.image_path)):makePackTexture();
+    if($('packPicker')?.value!==id||!pack)return;
+    const old=packTexture;packTexture=texture(img);
+    for(const k of [4,5]){pack.material[k].map=packTexture;pack.material[k].needsUpdate=true}
+    if(old!==packTexture)old?.dispose();
+  }catch(err){console.warn('Pack image unavailable',err)}
+}
 async function ensureImage(url){
   if(!url)return null;
   if(loadedArtwork.has(url))return loadedArtwork.get(url);
@@ -75,22 +93,33 @@ async function preloadCard(card){
   if(!card?.isLive)return;
   await Promise.all([ensureImage(card.image_url),ensureImage(card.group_logo_url)]);
 }
-function drawLiveLocal(count){
+function drawLiveLocal(count,packRule=null){
+  const eligible=LIVE_POOL.filter(c=>packCardAllowed(c,packRule));
+  if(!eligible.length)throw Error('선택한 팩에 공개된 카드가 없습니다.');
+  const allowedTiers=TIERS.filter(t=>eligible.some(c=>c.rarity===t.key));
+  const total=allowedTiers.reduce((sum,t)=>sum+t.chance,0);
   return Array.from({length:count},()=>{
-    let roll=rand()*100;
-    let key='N';
-    for(const tier of TIERS){if(roll<tier.chance){key=tier.key;break}roll-=tier.chance}
-    const matches=LIVE_POOL.filter(c=>c.rarity===key);
+    let roll=rand()*total,key=allowedTiers[0].key;
+    for(const tier of allowedTiers){if(roll<tier.chance){key=tier.key;break}roll-=tier.chance}
+    const matches=eligible.filter(c=>c.rarity===key);
     return matches[Math.floor(rand()*matches.length)];
   });
 }
 async function loadPublishedCatalog(){
   if(!state.supabase)return false;
-  const [groupsResult,cardsResult]=await Promise.all([
+  const [groupsResult,cardsResult,packsResult]=await Promise.all([
     state.supabase.from('itm_groups').select('slug,name,logo_path'),
-    state.supabase.from('itm_catalog').select('id,group_slug,display_name,edition,rarity,photo_path,full_art_path,photo_scale,photo_x,photo_y,status').eq('status','published')
+    state.supabase.from('itm_catalog').select('id,group_slug,display_name,edition,rarity,photo_path,full_art_path,photo_scale,photo_x,photo_y,logo_scale,status').eq('status','published'),
+    state.supabase.from('itm_packs').select('id,name,image_path,group_slugs,series_filters,active').eq('active',true).order('created_at')
   ]);
-  if(groupsResult.error||cardsResult.error)throw(groupsResult.error||cardsResult.error);
+  if(groupsResult.error||cardsResult.error||packsResult.error)throw(groupsResult.error||cardsResult.error||packsResult.error);
+  const previous=$('packPicker')?.value||'';
+  AVAILABLE_PACKS.splice(0,AVAILABLE_PACKS.length,...(packsResult.data||[]));
+  const picker=$('packPicker');
+  picker.replaceChildren(new Option('기본 카드팩',''),...AVAILABLE_PACKS.map(p=>new Option(p.name,p.id)));
+  picker.value=AVAILABLE_PACKS.some(p=>p.id===previous)?previous:'';
+  $('packChoice').hidden=!AVAILABLE_PACKS.length;
+  if(picker.value!==previous)void syncPackArtwork();
   const groupMap=new Map((groupsResult.data||[]).map(g=>[g.slug,g]));
   for(const card of LIVE_POOL)byId.delete(card.id);
   LIVE_POOL.length=0;
@@ -99,7 +128,7 @@ async function loadPublishedCatalog(){
     const card={
       id:row.id,name:row.display_name,group:group?.name||row.group_slug,
       group_slug:row.group_slug,rarity:row.rarity,
-      edition:row.edition,isLive:true,
+      edition:row.edition,isLive:true,logo_scale:Number(row.logo_scale??1),
       image_url:assetUrl(row.photo_path),
       group_logo_url:assetUrl(group?.logo_path),
       full_art_url:assetUrl(row.full_art_path),
@@ -132,7 +161,7 @@ const PACK_OPEN_DURATION = 4650;
 function readDemoInventory(){try{return JSON.parse(localStorage.getItem('itm-test-pack-inventory-v1')||'{}')||{}}catch{return {}}}
 function writeDemoInventory(){try{localStorage.setItem('itm-test-pack-inventory-v1',JSON.stringify(state.demoInventory))}catch{}}
 
-const state = {phase:'ready',cards:[],revealed:new Set(),inventory:readLocal(),demoInventory:readDemoInventory(),remoteDemoInventory:{},liveInventory:readLiveInventory(),remoteLiveInventory:{},supabase:null,user:null,accountName:null,accountMode:'login',entryRequired:false,playerId:null,hasRecovery:false,authError:null,backendReady:false,accountBusy:false,issuedRecovery:null,three:false,audio:false,busy:false};
+const state = {phase:'ready',cards:[],revealed:new Set(),inventory:readLocal(),demoInventory:readDemoInventory(),remoteDemoInventory:{},liveInventory:readLiveInventory(),remoteLiveInventory:{},supabase:null,user:null,accountName:null,accountMode:'login',entryRequired:false,playerId:null,hasRecovery:false,authError:null,backendReady:false,accountBusy:false,issuedRecovery:null,three:false,audio:true,busy:false};
 const ENTRY_KEY='itm-entry-choice-v1';
 const ACCOUNT_PATTERN=/^[a-z][a-z0-9_]{3,19}$/;
 const accountEmail=name=>'itm.'+name+'@accounts.itm.example';
@@ -396,7 +425,7 @@ function toggleAudio(){if(!soundManager){audioPreferenceSet=true;setSound(!state
 // empty until the upcoming card-add tool supplies them as independent layers.
 const artCache=new Map();
 function makeCardArt(card){
-  const cacheKey=JSON.stringify([card.id,card.rarity,card.image_url,card.group_logo_url,card.photo_transform]);
+  const cacheKey=JSON.stringify([card.id,card.rarity,card.image_url,card.group_logo_url,card.photo_transform,card.logo_scale,card.name]);
   if(artCache.has(cacheKey))return artCache.get(cacheKey);
   const photo=card.image_url?loadedArtwork.get(card.image_url):null;
   const groupLogo=card.group_logo_url?loadedArtwork.get(card.group_logo_url):null;
@@ -806,14 +835,16 @@ async function openPack(count){
   try{
     if(state.supabase)await loadPublishedCatalog().catch(err=>console.warn('카드 목록 갱신 실패',err));
     if(isNamedAccount()){
-      const rpc=LIVE_READY?'itm_open_card_pack':'itm_open_demo_pack';
-      const {data,error}=await state.supabase.rpc(rpc,{p_count:count});
+      const rule=LIVE_READY?selectedPack():null;
+      const rpc=rule?'itm_open_managed_pack':LIVE_READY?'itm_open_card_pack':'itm_open_demo_pack';
+      const args=rule?{p_count:count,p_pack_id:rule.id}:{p_count:count};
+      const {data,error}=await state.supabase.rpc(rpc,args);
       if(error)throw error;
       rolled=(data||[]).map(x=>byId.get(String(x.id))).filter(Boolean);
       if(rolled.length!==count)throw Error('서버 카드 결과를 확인할 수 없습니다.');
       await syncRemote();
     }else if(LIVE_READY){
-      rolled=drawLiveLocal(count);
+      rolled=drawLiveLocal(count,selectedPack());
       for(const card of rolled)state.liveInventory[card.id]=(state.liveInventory[card.id]||0)+1;
       writeLiveInventory();updateCounts();
     }else{
@@ -1016,7 +1047,8 @@ async function activateNamedUser(user){
   try{
     const {data:isAdmin}=await state.supabase.rpc('itm_studio_is_admin');
     $('studioOpen').hidden=!isAdmin;
-  }catch{}
+    await soundManager?.setBackend(state.supabase,!!isAdmin);
+  }catch(err){console.warn('Administrator lookup failed',err)}
 }
 async function initBackend(){
   if(!CONFIG.supabaseUrl||!CONFIG.supabasePublishableKey){
@@ -1028,6 +1060,7 @@ async function initBackend(){
       const mod=await import('https://esm.sh/@supabase/supabase-js@2.57.0');
       state.supabase=mod.createClient(CONFIG.supabaseUrl,CONFIG.supabasePublishableKey);
     }
+    void soundManager?.setBackend(state.supabase,false);
     try{await loadPublishedCatalog()}catch(e){console.warn('Card catalog unavailable; demo remains active',e)}
     const {data,error}=await state.supabase.auth.getSession();
     if(error)throw error;
@@ -1095,6 +1128,7 @@ async function logoutAccount(){
   state.accountBusy=false;state.user=null;state.accountName=null;state.playerId=null;
   state.remoteDemoInventory={};state.remoteLiveInventory={};
   $('studioOpen').hidden=true;
+  void soundManager?.setBackend(state.supabase,false);
   state.hasRecovery=false;state.issuedRecovery=null;
   try{localStorage.removeItem(ENTRY_KEY)}catch{}
   updateCounts();accountOpen(true);
@@ -1180,6 +1214,7 @@ function bind(){
     onToggle:(enabled)=>{audioPreferenceSet=true;setSound(enabled);}
   });
   $('drawOne').onclick=()=>openPack(1);$('drawFive').onclick=()=>openPack(5);
+  $('packPicker').onchange=()=>void syncPackArtwork();
   $('stageRevealAll').onclick=revealAll;
   $('stageFinish').onclick=reset;$('stageClose').onclick=reset;
   $('splashClose').onclick=(event)=>{event.stopPropagation();closeRaritySplash()};
