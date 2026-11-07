@@ -40,7 +40,10 @@ input[type=range]{width:100%;accent-color:#e5a2e9;margin:0 0 15px}.range-control
 .editor-column{display:grid;gap:18px;min-width:0}
 .group-section summary{cursor:pointer;font-weight:700}
 .group-section[open] summary{margin-bottom:20px}
-#memberForm{border-top:1px solid #ffffff26;margin-top:20px;padding-top:20px}
+#memberForm,#seriesForm{border-top:1px solid #ffffff26;margin-top:20px;padding-top:20px}
+.series-management-form h3{font-size:14px;margin:0 0 8px;font-weight:800;color:#f6e8ff}
+.series-management-form .helper{margin-bottom:13px}
+.series-management-form .series-management-note{margin:12px 0 0;color:#b8a6c9}
 .preview-section{grid-column:auto;position:sticky;top:12px}
 .library-filters{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-bottom:20px}
 .library-filter{display:flex;flex-direction:column;gap:7px;min-width:0}

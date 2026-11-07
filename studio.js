@@ -25,6 +25,8 @@ function refreshDeleteControls(){
   $('deleteGroup').disabled=!allowed||!$('groupPicker').value;
   $('deleteMember').disabled=!allowed||!$('memberPicker').value;
   $('deleteSeries').disabled=!allowed||!$('cardGroup').value||!$('cardSeriesPicker').value;
+  $('deleteManagedSeries').disabled=!allowed||!$('seriesPicker').value;
+  $('saveSeries').disabled=!allowed||!$('groupPicker').value;
   $('deleteCard').disabled=!allowed||!state.editingId;
 }
 function accessControls(){
@@ -140,6 +142,7 @@ function newGroup(){
   $('groupName').value='';$('groupLogo').value='';
   state.groupLogoFile=null;state.groupEditorImage=null;
   refreshMembers();
+  refreshManagedSeries('');
   $('groupLogoPreview').hidden=true;$('groupLogoEmpty').hidden=false;
   refreshDeleteControls();
 }
@@ -151,6 +154,7 @@ async function selectGroup(){
   $('groupSlug').value=group.slug;$('groupSlug').readOnly=true;
   $('groupName').value=group.name;$('groupLogo').value='';state.groupLogoFile=null;
   refreshMembers();
+  refreshManagedSeries('');
   const path=group.logo_path;
   $('groupLogoPreview').hidden=true;$('groupLogoEmpty').hidden=true;
   if(path){$('groupLogoPreview').src=publicUrl(path);$('groupLogoPreview').hidden=false}
@@ -174,6 +178,48 @@ function refreshMembers(id=''){
   $('memberName').value=state.members.find(m=>m.id===id)?.name||'';
   $('saveMember').disabled=!state.admin||state.saving||!group;
   refreshDeleteControls();
+}
+function refreshManagedSeries(id=''){
+  const slug=$('groupPicker').value;
+  const picker=$('seriesPicker');
+  const options=state.series.filter(series=>series.group_slug===slug)
+    .sort((a,b)=>a.name.localeCompare(b.name,'ko'))
+    .map(series=>new Option(series.name,series.id));
+  picker.replaceChildren(new Option('＋ 새 컬렉션 등록',''),...options);
+  picker.value=options.some(option=>option.value===id)?id:'';
+  $('seriesName').value=state.series.find(series=>series.id===picker.value&&series.group_slug===slug)?.name||'';
+  refreshDeleteControls();
+}
+async function saveSeries(event){
+  event.preventDefault();
+  const group_slug=$('groupPicker').value;
+  const name=$('seriesName').value.trim();
+  const id=$('seriesPicker').value;
+  if(!state.admin||state.saving)return toast('컬렉션 관리는 관리자만 가능합니다.');
+  if(!group_slug||!state.groups.some(group=>group.slug===group_slug))return toast('먼저 그룹을 선택해 주세요.');
+  if(!name||name.length>100)return toast('컬렉션명을 1~100자로 입력해 주세요.');
+  const original=state.series.find(series=>series.id===id&&series.group_slug===group_slug);
+  if(original&&original.name!==name){
+    const cardCount=state.cards.filter(card=>card.group_slug===group_slug&&card.edition===original.name).length;
+    const packCount=linkedPacks(group_slug,original.name).length;
+    if(cardCount||packCount){
+      alert('이 컬렉션의 이름을 바꾸려면 연결된 카드 '+cardCount+'장과 카드팩 '+packCount+'개의 정보를 먼저 정리해 주세요.');
+      return;
+    }
+  }
+  state.saving=true;accessControls();
+  try{
+    const req=original?state.client.from('itm_series').update({name}).eq('id',original.id):
+      state.client.from('itm_series').insert({group_slug,name});
+    const {data,error}=await req.select('id').single();
+    if(error)throw error;
+    await loadCatalog();
+    $('groupPicker').value=group_slug;
+    refreshManagedSeries(data.id);
+    refreshSeriesOptions();
+    toast(original?'컬렉션명을 수정했습니다.':'새 컬렉션을 등록했습니다.');
+  }catch(err){toast(err?.code==='23505'?'이 그룹에 이미 같은 이름의 컬렉션이 있습니다.':'컬렉션 저장 실패: '+(err?.message||err))}
+  finally{state.saving=false;accessControls()}
 }
 async function saveMember(event){
   event.preventDefault();
@@ -204,25 +250,25 @@ function refreshSelectors(){
   $('groupPicker').value=state.groups.some(x=>x.slug===existing)?existing:'';
 }
 
-/* Show a real dropdown of series belonging to the selected group. Include
-   editions already used on cards as well as separately registered series. */
+/* Only registered collections may appear in the new-card picker.
+   Historical card edition strings stay on the cards after a collection is removed. */
 function refreshSeriesOptions(reset=false){
   const slug=$('cardGroup').value;
   const editor=$('cardEdition');
   if(reset)editor.value='';
-  const names=[...new Set([
-    ...state.series.filter(s=>s.group_slug===slug).map(s=>s.name),
-    ...state.cards.filter(c=>c.group_slug===slug).map(c=>c.edition)
-  ].map(name=>typeof name==='string'?name.trim():'').filter(Boolean))]
-    .sort((a,b)=>a.localeCompare(b,'ko'));
+  const names=state.series.filter(series=>series.group_slug===slug).map(series=>series.name)
+    .filter(Boolean).sort((a,b)=>a.localeCompare(b,'ko'));
   const picker=$('cardSeriesPicker');
   picker.replaceChildren(new Option('＋ 새 컬렉션 / 시리즈 직접 입력',''),
     ...names.map(name=>new Option(name,name)));
   const edition=editor.value.trim();
-  const existing=names.includes(edition);
-  picker.value=existing?edition:'';
+  const registered=names.includes(edition);
+  picker.value=registered?edition:'';
   picker.disabled=!slug;
-  $('cardEditionField').hidden=existing;
+  $('cardEditionField').hidden=registered;
+  const existingCard=state.cards.find(card=>card.id===state.editingId);
+  $('cardSeriesNotice').hidden=!(existingCard&&existingCard.group_slug===slug&&
+    existingCard.edition===edition&&edition&&!registered);
   refreshDeleteControls();
 }
 function selectCardSeries(){
@@ -376,26 +422,42 @@ async function deleteMember(){
   }catch(err){toast(deleteFailure('멤버',err))}
   finally{state.saving=false;accessControls()}
 }
-async function deleteSeries(){
-  const groupSlug=$('cardGroup').value,name=$('cardSeriesPicker').value;
-  if(!state.admin||state.saving||!groupSlug||!name)return;
-  const cardCount=state.cards.filter(c=>c.group_slug===groupSlug&&c.edition===name).length;
+async function deleteSeriesById(id){
+  const series=state.series.find(item=>item.id===id);
+  if(!state.admin||state.saving||!series)return;
+  const groupSlug=series.group_slug,name=series.name;
   const packCount=linkedPacks(groupSlug,name).length;
-  if(cardCount||packCount){
-    toast('컬렉션 삭제 불가: 사용 중인 카드 '+cardCount+'장, 연결된 팩 '+packCount+'개를 먼저 정리해 주세요.');
+  if(packCount){
+    alert('컬렉션 ['+name+']이 카드팩 '+packCount+'개의 등장 시리즈 필터에 연결돼 있습니다. 팩 관리에서 해당 필터를 해제한 후 삭제해 주세요.');
     return;
   }
-  const series=state.series.find(s=>s.group_slug===groupSlug&&s.name===name);
-  if(!series){toast('카드에서 사용 중인 컬렉션은 삭제할 수 없습니다.');return;}
-  if(!confirm('컬렉션 ['+name+']을 삭제할까요? 이 작업은 되돌릴 수 없습니다.'))return;
+  const cardCount=state.cards.filter(card=>card.group_slug===groupSlug&&card.edition===name).length;
+  if(!confirm('컬렉션 ['+name+']을 삭제할까요?'+
+    (cardCount?'\\n기존 카드 '+cardCount+'장은 시리즈 표기를 그대로 유지하지만, 신규 카드의 컬렉션 선택 목록에서는 제거됩니다.':'')+
+    '\\n삭제 후 자동 복원되지 않습니다.'))return;
   state.saving=true;accessControls();
   try{
-    await removeStoredRow('itm_series','id',series.id);
-    $('cardEdition').value='';
-    await loadCatalog();refreshSeriesOptions();queuePreview();
-    toast('컬렉션을 삭제했습니다.');
+    await removeStoredRow('itm_series','id',id);
+    const activeCard=state.cards.find(card=>card.id===state.editingId);
+    if($('cardGroup').value===groupSlug&&$('cardEdition').value.trim()===name&&
+       !(activeCard&&activeCard.group_slug===groupSlug&&activeCard.edition===name)){
+      $('cardEdition').value='';
+    }
+    await loadCatalog();
+    refreshManagedSeries('');
+    refreshSeriesOptions();queuePreview();
+    toast('컬렉션을 삭제했습니다. 새 카드 선택 목록에서도 제거됐습니다.');
   }catch(err){toast(deleteFailure('컬렉션',err))}
   finally{state.saving=false;accessControls()}
+}
+async function deleteSeries(){
+  const slug=$('cardGroup').value,name=$('cardSeriesPicker').value;
+  const series=state.series.find(item=>item.group_slug===slug&&item.name===name);
+  if(series)await deleteSeriesById(series.id);
+}
+async function deleteManagedSeries(){
+  const id=$('seriesPicker').value;
+  if(id)await deleteSeriesById(id);
 }
 async function deletePack(){
   const id=$('packPicker').value;
@@ -435,7 +497,7 @@ function refreshURColorControls(){
 function clearCard(){
   state.editingId=null;state.photoFile=null;state.fullArtFile=null;
   state.photoImage=null;state.imagePath=null;state.fullArtPath=null;
-  $('cardName').value='';$('cardEdition').value='DEBUT COLLECTION';$('cardRarity').value='N';
+  $('cardName').value='';$('cardEdition').value='';$('cardRarity').value='N';
   $('logoZoom').value='100';
   $('cardStatus').value='draft';$('cardPhoto').value='';$('cardFullArt').value='';
   $('urNameColor').value='#f0c76d';refreshURColorControls();
@@ -487,7 +549,9 @@ async function loadCatalog(){
   if(series.error||packs.error)throw (series.error||packs.error);
   state.members=members.data||[];state.groups=groups||[];state.cards=cards||[];
   state.series=series.data||[];state.packs=packs.data||[];
+  const selectedSeriesId=$('seriesPicker').value;
   refreshSelectors();refreshCardMembers();refreshMembers($('memberPicker').value);
+  refreshManagedSeries(selectedSeriesId);
   refreshSeriesOptions();refreshPackEditor();refreshLibraryFilterOptions();renderLibrary();await syncLogo();
 }
 function libraryMemberName(card){
@@ -593,14 +657,22 @@ async function saveCard(event){
   if(state.saving)return;
   const group_slug=$('cardGroup').value;
   const display_name=$('cardName').value.trim();
-  const edition=$('cardEdition').value.trim()||'DEBUT COLLECTION';
+  const edition=$('cardEdition').value.trim();
   const status=$('cardStatus').value;
   if(!state.groups.some(g=>g.slug===group_slug)||!display_name)return toast('그룹과 카드명을 입력해 주세요.');
+  if(!edition)return toast('컬렉션을 선택하거나 새 컬렉션명을 입력해 주세요.');
   if(status==='published'&&!state.photoFile&&!state.imagePath)return toast('공개 전 카드 사진을 등록해 주세요.');
   state.saving=true;accessControls();
   try{
-    const {error:seriesError}=await state.client.from('itm_series').upsert({group_slug,name:edition},{onConflict:'group_slug,name'});
-    if(seriesError)throw seriesError;
+    const original=state.cards.find(card=>card.id===state.editingId);
+    const alreadyRegistered=state.series.some(series=>series.group_slug===group_slug&&series.name===edition);
+    const unchangedHistorical=original&&original.group_slug===group_slug&&original.edition===edition;
+    // Editing an existing card must never re-create a deliberately deleted collection.
+    if(!alreadyRegistered&&!unchangedHistorical){
+      const {error:seriesError}=await state.client.from('itm_series')
+        .upsert({group_slug,name:edition},{onConflict:'group_slug,name'});
+      if(seriesError)throw seriesError;
+    }
     const photo_path=state.photoFile?await uploadFile(state.photoFile,'photos'):state.imagePath||'';
     const full_art_path=state.fullArtFile?await uploadFile(state.fullArtFile,'special'):state.fullArtPath||null;
     const transform=currentTransform();
@@ -711,6 +783,9 @@ function bind(){
   $('deleteCard').onclick=()=>deleteCard();
   $('cardForm').onsubmit=saveCard;
   $('groupPicker').onchange=selectGroup;
+  $('seriesForm').onsubmit=saveSeries;
+  $('seriesPicker').onchange=()=>refreshManagedSeries($('seriesPicker').value);
+  $('deleteManagedSeries').onclick=deleteManagedSeries;
   $('newGroup').onclick=newGroup;
   $('newCard').onclick=()=>{clearCard();syncLogo()};
   $('memberForm').onsubmit=saveMember;
