@@ -64,8 +64,8 @@ export function createRarityRevealAccents(){
     const halo=document.createElement('i');halo.className='itm-sr-soft-halo';layer.append(halo);
     for(let i=0;i<24;i++){
       const star=document.createElement('i');star.className='itm-sr-star';
-      star.style.setProperty('--x',((i*47+17)%114-7)+'%');
-      star.style.setProperty('--y',((i*61+11)%114-7)+'%');
+      star.style.left=(rect.left+rect.width*((i*47+17)%114-7)/100)+'px';
+      star.style.top=(rect.top+rect.height*((i*61+11)%114-7)/100)+'px';
       star.style.setProperty('--delay',((i*83)%590)+'ms');
       star.style.setProperty('--scale',(i%4===0?'1.2':i%3===0?'.8':'.55'));
       layer.append(star);
