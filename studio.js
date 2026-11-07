@@ -433,8 +433,8 @@ async function deleteSeriesById(id){
   }
   const cardCount=state.cards.filter(card=>card.group_slug===groupSlug&&card.edition===name).length;
   if(!confirm('컬렉션 ['+name+']을 삭제할까요?'+
-    (cardCount?'\\n기존 카드 '+cardCount+'장은 시리즈 표기를 그대로 유지하지만, 신규 카드의 컬렉션 선택 목록에서는 제거됩니다.':'')+
-    '\\n삭제 후 자동 복원되지 않습니다.'))return;
+    (cardCount?'\n기존 카드 '+cardCount+'장은 시리즈 표기를 그대로 유지하지만, 신규 카드의 컬렉션 선택 목록에서는 제거됩니다.':'')+
+    '\n삭제 후 자동 복원되지 않습니다.'))return;
   state.saving=true;accessControls();
   try{
     await removeStoredRow('itm_series','id',id);
