@@ -235,3 +235,33 @@
   .stage-footer{padding-top:7px}
   .stage-headline{margin:2px 0 5px}
 }
+
+/* 10+1 pack: exactly two centered rows (5 above, 6 below), no horizontal scroll. */
+body.itm-concert .stage-card-rail.eleven-cards{
+  display:flex!important;justify-content:center!important;align-items:center!important;
+  overflow:hidden!important;max-width:100%!important;min-height:0!important;
+  padding:5px 6px 16px!important;touch-action:auto!important
+}
+body.itm-concert .stage-card-track.eleven-layout{
+  width:100%!important;min-width:0!important;height:100%!important;max-height:100%!important;
+  display:flex!important;flex-direction:column!important;justify-content:center!important;
+  align-items:center!important;gap:clamp(8px,1.6vh,15px)!important;padding:0!important
+}
+body.itm-concert .stage-card-row{display:flex;justify-content:center;align-items:center;gap:clamp(5px,1.35vw,17px);width:100%;min-width:0}
+body.itm-concert .stage-card-track.eleven-layout .stage-card-button{
+  --eleven-width:min(13.4vw,calc((100dvh - 250px)*.31),145px);
+  flex:0 0 var(--eleven-width)!important;width:var(--eleven-width)!important;
+  max-height:none!important;min-width:0!important;aspect-ratio:512/746!important
+}
+body.itm-concert .stage-card-track.eleven-layout .stage-card-badge{bottom:-16px;font-size:clamp(7px,.7vw,10px);letter-spacing:0}
+.stage-pull-tag{position:absolute;z-index:9;top:5px;left:5px;padding:4px 6px;border-radius:7px;background:#101020db;border:1px solid #ffffff80;color:#f5eaff;font-size:clamp(9px,.8vw,12px);font-weight:950;letter-spacing:.02em;line-height:1.1;opacity:0;transition:opacity .25s;pointer-events:none;box-shadow:0 3px 12px #0008}
+.stage-card-button.is-revealed .stage-pull-tag{opacity:1}
+.stage-pull-tag.is-new{background:linear-gradient(115deg,#ff3fa7,#ffad67);color:#fff;border-color:#ffe5a9;text-shadow:0 1px 3px #7c174b}
+.stage-pull-tag.is-duplicate{background:#1b143be8;border-color:#cbadffb3}
+@media(max-width:760px){
+ body.itm-concert .stage-card-track.eleven-layout .stage-card-button{--eleven-width:min(13vw,calc((100dvh - 245px)*.31),145px)}
+ body.itm-concert .stage-card-row{gap:clamp(3px,.9vw,9px)}
+ body.itm-concert .stage-card-track.eleven-layout .stage-card-badge{bottom:-13px;font-size:7px}
+ body.itm-concert .stage-card-track.eleven-layout .stage-pull-tag{font-size:8px;top:2px;left:2px;padding:2px 3px;border-radius:4px}
+}
+@media(max-height:550px){body.itm-concert .stage-card-track.eleven-layout .stage-card-button{--eleven-width:min(13vw,calc((100dvh - 185px)*.25),115px)}}
