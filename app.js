@@ -345,6 +345,9 @@ function beginSSRImpact(index,all=false){
   if(state.cards[index]?.rarity!=='SSR')return;
   urRevealPending=true;
   $('stageRevealAll').disabled=true;
+  // Duck immediately on the click: the large SSR card preview is part of
+  // the reveal, not a prelude before audio attenuation begins.
+  soundManager?.setBgmDucking(.16);
   const button=stageCardAt(index);
   // A stationary centered preview replaces the old 300ms hold. Its final
   // beat runs the original SSR flash, shockwave, fanfare and actual card flip.
