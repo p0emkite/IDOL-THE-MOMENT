@@ -4,9 +4,9 @@
 <meta name="theme-color" content="#110b21"/>
 <title>ITM — CARD STUDIO</title>
 <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml"/>
-<link rel="stylesheet" href="./studio.css?v=studio-series-management-20261107"/>
+<link rel="stylesheet" href="./studio.css?v=pack-odds-20261107"/>
 <script src="./config.js"></script>
-<script type="module" src="./studio.js?v=studio-series-management-20261107"></script>
+<script type="module" src="./studio.js?v=pack-odds-20261107"></script>
 </head><body>
 <header class="studio-header">
   <a class="brand" href="./"><img src="./assets/itm-logo.png" alt="ITM" /> <span>카드 제작 스튜디오 <small>ITM · THE MOMENT</small></span></a>
@@ -68,8 +68,25 @@
         <p id="packImageSizeHint" class="helper">3D 팩의 실제 비율에 맞춘 권장 크기는 1024×1538px입니다. 다른 비율의 이미지는 늘리지 않고 중앙을 기준으로 잘라 표시합니다.</p>
         <div class="logo-display"><img id="packImagePreview" hidden alt="카드팩 이미지 미리보기"/><span id="packImageEmpty">팩 이미지를 등록할 수 있습니다.</span></div>
         <p class="helper">그룹과 시리즈를 선택하지 않으면 해당 항목은 전체 허용됩니다. 두 조건을 선택한 경우 모두 만족하는 카드만 등장합니다.</p>
-        <label>등장 그룹</label><div id="packGroups" class="choice-grid"></div>
-        <label>등장 컬렉션 / 시리즈</label><div id="packSeries" class="choice-grid"></div>
+        <div class="pack-choice-heading"><span>등장 그룹</span>
+          <div><button id="packGroupsAll" type="button" class="soft-btn">전체 선택</button><button id="packGroupsClear" type="button" class="soft-btn">전체 해제</button></div>
+        </div><div id="packGroups" class="choice-grid"></div>
+        <div class="pack-choice-heading"><span>등장 컬렉션 / 시리즈</span>
+          <div><button id="packSeriesAll" type="button" class="soft-btn">전체 선택</button><button id="packSeriesClear" type="button" class="soft-btn">전체 해제</button></div>
+        </div><div id="packSeries" class="choice-grid"></div>
+        <p class="helper">그룹이나 시리즈를 전부 해제하면 해당 분류의 전체 카드를 허용합니다. ‘전체 선택’은 현재 목록의 항목을 명시적으로 선택합니다.</p>
+        <div class="pack-odds-panel">
+          <div class="pack-choice-heading"><span>등급별 등장 확률</span><button id="packOddsReset" type="button" class="soft-btn">기본 확률 복원</button></div>
+          <div class="pack-odds-grid" id="packOddsGrid">
+            <label>N <input type="number" data-pack-odds="N" min="0" max="100" step="0.01" value="55"/>%</label>
+            <label>R <input type="number" data-pack-odds="R" min="0" max="100" step="0.01" value="28"/>%</label>
+            <label>SR <input type="number" data-pack-odds="SR" min="0" max="100" step="0.01" value="12"/>%</label>
+            <label>SSR <input type="number" data-pack-odds="SSR" min="0" max="100" step="0.01" value="4"/>%</label>
+            <label>UR <input type="number" data-pack-odds="UR" min="0" max="100" step="0.01" value="1"/>%</label>
+          </div>
+          <div id="packOddsTotal" class="pack-odds-total" aria-live="polite">확률 합계 100%</div>
+          <p class="helper">합계가 정확히 100%여야 저장할 수 있습니다. 팩에 없는 등급은 추첨에서 제외되며, 남은 확률을 비례 조정합니다.</p>
+        </div>
         <label class="check-row"><input id="packActive" type="checkbox" checked/> 팩 공개 및 사용</label>
         <div class="submit-row"><button class="action" id="savePack" type="submit" disabled>팩 저장</button><button class="soft-btn danger-btn" id="deletePack" type="button" disabled>팩 삭제</button></div>
       </form>

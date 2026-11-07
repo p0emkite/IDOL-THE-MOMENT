@@ -4,6 +4,33 @@ const CONFIG=window.IDOL_CONFIG||{};
 const BUCKET='itm-card-media';
 const VALID_MIME=['image/jpeg','image/png','image/webp'];
 const RARITIES=['N','R','SR','SSR','UR'];
+const DEFAULT_PACK_ODDS=Object.freeze({N:55,R:28,SR:12,SSR:4,UR:1});
+function packOddsFromForm(){
+  const result={};
+  for(const key of RARITIES){
+    const el=document.querySelector('[data-pack-odds="'+key+'"]');
+    if(!el||!el.value.trim())return null;
+    const number=Number(el.value);
+    if(!Number.isFinite(number)||number<0||number>100||Math.round(number*100)!==number*100)return null;
+    result[key]=number;
+  }
+  return result;
+}
+function packOddsTotal(odds){return odds?Math.round(Object.values(odds).reduce((sum,value)=>sum+value*100,0)):NaN}
+function syncPackOddsValidation(){
+  const odds=packOddsFromForm(),total=packOddsTotal(odds),ok=total===10000;
+  const el=$('packOddsTotal');
+  el.textContent='확률 합계 '+(Number.isFinite(total)?(total/100).toFixed(2)+'%':'입력 오류')+(ok?' · 저장 가능':' · 100%로 맞춰 주세요');
+  el.classList.toggle('invalid',!ok);
+  return ok?odds:null;
+}
+function setPackOdds(odds=DEFAULT_PACK_ODDS){
+  for(const key of RARITIES){
+    const input=document.querySelector('[data-pack-odds="'+key+'"]');
+    input.value=String(odds?.[key]??DEFAULT_PACK_ODDS[key]);
+  }
+  syncPackOddsValidation();
+}
 const state={
   client:null,admin:false,logged:false,groups:[],members:[],cards:[],series:[],packs:[],editingId:null,
   photoFile:null,fullArtFile:null,groupLogoFile:null,packFile:null,packImagePath:null,
@@ -293,19 +320,16 @@ function renderChoiceGrid(target,items,selected,formatter){
 function refreshPackSeriesChoices(selectedBefore=null){
   const groups=new Set(chosenInputs('packGroups'));
   const selected=selectedBefore||new Set(chosenInputs('packSeries'));
-  if(!groups.size){
-    const note=document.createElement('p');
-    note.className='helper pack-series-placeholder';
-    note.textContent='먼저 등장 그룹을 선택해 주세요. 그룹을 선택하지 않으면 팩에는 모든 그룹의 카드가 등장할 수 있습니다.';
-    $('packSeries').replaceChildren(note);
-    return;
-  }
-  const scoped=state.series.filter(s=>groups.has(s.group_slug))
+  const scoped=state.series.filter(s=>!groups.size||groups.has(s.group_slug))
     .map(s=>({key:s.group_slug+'::'+s.name,group:s.group_slug,name:s.name}));
   renderChoiceGrid('packSeries',scoped,selected,item=>{
     const group=state.groups.find(g=>g.slug===item.group);
     return (group?.name||item.group)+' / '+item.name;
   });
+}
+function togglePackChoices(id,checked){
+  $(id).querySelectorAll('input[type=checkbox]').forEach(input=>{input.checked=checked});
+  if(id==='packGroups')refreshPackSeriesChoices();
 }
 function refreshPackEditor(){
   const old=$('packPicker').value;
@@ -330,6 +354,7 @@ function selectPack(id){
   state.packFile=null;state.packImagePath=pack?.image_path||null;
   $('packImage').value='';$('packName').value=pack?.name||'';
   $('packActive').checked=pack?.active??true;
+  setPackOdds(pack?.rarity_odds||DEFAULT_PACK_ODDS);
   $('packImagePreview').hidden=!pack?.image_path;
   $('packImageEmpty').hidden=!!pack?.image_path;
   updatePackSizeHint();
@@ -350,6 +375,8 @@ async function savePack(event){
   if(!state.admin||state.saving)return toast('팩 저장은 관리자만 가능합니다.');
   const name=$('packName').value.trim(),id=$('packPicker').value;
   if(!name)return toast('팩 이름을 입력해 주세요.');
+  const rarity_odds=syncPackOddsValidation();
+  if(!rarity_odds)return toast('등급별 확률 합계는 100%여야 하며 각 값은 0~100% 사이여야 합니다.');
   state.saving=true;accessControls();
   try{
     const image_path=state.packFile?await uploadFile(state.packFile,'packs'):state.packImagePath;
@@ -357,7 +384,7 @@ async function savePack(event){
     const series=chosenInputs('packSeries').map(v=>{
       const i=v.indexOf('::');return {group_slug:v.slice(0,i),name:v.slice(i+2)};
     });
-    const record={name,image_path,group_slugs:groups,series_filters:series,active:$('packActive').checked,updated_at:new Date().toISOString()};
+    const record={name,image_path,group_slugs:groups,series_filters:series,rarity_odds,active:$('packActive').checked,updated_at:new Date().toISOString()};
     const req=id?state.client.from('itm_packs').update(record).eq('id',id):state.client.from('itm_packs').insert(record);
     const {data,error}=await req.select('id').single();
     if(error)throw error;
@@ -826,6 +853,12 @@ function bind(){
   $('newPack').onclick=()=>selectPack('');
   $('packPicker').onchange=()=>selectPack($('packPicker').value);
   $('packGroups').addEventListener('change',()=>refreshPackSeriesChoices());
+  $('packGroupsAll').onclick=()=>togglePackChoices('packGroups',true);
+  $('packGroupsClear').onclick=()=>togglePackChoices('packGroups',false);
+  $('packSeriesAll').onclick=()=>togglePackChoices('packSeries',true);
+  $('packSeriesClear').onclick=()=>togglePackChoices('packSeries',false);
+  $('packOddsReset').onclick=()=>setPackOdds();
+  document.querySelectorAll('[data-pack-odds]').forEach(input=>input.addEventListener('input',syncPackOddsValidation));
   $('deletePack').onclick=deletePack;
   $('packImage').onchange=async e=>{
     const file=e.target.files?.[0];if(!file)return;

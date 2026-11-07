@@ -130,3 +130,16 @@ input[type=range]{width:100%;accent-color:#e5a2e9;margin:0 0 15px}.range-control
 .record-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:8px}
 .record-actions>.soft-btn{margin-top:0}
 @media(max-width:420px){.series-picker-row{grid-template-columns:1fr;gap:0}.series-picker-row>.danger-btn{justify-self:start;margin:-8px 0 18px}}
+
+/* Pack odds & explicit checkbox bulk selection. */
+.pack-choice-heading{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:0 0 10px;flex-wrap:wrap;font-size:12px;font-weight:800;color:#e8d8f6}
+.pack-choice-heading>div{display:flex;gap:7px;flex-wrap:wrap}
+.pack-choice-heading .soft-btn{padding:7px 11px;font-size:10px}
+.pack-odds-panel{background:#1a1029;border:1px solid #b994d447;border-radius:13px;padding:16px;margin:12px 0 20px}
+.pack-odds-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.pack-odds-grid label{display:block;margin:0;font-size:11px;text-align:center;color:#e7d3ef;font-weight:800}
+.pack-odds-grid input{margin:7px 0 0;font-variant-numeric:tabular-nums;text-align:center;padding:8px 3px!important;font-size:13px}
+.pack-odds-total{font-size:12px;text-align:right;color:#a9efc9;margin:11px 0}
+.pack-odds-total.invalid{color:#ff97ae}
+.pack-odds-panel>.helper{margin:9px 0 0}
+@media(max-width:550px){.pack-odds-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
