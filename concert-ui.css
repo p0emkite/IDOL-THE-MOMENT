@@ -282,16 +282,9 @@ body.itm-concert .stage-card-button:is(.rarity-sr,.rarity-ssr,.rarity-ur).is-rev
   filter:drop-shadow(0 0 7px #b7a2ef54)
 }
 
-/* First-visit disclaimer: .3s fade-in, 2.4s hold, .3s fade-out. */
+/* Legal notice shares the logo parent's visibility, hold and exact exit animation. */
 .concert-intro .concert-intro-legal{
   max-width:min(78vw,660px);margin:16px auto 0;text-align:center;
   line-height:1.8;letter-spacing:normal;font-size:clamp(11px,1.2vw,14px);
-  font-weight:500;color:#f1e4ff;opacity:0;text-shadow:0 1px 15px #c088f955;
-}
-.concert-intro.legal-visible .concert-intro-legal{
-  animation:itmIntroLegalNotice var(--legal-duration,3000ms) linear both;
-}
-@keyframes itmIntroLegalNotice{0%{opacity:0}10%{opacity:1}90%{opacity:1}100%{opacity:0}}
-@media(prefers-reduced-motion:reduce){
-  .concert-intro.legal-visible .concert-intro-legal{animation:none!important;opacity:1}
+  font-weight:500;color:#f1e4ff;opacity:1;text-shadow:0 1px 15px #c088f955;
 }

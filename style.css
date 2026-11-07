@@ -114,3 +114,35 @@ body.pack-cinematic .streak{inset:0}
 .col-item.rarity-ur{
   box-shadow:0 0 20px #ab74ff52,0 0 14px #4be6ff33;
 }
+
+/* ITM 10+1, compact three-button layout */
+body.itm-concert .draw-actions .btn{min-width:0}
+body.itm-concert .draw-actions #drawEleven{flex:1.15 1 0}
+@media(max-width:650px){
+ body.itm-concert .draw-actions{gap:7px}
+ body.itm-concert .draw-actions .btn{padding:0 5px;height:57px;min-height:57px;font-size:clamp(11px,3vw,15px);letter-spacing:-.03em}
+}
+/* Collection: responsive four-way filters, tier accents and large card focus. */
+.collection-filters{display:grid;grid-template-columns:repeat(4,minmax(0,1fr)) auto;gap:10px;align-items:end;margin:13px 42px 0;padding:15px;background:#211532a6;border:1px solid #b78bea35;border-radius:15px}
+.collection-filters label{display:grid;gap:7px;color:#dcc9ec;font-size:11px;letter-spacing:.04em;font-weight:800;min-width:0}
+.collection-filters select{background:#120a20;border:1px solid #bfa0d66b;border-radius:9px;padding:11px 9px;min-width:0;width:100%;color:#fff;font:inherit;cursor:pointer;font-size:12px}
+.collection-filter-reset{border:1px solid #e0b1ef7a;border-radius:9px;background:#ffffff10;color:#f2dffb;font-size:11px;font-weight:800;min-height:39px;padding:0 13px;white-space:nowrap}
+.collection-filter-count{margin:11px 42px 0;color:#b8a4c8;font-size:11px;text-align:right;letter-spacing:.03em}
+.collection-grid{align-content:start;min-height:160px}
+button.col-item{display:block;width:100%;font:inherit;color:inherit;text-align:left;cursor:zoom-in;border-radius:10px;min-width:0}
+.col-item{border-radius:10px;overflow:hidden}
+.col-item.unowned{opacity:.65}
+.col-item:focus-visible{outline:2px solid #ffb3e4;outline-offset:3px}
+.col-item .qty{border-radius:999px}
+.col-item small{letter-spacing:.04em}
+.card-focus-overlay{position:fixed;inset:0;z-index:190;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:radial-gradient(ellipse at center,#351d51ed,#08040df6 70%);backdrop-filter:blur(20px);cursor:zoom-out;animation:itmCardFocusIn .18s ease-out both;padding:45px 22px}
+.card-focus-overlay img{display:block;width:auto;height:auto;max-width:min(88vw,460px);max-height:min(75dvh,780px);aspect-ratio:512/746;object-fit:contain;border:2px solid #edc7ff8c;border-radius:13px;box-shadow:0 0 60px #a16bfd66,0 30px 90px #000d;pointer-events:none}
+.card-focus-caption{font-size:12px;color:#e7d3f1;text-align:center;line-height:1.7;pointer-events:none}
+.card-focus-close{position:absolute;right:clamp(16px,4vw,45px);top:clamp(15px,3vw,34px);font-size:30px;line-height:1;background:#2c173c;border:1px solid #ffb9e68a;color:#fff;border-radius:50%;height:43px;width:43px;cursor:pointer}
+@keyframes itmCardFocusIn{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:scale(1)}}
+@media(max-width:850px){
+ .collection-filters{grid-template-columns:repeat(2,minmax(0,1fr));margin:12px 20px 0}
+ .collection-filter-reset{grid-column:1/-1}
+ .collection-filter-count{margin-right:20px;margin-left:20px}
+}
+@media(max-width:420px){.collection-filters{gap:8px;padding:12px}}
