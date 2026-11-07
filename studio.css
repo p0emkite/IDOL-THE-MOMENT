@@ -42,8 +42,13 @@ input[type=range]{width:100%;accent-color:#e5a2e9;margin:0 0 15px}.range-control
 .group-section[open] summary{margin-bottom:20px}
 #memberForm{border-top:1px solid #ffffff26;margin-top:20px;padding-top:20px}
 .preview-section{grid-column:auto;position:sticky;top:12px}
-.library-filters{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:12px;margin-bottom:16px}
-@media(max-width:700px){.tools{grid-template-columns:minmax(0,1fr)}.preview-section{position:static}.library-filters{grid-template-columns:1fr}}
+.library-filters{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-bottom:20px}
+.library-filter{display:flex;flex-direction:column;gap:7px;min-width:0}
+.library-filter label{font-size:11px;font-weight:700;color:#d5c5e5}
+.library-filter select{width:100%;min-width:0;text-overflow:ellipsis;cursor:pointer}
+@media(max-width:1050px){.library-filters{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:700px){.tools{grid-template-columns:minmax(0,1fr)}.preview-section{position:static}.library-filters{grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}}
+@media(max-width:390px){.library-filters{grid-template-columns:minmax(0,1fr)}}
 
 /* Pack manager: compact checkbox tiles, not ordinary full-width form inputs. */
 .pack-section{min-width:0}

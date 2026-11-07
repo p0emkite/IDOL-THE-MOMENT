@@ -488,17 +488,44 @@ async function loadCatalog(){
   state.members=members.data||[];state.groups=groups||[];state.cards=cards||[];
   state.series=series.data||[];state.packs=packs.data||[];
   refreshSelectors();refreshCardMembers();refreshMembers($('memberPicker').value);
-  refreshSeriesOptions();refreshPackEditor();renderLibrary();await syncLogo();
+  refreshSeriesOptions();refreshPackEditor();refreshLibraryFilterOptions();renderLibrary();await syncLogo();
+}
+function libraryMemberName(card){
+  return state.members.find(member=>member.id===card.member_id)?.name||card.display_name||'';
+}
+function refillLibrarySelect(id,placeholder,values){
+  const select=$(id),previous=select.value;
+  select.replaceChildren(new Option(placeholder,''),...values.map(item=>new Option(item.label,item.value)));
+  select.value=values.some(item=>item.value===previous)?previous:'';
+}
+function refreshLibraryFilterOptions({groupChanged=false}={}){
+  const groups=[...new Set(state.cards.map(card=>card.group_slug).filter(Boolean))]
+    .map(slug=>({value:slug,label:state.groups.find(group=>group.slug===slug)?.name||slug}))
+    .sort((a,b)=>a.label.localeCompare(b.label,'ko'));
+  refillLibrarySelect('libraryGroup','모든 그룹',groups);
+  const selectedGroup=$('libraryGroup').value;
+  // Changing group invalidates a previously selected member or series.
+  if(groupChanged){$('libraryMember').value='';$('librarySeries').value='';}
+  const scoped=state.cards.filter(card=>!selectedGroup||card.group_slug===selectedGroup);
+  const uniqueValues=(values)=>[...new Set(values.map(value=>String(value||'').trim()).filter(Boolean))]
+    .sort((a,b)=>a.localeCompare(b,'ko')).map(value=>({value,label:value}));
+  refillLibrarySelect('libraryMember','모든 멤버',uniqueValues(scoped.map(libraryMemberName)));
+  refillLibrarySelect('librarySeries','모든 시리즈',uniqueValues(scoped.map(card=>card.edition)));
 }
 function renderLibrary(){
   const list=$('cardLibrary');
-  const query=$('libraryQuery').value.trim().toLocaleLowerCase();
+  const group=$('libraryGroup').value;
+  const member=$('libraryMember').value;
+  const series=$('librarySeries').value;
+  const rarity=$('libraryRarity').value;
   const status=$('libraryStatus').value;
-  const cards=state.cards.filter(c=>{
-    const group=state.groups.find(g=>g.slug===c.group_slug);
-    const member=state.members.find(m=>m.id===c.member_id);
-    return (!status||c.status===status)&&[c.display_name,group?.name,c.group_slug,member?.name,c.edition].join(' ').toLocaleLowerCase().includes(query);
-  });
+  const cards=state.cards.filter(card=>
+    (!group||card.group_slug===group)&&
+    (!member||libraryMemberName(card)===member)&&
+    (!series||card.edition===series)&&
+    (!rarity||card.rarity===rarity)&&
+    (!status||card.status===status)
+  );
   list.replaceChildren();$('cardCount').textContent=String(cards.length);
   if(!cards.length){
     const empty=document.createElement('p');empty.className='empty';
@@ -695,8 +722,10 @@ function bind(){
     if(member)$('cardName').value=member.name;
     queuePreview();
   };
-  $('libraryStatus').onchange=renderLibrary;
-  $('libraryQuery').oninput=renderLibrary;
+  $('libraryGroup').onchange=()=>{refreshLibraryFilterOptions({groupChanged:true});renderLibrary()};
+  for(const id of ['libraryMember','librarySeries','libraryRarity','libraryStatus']){
+    $(id).onchange=renderLibrary;
+  }
   $('cardRarity').onchange=()=>{refreshURColorControls();queuePreview()};
   $('cardName').oninput=queuePreview;
   $('cardEdition').oninput=queuePreview;

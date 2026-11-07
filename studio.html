@@ -4,9 +4,9 @@
 <meta name="theme-color" content="#110b21"/>
 <title>ITM — CARD STUDIO</title>
 <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml"/>
-<link rel="stylesheet" href="./studio.css?v=studio-delete-controls-20261107"/>
+<link rel="stylesheet" href="./studio.css?v=studio-library-filters-20261107"/>
 <script src="./config.js"></script>
-<script type="module" src="./studio.js?v=studio-delete-controls-20261107"></script>
+<script type="module" src="./studio.js?v=studio-library-filters-20261107"></script>
 </head><body>
 <header class="studio-header">
   <a class="brand" href="./"><img src="./assets/itm-logo.png" alt="ITM" /> <span>카드 제작 스튜디오 <small>ITM · THE MOMENT</small></span></a>
@@ -125,9 +125,17 @@
     </aside>
   </section>
   <section class="library panel"><div class="section-heading"><div><span class="eyebrow">04 / RELEASE LIBRARY</span><h2>제작 카드 목록 <span id="cardCount">0</span></h2></div><button id="refreshCards" class="soft-btn">목록 새로고침</button></div>
-    <div class="library-filters">
-      <input type="search" id="libraryQuery" placeholder="그룹 · 멤버 · 카드명 검색" aria-label="제작 카드 검색"/>
-      <select id="libraryStatus" aria-label="공개 상태 필터"><option value="">모든 상태</option><option value="draft">임시 저장</option><option value="published">공개</option><option value="private">비공개</option></select>
+    <div class="library-filters" role="group" aria-label="제작 카드 목록 필터">
+      <div class="library-filter"><label for="libraryGroup">그룹</label>
+        <select id="libraryGroup"><option value="">모든 그룹</option></select></div>
+      <div class="library-filter"><label for="libraryMember">멤버</label>
+        <select id="libraryMember"><option value="">모든 멤버</option></select></div>
+      <div class="library-filter"><label for="librarySeries">시리즈</label>
+        <select id="librarySeries"><option value="">모든 시리즈</option></select></div>
+      <div class="library-filter"><label for="libraryRarity">등급</label>
+        <select id="libraryRarity"><option value="">모든 등급</option><option>N</option><option>R</option><option>SR</option><option>SSR</option><option>UR</option></select></div>
+      <div class="library-filter"><label for="libraryStatus">상태</label>
+        <select id="libraryStatus"><option value="">모든 상태</option><option value="draft">임시 저장</option><option value="published">공개</option><option value="private">비공개</option></select></div>
     </div>
     <div id="cardLibrary" class="card-library"><p class="empty">아직 등록된 카드가 없습니다.</p></div>
     <p class="helper">삭제 기능은 관리자만 사용할 수 있습니다. 다른 카드·팩에서 사용 중인 그룹·컬렉션 등은 연결을 정리한 뒤 삭제할 수 있으며, 이미 유저가 보유한 카드는 삭제되지 않습니다. 공개 카드는 등급 N·R·SR·SSR·UR 각 1장 이상 등록된 뒤 일반 팩에 반영됩니다.</p>
