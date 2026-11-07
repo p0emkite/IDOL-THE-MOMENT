@@ -13,15 +13,22 @@ export function createRarityRevealAccents(){
     ssrLayer?.remove();srLayer?.remove();
     ssrLayer=srLayer=null;
   }
-  function startSSR(button,{onPrepare,onReveal}={}){
+  function startSSR(button,{onPrepare,onReveal,onDismiss}={}){
     cancel();
-    if(!stage||!button){onPrepare?.();onReveal?.();return}
+    if(!stage||!button){
+      onPrepare?.();onReveal?.();onDismiss?.();return;
+    }
     const back=button.querySelector('.stage-card-back img');
     const front=button.querySelector('.stage-card-front img');
-    if(!back||!front){onPrepare?.();onReveal?.();return}
+    if(!back||!front){
+      onPrepare?.();onReveal?.();onDismiss?.();return;
+    }
     const layer=document.createElement('div');
     layer.className='itm-ssr-showcase';
-    layer.setAttribute('aria-hidden','true');
+    layer.setAttribute('role','dialog');
+    layer.setAttribute('aria-modal','true');
+    layer.setAttribute('aria-label','SSR 카드 획득 · 감상 후 클릭하면 결과 화면으로 돌아갑니다');
+    layer.tabIndex=0;
     const shade=document.createElement('div');shade.className='itm-ssr-shade';
     const rays=document.createElement('div');rays.className='itm-ssr-rays';
     const card=document.createElement('div');card.className='itm-ssr-card';
@@ -33,12 +40,34 @@ export function createRarityRevealAccents(){
     const flash=document.createElement('div');flash.className='itm-ssr-flash';
     const caption=document.createElement('div');caption.className='itm-ssr-caption';
     caption.textContent='✦ SPECIAL SUPER RARE ✦';
-    card.append(backImg,frontImg);layer.append(shade,rays,card,flash,caption);
+    const hint=document.createElement('div');hint.className='itm-ssr-close-hint';
+    hint.textContent='클릭하면 결과 화면으로 돌아갑니다';
+    card.append(backImg,frontImg);layer.append(shade,rays,card,flash,caption,hint);
+    let closing=false;
+    const dismiss=()=>{
+      if(ssrLayer!==layer||closing||!layer.classList.contains('ready'))return;
+      closing=true;
+      layer.classList.add('leaving');
+      later(()=>{
+        if(ssrLayer!==layer)return;
+        layer.remove();ssrLayer=null;
+        onDismiss?.();
+        if(button.isConnected)button.focus({preventScroll:true});
+      },reduced()?100:370);
+    };
+    layer.addEventListener('click',dismiss);
+    layer.addEventListener('keydown',event=>{
+      if(event.key==='Tab'){event.preventDefault();layer.focus();return}
+      if(event.key==='Escape'||event.key==='Enter'||event.key===' '){
+        event.preventDefault();dismiss();
+      }
+    });
     stage.append(layer);ssrLayer=layer;
     void layer.offsetWidth;layer.classList.add('playing');
+    layer.focus({preventScroll:true});
     if(reduced()){
-      onPrepare?.();onReveal?.();
-      later(()=>{if(ssrLayer===layer){layer.remove();ssrLayer=null}},250);
+      onPrepare?.();layer.classList.add('impact');onReveal?.();
+      layer.classList.add('ready');
       return;
     }
     later(()=>{if(ssrLayer===layer)onPrepare?.()},650);
@@ -47,8 +76,8 @@ export function createRarityRevealAccents(){
       layer.classList.add('impact');
       onReveal?.();
     },950);
-    later(()=>{if(ssrLayer===layer)layer.classList.add('leaving')},1640);
-    later(()=>{if(ssrLayer===layer){layer.remove();ssrLayer=null}},2000);
+    // Hold the fully revealed card until the user's next click.
+    later(()=>{if(ssrLayer===layer)layer.classList.add('ready')},1400);
   }
   function sparkleSR(button){
     if(!stage||!button||reduced())return;
