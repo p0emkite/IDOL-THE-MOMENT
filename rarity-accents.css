@@ -16,7 +16,7 @@
 .itm-ssr-showcase.leaving{animation:itmSSRShowcaseOff .36s ease-in both}
 .itm-sr-twinkles{z-index:6}
 .itm-sr-soft-halo{position:absolute;left:var(--sr-x);top:var(--sr-y);width:calc(var(--sr-w) * 1.5);height:calc(var(--sr-h) * 1.35);transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(ellipse,#efe6ff6b 0%,#c59afe2a 35%,transparent 72%);opacity:0;animation:itmSRHalo 1.45s ease-out both}
-.itm-sr-star{position:absolute;left:calc(var(--sr-x) - var(--sr-w)*.5 + var(--sr-w)*var(--x)/100);top:calc(var(--sr-y) - var(--sr-h)*.5 + var(--sr-h)*var(--y)/100);width:12px;height:12px;opacity:0;transform:translate(-50%,-50%) scale(0);filter:drop-shadow(0 0 7px #e5c6ff);animation:itmSRTwinkle 1.33s var(--delay) ease-in-out both}
+.itm-sr-star{position:absolute;left:50%;top:50%;width:12px;height:12px;opacity:0;transform:translate(-50%,-50%) scale(0);filter:drop-shadow(0 0 7px #e5c6ff);animation:itmSRTwinkle 1.33s var(--delay) ease-in-out both}
 .itm-sr-star:before,.itm-sr-star:after{content:"";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:linear-gradient(180deg,transparent,#fff,#ceb3ff,#fff,transparent)}
 .itm-sr-star:before{width:3px;height:100%;border-radius:50%}
 .itm-sr-star:after{width:100%;height:3px;border-radius:50%}
