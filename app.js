@@ -94,8 +94,10 @@ async function preloadCard(card){
 function drawLiveLocal(count,packRule=null){
   const eligible=LIVE_POOL.filter(c=>packCardAllowed(c,packRule));
   if(!eligible.length)throw Error('선택한 팩에 공개된 카드가 없습니다.');
-  const allowedTiers=TIERS.filter(t=>eligible.some(c=>c.rarity===t.key));
+  const allowedTiers=TIERS.filter(t=>eligible.some(c=>c.rarity===t.key))
+    .map(t=>({key:t.key,chance:Number(packRule?.rarity_odds?.[t.key]??t.chance)}));
   const total=allowedTiers.reduce((sum,t)=>sum+t.chance,0);
+  if(total<=0)throw Error('이 팩에서 등장 가능한 등급 확률 합계가 0%입니다.');
   return Array.from({length:count},()=>{
     let roll=rand()*total,key=allowedTiers[0].key;
     for(const tier of allowedTiers){if(roll<tier.chance){key=tier.key;break}roll-=tier.chance}
@@ -108,7 +110,7 @@ async function loadPublishedCatalog(){
   const [groupsResult,cardsResult,packsResult]=await Promise.all([
     state.supabase.from('itm_groups').select('slug,name,logo_path'),
     state.supabase.from('itm_catalog').select('id,group_slug,display_name,edition,rarity,photo_path,full_art_path,photo_scale,photo_x,photo_y,logo_scale,ur_name_color,status').eq('status','published'),
-    state.supabase.from('itm_packs').select('id,name,image_path,group_slugs,series_filters,active').eq('active',true).order('created_at')
+    state.supabase.from('itm_packs').select('id,name,image_path,group_slugs,series_filters,rarity_odds,active').eq('active',true).order('created_at')
   ]);
   if(groupsResult.error||cardsResult.error||packsResult.error)throw(groupsResult.error||cardsResult.error||packsResult.error);
   const previous=$('packPicker')?.value||'';
@@ -119,7 +121,7 @@ async function loadPublishedCatalog(){
   picker.disabled=!AVAILABLE_PACKS.length;
   picker.value=AVAILABLE_PACKS.some(p=>p.id===previous)?previous:(AVAILABLE_PACKS[0]?.id||'');
   $('packChoice').hidden=false;
-  $('drawOne').disabled=$('drawFive').disabled=!AVAILABLE_PACKS.length;
+  setDrawButtonsDisabled(!AVAILABLE_PACKS.length);
   if(pack&&renderer)void syncPackArtwork();
   if(!state.three&&state.phase==='ready')resetFallback();
   const groupMap=new Map((groupsResult.data||[]).map(g=>[g.slug,g]));
@@ -139,6 +141,7 @@ async function loadPublishedCatalog(){
     LIVE_POOL.push(card);byId.set(card.id,card);
   }
   LIVE_READY=LIVE_POOL.length>0&&AVAILABLE_PACKS.length>0;
+  renderPackOdds();
   if($('oddsDescription'))$('oddsDescription').textContent=
     '선택한 팩의 공개 카드만 추첨하며, 등장 카드가 없는 등급은 제외하고 나머지 등급 확률을 비례 조정합니다.';
   if($('stageFooterNote'))$('stageFooterNote').textContent=
@@ -162,7 +165,7 @@ const PACK_DESIGN_WIDTH=1024,PACK_DESIGN_HEIGHT=1538;
 function readDemoInventory(){try{localStorage.removeItem('itm-test-pack-inventory-v1')}catch{}return {}}
 function writeDemoInventory(){/* Retired demo cards. */}
 
-const state = {phase:'ready',cards:[],revealed:new Set(),inventory:readLocal(),demoInventory:readDemoInventory(),remoteDemoInventory:{},liveInventory:readLiveInventory(),remoteLiveInventory:{},supabase:null,user:null,accountName:null,accountMode:'login',entryRequired:false,playerId:null,hasRecovery:false,authError:null,backendReady:false,accountBusy:false,issuedRecovery:null,three:false,audio:true,busy:false};
+const state = {phase:'ready',cards:[],revealed:new Set(),inventory:readLocal(),demoInventory:readDemoInventory(),remoteDemoInventory:{},liveInventory:readLiveInventory(),remoteLiveInventory:{},supabase:null,user:null,accountName:null,studioAdmin:false,accountMode:'login',entryRequired:false,playerId:null,hasRecovery:false,authError:null,backendReady:false,accountBusy:false,issuedRecovery:null,three:false,audio:true,busy:false};
 const ENTRY_KEY='itm-entry-choice-v1';
 const ACCOUNT_PATTERN=/^[a-z][a-z0-9_]{3,19}$/;
 const accountEmail=name=>'itm.'+name+'@accounts.itm.example';
@@ -224,14 +227,9 @@ function showConcertIntro(){
   const el=$('concertIntro');
   document.body.classList.remove('itm-intro-pending');
   const reduced=matchMedia('(prefers-reduced-motion:reduce)').matches;
-  let seen=false;
-  try{seen=localStorage.getItem('itm-legal-seen-v1')==='yes';localStorage.setItem('itm-legal-seen-v1','yes')}catch{}
-  const legalDuration=seen?1200:3000;
-  el.style.setProperty('--legal-duration',legalDuration+'ms');
-  el.classList.add('legal-visible');
-  // First visit: .3s in + 2.4s hold + .3s out. Repeat visits: 1.2s total.
+  // Keep logo, tagline and copyright text on the same entrance and exit timeline.
+  const introHold=3000;
   introTimers.push(setTimeout(()=>{
-    el.classList.remove('legal-visible');
     if(el.hidden)return;
     if(reduced){closeConcertIntro();return}
     introCameraActive=!!concertStage;
@@ -242,7 +240,7 @@ function showConcertIntro(){
     introTimers.push(setTimeout(()=>el.classList.add('opening'),180));
     introTimers.push(setTimeout(()=>{el.hidden=true},1300));
     introTimers.push(setTimeout(closeConcertIntro,2860));
-  },legalDuration));
+  },introHold));
 }
 function setConcertRarity(rarity){
   const stage=$('packRevealStage');
@@ -807,7 +805,28 @@ if(dust){dust.rotation.y+=delta*.015;dust.rotation.z+=delta*.01}stageLights.forE
 function addCards(){cardMeshes.forEach(mesh=>{scene.remove(mesh);mesh.geometry.dispose();mesh.material.forEach(m=>{if(m.map && m.map!==backTexture)m.map.dispose();m.dispose()})});cardMeshes=[];
   const n=state.cards.length;state.cards.forEach((c,i)=>{const front=texture(makeCardArt(c));const edge=new THREE.MeshPhysicalMaterial({map:texture(makeTierEdgeTexture(c.rarity)),metalness:.5,roughness:.24,clearcoat:.9});const card=new THREE.Mesh(new THREE.BoxGeometry(1.56,2.3,.04),[edge,edge,edge,edge,new THREE.MeshBasicMaterial({map:front}),new THREE.MeshBasicMaterial({map:backTexture})]);card.position.set((i-(n-1)/2)*.25,-4,-i*.07);card.rotation.y=Math.PI;card.userData.index=i;cardMeshes.push(card);scene.add(card)})}
 function clearCards(){cardMeshes.forEach(mesh=>{scene.remove(mesh);mesh.geometry.dispose();mesh.material.forEach(m=>{if(m.map&&m.map!==backTexture)m.map.dispose();m.dispose()})});cardMeshes=[]}
-function showControls(which){['drawOne','drawFive'].forEach(id=>$(id).hidden=!which.includes(id))}
+function showControls(which){['drawOne','drawFive','drawEleven'].forEach(id=>$(id).hidden=!which.includes(id))}
+function setDrawButtonsDisabled(disabled){['drawOne','drawFive','drawEleven'].forEach(id=>$(id).disabled=disabled)}
+function renderPackOdds(){
+  const pack=selectedPack(),odds=pack?.rarity_odds||{};
+  const available=LIVE_POOL.filter(card=>packCardAllowed(card,pack));
+  const included=TIERS.filter(t=>available.some(c=>c.rarity===t.key));
+  const total=included.reduce((sum,t)=>sum+Number(odds[t.key]??t.chance),0);
+  $('oddsRows').replaceChildren();
+  for(const tier of TIERS){
+    const eligible=included.some(t=>t.key===tier.key),w=Number(odds[tier.key]??tier.chance);
+    const chance=eligible&&total>0?100*w/total:0;
+    const row=document.createElement('div');row.className='odds-row';
+    const label=document.createElement('div');label.className='odds-tier';
+    const chip=document.createElement('span');chip.className='odds-chip'+(tier.key==='UR'?' holo':'');chip.style.background=tierCssGradient(tier.key);chip.textContent=tier.key;
+    const strong=document.createElement('strong');strong.textContent=tier.label;
+    const value=document.createElement('span');value.textContent=chance.toFixed(2)+'%';
+    label.append(chip,strong);row.append(label,value);$('oddsRows').append(row);
+  }
+  $('oddsDescription').textContent=pack?
+    pack.name+' · 등장 가능한 카드 기준 실효 확률입니다. 해당 등급의 카드가 없으면 남은 등급의 확률이 비례 조정됩니다.':
+    '선택한 카드팩의 등급별 확률이 표시됩니다.';
+}
 function updateCounts(){let total=Object.values(visibleInventory()).reduce((a,n)=>a+Number(n||0),0);$('collectionCount').textContent=total}
 // Immersive reveal UI: real interactive, keyboard-accessible flip cards.
 function renderRevealStage(){
@@ -817,7 +836,7 @@ function renderRevealStage(){
   const track=document.createElement('div');
   track.id='stageCardTrack';track.className='stage-card-track';
   rail.appendChild(track);
-  $('stagePackLabel').textContent=state.cards.length+'회 뽑기';
+  $('stagePackLabel').textContent=state.cards.length===11?'10+1회 뽑기':state.cards.length+'회 뽑기';
   state.cards.forEach((card,i)=>{
     const button=document.createElement('button');
     button.type='button';button.className='stage-card-button rarity-'+card.rarity.toLowerCase();
@@ -836,7 +855,7 @@ function renderRevealStage(){
     front.append(frontImg);inner.append(back,front);
     const badge=document.createElement('span');badge.className='stage-card-badge';badge.textContent=TIERS.find(t=>t.key===card.rarity)?.label||card.rarity;
     button.append(inner,badge);
-    button.addEventListener('click',()=>revealIndex(i));
+    button.addEventListener('click',()=>state.revealed.has(i)?openCardFocus(card):revealIndex(i));
     if(card.rarity==='UR'){
       button.addEventListener('pointermove',event=>{
         if(!state.revealed.has(i))return;
@@ -880,7 +899,7 @@ async function openPack(count){
   // Cloud inventory draws still require the authenticated backend to be ready.
   if(state.busy||state.phase!=='ready'||state.entryRequired||(isNamedAccount()&&!state.backendReady))return;
   if(!selectedPack())return toast('관리자가 공개한 카드팩이 없습니다.');
-  state.busy=true;$('drawOne').disabled=$('drawFive').disabled=true;
+  state.busy=true;setDrawButtonsDisabled(true);
   let rolled=[];
   try{
     if(state.supabase)await loadPublishedCatalog().catch(err=>console.warn('카드 목록 갱신 실패',err));
@@ -902,7 +921,7 @@ async function openPack(count){
       catch(err){console.warn('Card art unavailable; reveal still continues',err)}
     }));
   }catch(err){
-    state.busy=false;$('drawOne').disabled=$('drawFive').disabled=false;
+    state.busy=false;setDrawButtonsDisabled(false);
     toast('카드팩 개봉 실패: '+(err?.message||String(err)));return;
   }
   state.cards=rolled;state.revealed=new Set();
@@ -931,7 +950,7 @@ async function openPack(count){
     $('sceneHeading').textContent='03 — YOUR CARDS AWAIT';
     $('centerHint').innerHTML='<span>✧</span> TAP A CARD TO REVEAL';
     showControls([]);
-      $('drawOne').disabled=$('drawFive').disabled=false;
+      setDrawButtonsDisabled(false);
     renderRevealStage();
   },PACK_OPEN_DURATION);
 }
@@ -1015,7 +1034,7 @@ function reset(){
   requestAnimationFrame(resizeScene);
   state.phase='ready';syncCanvasPointerEvents();state.cards=[];state.revealed.clear();state.busy=false;
   clearCards();if(!state.three)resetFallback();
-  showControls(['drawOne','drawFive']);$('drawOne').disabled=$('drawFive').disabled=!AVAILABLE_PACKS.length;
+  showControls(['drawOne','drawFive','drawEleven']);setDrawButtonsDisabled(!AVAILABLE_PACKS.length);
   $('controlHeading').textContent='어떤 순간을 열어 볼까요?';
   $('sceneHeading').textContent='01 — THE SEALED MOMENT';
   $('centerHint').innerHTML='<span>✧</span> THE SHOW IS ABOUT TO BEGIN';
@@ -1035,7 +1054,7 @@ function resetFallback(){
   note.textContent=chosen?'3D를 사용할 수 없어 선택한 '+chosen.name+' 팩을 평면으로 표시합니다.':'공개된 카드팩을 불러오는 중입니다.';
   f.append(note);
 }
-function renderFallbackCards(){const f=$('canvasFallback');f.innerHTML='';f.style.flexDirection='row';f.style.flexWrap='wrap';state.cards.forEach((c,i)=>{const el=document.createElement('img');el.src=state.revealed.has(i)?makeCardArt(c).toDataURL():(loaded(brandCardBack)?brandCardBack.src:makeBackTexture().toDataURL());el.alt=state.revealed.has(i)?c.name:'뒷면';el.style.cssText='width:clamp(70px,15%,130px);aspect-ratio:1/1.48;object-fit:cover;box-shadow:0 4px 25px #000a;cursor:pointer';el.onclick=()=>revealIndex(i);f.appendChild(el)})}
+function renderFallbackCards(){const f=$('canvasFallback');f.innerHTML='';f.style.flexDirection='row';f.style.flexWrap='wrap';state.cards.forEach((c,i)=>{const el=document.createElement('img');el.src=state.revealed.has(i)?makeCardArt(c).toDataURL():(loaded(brandCardBack)?brandCardBack.src:makeBackTexture().toDataURL());el.alt=state.revealed.has(i)?c.name:'뒷면';el.style.cssText='width:clamp(70px,15%,130px);aspect-ratio:1/1.48;object-fit:cover;box-shadow:0 4px 25px #000a;cursor:pointer';el.onclick=()=>state.revealed.has(i)?openCardFocus(c):revealIndex(i);f.appendChild(el)})}
 function openModal(id){$(id).classList.add('active');$(id).setAttribute('aria-hidden','false')}
 function closeModal(id){$(id).classList.remove('active');$(id).setAttribute('aria-hidden','true')}
 function renderCollection(){
@@ -1294,8 +1313,8 @@ function bind(){
     },
     setBgmDucking:level=>soundManager?.setBgmDucking(level)
   });
-  $('drawOne').onclick=()=>openPack(1);$('drawFive').onclick=()=>openPack(5);
-  $('packPicker').onchange=()=>void syncPackArtwork();
+  $('drawOne').onclick=()=>openPack(1);$('drawFive').onclick=()=>openPack(5);$('drawEleven').onclick=()=>openPack(11);
+  $('packPicker').onchange=()=>{renderPackOdds();void syncPackArtwork()};
   $('stageRevealAll').onclick=revealAll;
   $('stageFinish').onclick=reset;$('stageClose').onclick=reset;
   $('splashClose').onclick=(event)=>{event.stopPropagation();closeRaritySplash()};
@@ -1328,8 +1347,8 @@ function bind(){
     }
     if(e.key==='Enter'&&document.activeElement===$('recoveryCodeInput'))restoreRecovery();
   });
-  $('oddsRows').innerHTML=TIERS.map(t=>`<div class="odds-row"><div class="odds-tier"><span class="odds-chip ${t.key==='UR'?'holo':''}" style="background:${tierCssGradient(t.key)}">${t.key}</span><strong>${t.label}</strong></div><span>${t.chance}%</span></div>`).join('');
-  fillConcertCrowd();showControls(['drawOne','drawFive']);updateCounts();updateLogin();syncCanvasPointerEvents();
+  renderPackOdds();
+  fillConcertCrowd();showControls(['drawOne','drawFive','drawEleven']);updateCounts();updateLogin();syncCanvasPointerEvents();
   document.addEventListener('visibilitychange',()=>{
     if(document.visibilityState==='visible'&&state.supabase){
       void loadPublishedCatalog().then(()=>{
