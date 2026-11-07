@@ -1,6 +1,7 @@
 import {mountAudioPanel} from './audio-manager.js?v=studio-managed-20261107';
 import {createURRevealPayoff} from './ur-reveal.js?v=20261108-ssr';
-import {createURCinematic} from './ur-cinematic.js?v=20261108';
+import {createURCinematic} from './ur-cinematic.js?v=20261108-v2';
+import {createRarityRevealAccents} from './rarity-accents.js?v=20261108-v2';
 import {createOpeningEffects} from './opening-effects.js';
 import {renderITMCard} from './card-frame.js?v=ur-photo-window-20261105';
 /* ITM — IDOL : THE MOMENT | Standalone, fan-made 3D prototype
@@ -177,7 +178,7 @@ function guestChosen(){try{return localStorage.getItem(ENTRY_KEY)==='guest'}catc
 function syncCanvasPointerEvents(){const canvas=$('threeCanvas');if(canvas)canvas.classList.toggle('itm-canvas-interactive',state.phase==='reveal');}
 let scene,renderer,camera,pack,packRim,packParts,packTop,packBottom,packSeam,tornSide,tornFace,openingCard,cardMeshes=[],dust,halos,stageLights=[],openingFx=null,THREE,clock,lastTime=0,openingAt=0,audioContext=null;
 
-let soundManager=null,urPayoff=null,urCinematic=null,urRevealTimer=0,urRevealPending=false,urQueuedReveal=null;
+let soundManager=null,urPayoff=null,urCinematic=null,rarityFx=null,urRevealTimer=0,urRevealPending=false,urQueuedReveal=null;
 let concertStage=null,hoverChimeAt=0,splashTimer=null,urCoverTimer=null,audioPreferenceSet=false,introTimers=[],introCameraActive=false,introCameraStart=0;
 const RARITY_CLASSES=['rarity-n','rarity-r','rarity-sr','rarity-ssr','rarity-ur'];
 function setSound(on){
@@ -317,12 +318,14 @@ function queueRaritySplash(card){
   cover.hidden=false;cover.classList.remove('playing');
   void cover.offsetWidth;cover.classList.add('playing');
   // Keep the card completely face-down during the fade-to-black.
+  const reduceMotion=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // Longer blackout, then a high-energy pure-white ignition before the artwork.
   splashTimer=setTimeout(()=>{
     if(state.phase==='reveal'&&urRevealPending)showRaritySplash(card);
-  },410);
+  },reduceMotion?160:1350);
   urCoverTimer=setTimeout(()=>{
     cover.hidden=true;cover.classList.remove('playing');
-  },900);
+  },reduceMotion?310:2150);
 }
 function beginURCinematic(index,all=false){
   if(urRevealPending||state.phase!=='reveal')return;
@@ -331,7 +334,9 @@ function beginURCinematic(index,all=false){
   urRevealPending=true;
   urQueuedReveal={index,all};
   $('stageRevealAll').disabled=true;
-  // The full-screen artwork remains; the meteor card follows its dismissal.
+  // Keep BGM at meteor-cinematic level from the very first card click,
+  // including the full-screen artwork; the cinematic owns final restoration.
+  soundManager?.setBgmDucking(.12);
   queueRaritySplash(card);
 }
 function beginSSRImpact(index,all=false){
@@ -340,15 +345,24 @@ function beginSSRImpact(index,all=false){
   urRevealPending=true;
   $('stageRevealAll').disabled=true;
   const button=stageCardAt(index);
-  urPayoff?.prepare(button);
-  clearTimeout(urRevealTimer);
-  urRevealTimer=setTimeout(()=>{
-    urRevealTimer=0;urRevealPending=false;
+  // A stationary centered preview replaces the old 300ms hold. Its final
+  // beat runs the original SSR flash, shockwave, fanfare and actual card flip.
+  const onReveal=()=>{
+    urRevealPending=false;
     $('stageRevealAll').disabled=false;
     if(state.phase!=='reveal')return;
     if(all)revealAll(true);
     else revealIndex(index,false,true);
-  },300);
+  };
+  if(rarityFx)rarityFx.startSSR(button,{
+    onPrepare:()=>urPayoff?.prepare(button),
+    onReveal
+  });
+  else{
+    urPayoff?.prepare(button);
+    clearTimeout(urRevealTimer);
+    urRevealTimer=setTimeout(onReveal,300);
+  }
 }
 const EASE = t => 1-Math.pow(1-Math.min(1,Math.max(0,t)),3);
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
@@ -1024,8 +1038,11 @@ function revealIndex(i,silent=false,skipURLead=false){
         setTimeout(()=>button.classList.remove('ur-impact-card'),800);
       }
     }else if(card.rarity!=='UR'){
-      // UR receives its own meteor impact and original musical sting.
       chime(freq,.075);
+      if(card.rarity==='SR'){
+        rarityFx?.sparkleSR(button);
+        setTimeout(()=>{if(state.phase==='reveal')chime(1047,.045)},145);
+      }
     }
     setConcertRarity(card.rarity);
     if(card.rarity==='UR')concertStage?.burst('UR');
@@ -1064,6 +1081,7 @@ function revealAll(skipURLead=false){
     if(button)setTimeout(()=>button.classList.remove('ur-impact-card'),800);
   }else if(highest.rarity!=='UR'){
     chime(659,.16);
+    if(highest.rarity==='SR')rarityFx?.sparkleSR(stageCardAt(bestIndex));
   }
   setConcertRarity(highest.rarity);
   if(highest.rarity==='UR')concertStage?.burst('UR');
@@ -1073,6 +1091,8 @@ function reset(){
   clearTimeout(urRevealTimer);urRevealTimer=0;urRevealPending=false;urQueuedReveal=null;
   urPayoff?.cancel();
   urCinematic?.cancel();
+  rarityFx?.cancel();
+  soundManager?.setBgmDucking(1);
   $('packRevealStage').classList.remove('ur-meteor-impact');
   $('stageRevealAll').disabled=false;
   closeRaritySplash({complete:false});concertStage?.endOpening();openingFx?.reset();setConcertRarity('DEFAULT');
@@ -1464,6 +1484,7 @@ function bind(){
     },
     setBgmDucking:level=>soundManager?.setBgmDucking(level)
   });
+  rarityFx=createRarityRevealAccents();
   $('drawOne').onclick=()=>openPack(1);$('drawFive').onclick=()=>openPack(5);$('drawEleven').onclick=()=>openPack(11);
   $('packPicker').onchange=()=>{renderPackOdds();void syncPackArtwork()};
   $('stageRevealAll').onclick=revealAll;
