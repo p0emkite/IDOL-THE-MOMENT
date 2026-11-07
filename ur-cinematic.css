@@ -48,3 +48,54 @@ body.itm-concert .pack-reveal-stage.ur-meteor-impact .stage-main{animation:itmUR
 @media(max-width:680px){.itm-ur-cinema-card{width:min(76vw,53vh)}.itm-ur-cinema-footer{bottom:max(9px,2vh)}.itm-ur-cinema-skip{font-size:11px;padding:10px 12px}.itm-ur-cinema-rings i{width:82vw}}
 @media(orientation:landscape) and (max-height:490px){.itm-ur-cinema-card{width:min(39vw,54vh)}.itm-ur-cinema-footer{bottom:7px;gap:2px}.itm-ur-cinema-footer strong{font-size:11px}.itm-ur-cinema-footer small{font-size:8px}}
 @media(prefers-reduced-motion:reduce){.itm-ur-cinema::before,.itm-ur-cinema-sky,.itm-ur-meteor-trail,.itm-ur-cinema-impact,.itm-ur-cinema-beams,.itm-ur-cinema-rings,.itm-ur-cinema-particles{display:none!important}.itm-ur-cinema-card,.itm-ur-cinema-inner,.itm-ur-cinema-aura,.itm-ur-cinema-footer{animation:none!important}.itm-ur-cinema-inner{transform:rotateY(180deg)}.itm-ur-cinema-footer{opacity:1}.itm-ur-cinema.leaving{animation:itmURExit .25s ease-out both}body.itm-concert .pack-reveal-stage.ur-meteor-impact .stage-main{animation:none!important}}
+
+/* ITM 2.1 blackout: the light stays OFF before a theatrical pure-white ignition.
+   These overrides intentionally supersede the earlier .9s transition and the
+   disabled strobe declaration in premium-ui.css, without affecting other tiers. */
+body.itm-concert .ur-screen-transition.playing{
+  animation:itmURLongBlackout 2.15s cubic-bezier(.26,.08,.24,1) both!important;
+  background:#000;
+}
+body.itm-concert .ur-screen-transition.playing::before{
+  content:"";display:block;position:absolute;inset:-32%;pointer-events:none;
+  background:repeating-conic-gradient(from -7deg at 50% 50%,transparent 0deg,#fffdfca6 3deg,#fbeaffed 5deg,transparent 9deg,transparent 28deg);
+  mask-image:radial-gradient(ellipse at 50% 50%,#000 0%,#000a 36%,transparent 69%);
+  filter:drop-shadow(0 0 32px #fff);
+  opacity:0;animation:itmURWhiteRays 2.15s ease-out both;
+}
+body.itm-concert .ur-screen-transition.playing::after{
+  content:"";display:block!important;position:absolute;inset:0;pointer-events:none;
+  background:
+    radial-gradient(ellipse 56% 64% at 50% 46%,#fff 0%,#fff 34%,#fffcffed 64%,#f9ddffaf 84%,transparent 100%),
+    radial-gradient(ellipse at 50% 50%,#fff 0%,#fff 66%,#fffcff 100%);
+  filter:brightness(1.6);
+  opacity:0;animation:itmURWhiteIgnitionGrand 2.15s cubic-bezier(.24,.06,.3,1) both!important;
+}
+@keyframes itmURLongBlackout{
+  0%{opacity:0}
+  22%,77%{opacity:1}
+  100%{opacity:0}
+}
+@keyframes itmURWhiteIgnitionGrand{
+  0%,44%{opacity:0;transform:scale(.58);filter:brightness(1)}
+  51%{opacity:.12;transform:scale(.85);filter:brightness(1.6)}
+  55%{opacity:.95;transform:scale(1.08);filter:brightness(2)}
+  61%{opacity:1;transform:scale(1.26);filter:brightness(2.25)}
+  70%{opacity:.87;transform:scale(1.39);filter:brightness(1.8)}
+  83%{opacity:.27;transform:scale(1.55);filter:brightness(1.25)}
+  100%{opacity:0;transform:scale(1.7);filter:brightness(1)}
+}
+@keyframes itmURWhiteRays{
+  0%,43%{opacity:0;transform:rotate(-24deg) scale(.4)}
+  54%{opacity:.78}
+  65%{opacity:.98;transform:rotate(4deg) scale(1.1)}
+  100%{opacity:0;transform:rotate(23deg) scale(1.7)}
+}
+@media(prefers-reduced-motion:reduce){
+  body.itm-concert .ur-screen-transition.playing{
+    animation:itmURBlackoutAccessible .31s linear both!important
+  }
+  body.itm-concert .ur-screen-transition.playing::before{display:none!important;animation:none!important}
+  body.itm-concert .ur-screen-transition.playing::after{display:none!important;animation:none!important}
+  @keyframes itmURBlackoutAccessible{0%{opacity:0}40%{opacity:.7}100%{opacity:0}}
+}
