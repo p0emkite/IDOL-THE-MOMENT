@@ -5,11 +5,11 @@ export function createURCinematic({getSfxGain,getAudioContext,setBgmDucking}){
   const reduced=()=>window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const later=(fn,ms)=>{const id=setTimeout(()=>{timers.delete(id);fn()},ms);timers.add(id)};
   function clearTimers(){for(const id of timers)clearTimeout(id);timers.clear()}
-  function end({reveal=false}={}){
+  function end({reveal=false,restoreAudio=true}={}){
     if(reveal&&!completed){completed=true;flip?.()}
     clearTimers();
     layer?.remove();layer=null;flip=null;
-    setBgmDucking?.(1);
+    if(restoreAudio)setBgmDucking?.(1);
     if(previousFocus?.isConnected)previousFocus.focus({preventScroll:true});
     previousFocus=null;
   }
@@ -70,7 +70,8 @@ export function createURCinematic({getSfxGain,getAudioContext,setBgmDucking}){
     finally{audio=null}
   }
   function start({button,onReveal}={}){
-    end();
+    // BGM has already been ducked since the UR card was tapped.
+    end({restoreAudio:false});
     if(!button||typeof onReveal!=='function'){onReveal?.();return}
     const front=button.querySelector('.stage-card-front img');
     const back=button.querySelector('.stage-card-back img');
