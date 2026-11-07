@@ -1,0 +1,50 @@
+/* UR-exclusive meteor arrival: the official card artwork remains unchanged. */
+.itm-ur-cinema{position:fixed;inset:0;z-index:188;display:grid;place-items:center;overflow:hidden;isolation:isolate;color:#fff;perspective:1400px;font-family:Inter,Pretendard,'Noto Sans KR',sans-serif}
+.itm-ur-cinema-backdrop{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 47%,#2112339c 0%,#080410cc 72%,#030207dc 100%);-webkit-backdrop-filter:blur(17px) brightness(.5);backdrop-filter:blur(17px) brightness(.5);animation:itmURDarken .46s ease-out both}
+.itm-ur-cinema::before{content:"";position:absolute;inset:-40%;pointer-events:none;background:conic-gradient(from 0deg at 50% 50%,transparent 0deg,#f3e9ff50 18deg,transparent 24deg,#e78aff7a 63deg,transparent 73deg,#b3fbff72 108deg,transparent 117deg,#ffe3aa8e 151deg,transparent 166deg,#f4acfa6e 220deg,transparent 232deg,#fff8da5c 283deg,transparent 298deg,#7cf4ff6b 335deg,transparent 351deg);mask-image:radial-gradient(ellipse at center,#000 0%,#0008 22%,transparent 66%);opacity:0;animation:itmURAurora 4s 1.44s ease-out both}
+.itm-ur-cinema::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:7;background:radial-gradient(ellipse at center,transparent 37%,#0301088c 100%)}
+.itm-ur-cinema-sky,.itm-ur-cinema-particles,.itm-ur-cinema-rings,.itm-ur-cinema-beams,.itm-ur-cinema-impact,.itm-ur-cinema-aura{position:absolute;inset:0;pointer-events:none}
+.itm-ur-cinema-sky i{position:absolute;left:var(--x);top:var(--y);height:3px;width:3px;border-radius:50%;background:#fff;box-shadow:0 0 13px 3px #d9c7ffbf;opacity:0;animation:itmURTwinkle 2.2s var(--delay) ease-in-out infinite alternate}
+.itm-ur-cinema-aura{z-index:2;background:radial-gradient(ellipse 22% 34% at 50% 49%,#ffebff88 0%,#c282ff55 32%,#8efaff3a 56%,transparent 100%);opacity:0;animation:itmURHalo 3.4s .95s ease-out both}
+.itm-ur-cinema-beams{z-index:2;inset:-35%;background:repeating-conic-gradient(from 3deg at center,#ffffff00 0deg,#fffbfb42 5deg,#ffffff00 8deg,#ffffff00 21deg);mask-image:radial-gradient(circle at center,#000 0%,transparent 44%);opacity:0;animation:itmURBeams 2.6s 1.52s ease-out both}
+.itm-ur-meteor-trail{position:absolute;z-index:3;left:50%;top:50%;width:93vmax;height:14px;transform-origin:100% 50%;background:linear-gradient(90deg,transparent 0%,#af7bff00 19%,#b6bfff38 48%,#92fcffc4 79%,#ffffff 96%);filter:blur(3px) drop-shadow(0 0 24px #d88fff);opacity:0;animation:itmURMeteorTrail 1.55s cubic-bezier(.1,.58,.2,1) both;pointer-events:none}
+.itm-ur-meteor-trail::before{content:"";position:absolute;right:0;top:50%;width:35px;aspect-ratio:1;border-radius:50%;transform:translateY(-50%);background:#fff;box-shadow:0 0 26px 14px #f5baff,0 0 85px 35px #91f3ff}
+.itm-ur-cinema-card{z-index:5;position:relative;width:min(445px,56vw,57vh);aspect-ratio:512/746;transform-style:preserve-3d;filter:drop-shadow(0 0 28px #d7afffc9);animation:itmURMeteorLand 1.5s cubic-bezier(.13,.75,.18,1) both;will-change:transform}
+.itm-ur-cinema-inner{position:absolute;inset:0;transform-style:preserve-3d;animation:itmURGrandFlip 2.42s cubic-bezier(.17,.68,.18,1) both}
+.itm-ur-cinema-face{position:absolute;inset:0;border-radius:3.2% / 2.2%;overflow:hidden;backface-visibility:hidden;-webkit-backface-visibility:hidden;box-shadow:0 16px 50px #010007ed,0 0 22px #fff9}
+.itm-ur-cinema-face img{display:block;width:100%;height:100%;object-fit:fill}
+.itm-ur-cinema-face.back{background:#3b235f;border:2px solid #edbdff}
+.itm-ur-cinema-face.front{transform:rotateY(180deg);background:#e7ddfa;border:2px solid #f8efff;box-shadow:0 0 25px #fff,0 0 54px #bc96ff,0 0 120px #ffa3e6,0 23px 50px #000e}
+.itm-ur-cinema-face.front::before{content:"";position:absolute;inset:0;pointer-events:none;z-index:2;border-radius:inherit;box-shadow:inset 0 0 14px 4px #f6fcff9c,inset 0 0 40px #b390ff59}
+.itm-ur-cinema-foil{position:absolute;inset:-20% -130%;z-index:3;pointer-events:none;background:linear-gradient(110deg,transparent 40%,#fff7 47%,#aef5ffbb 49%,#fff9 50%,#ffbdfa71 53%,transparent 60%);mix-blend-mode:screen;transform:translateX(-50%);animation:itmURGloss 3.1s 1.7s ease-in-out infinite}
+.itm-ur-cinema-impact{z-index:6;background:radial-gradient(ellipse at center,#fff 0%,#fffdf4ff 13%,#fff9f9cc 23%,#f9a2ff76 41%,#a3f8ff33 62%,transparent 80%);opacity:0;animation:itmURCollision 2.5s ease-out both}
+.itm-ur-cinema-rings{z-index:4;display:grid;place-items:center}
+.itm-ur-cinema-rings i{position:absolute;width:min(70vw,75vh);aspect-ratio:1;border:3px solid #fff8fb;box-shadow:0 0 17px #fff,0 0 55px #f3a0ff,inset 0 0 27px #8febff;border-radius:50%;opacity:0;animation:itmURImpactRing 1.32s calc(1.59s + var(--delay)) cubic-bezier(.06,.57,.19,1) both}
+.itm-ur-cinema-particles{z-index:4}
+.itm-ur-cinema-particles i{position:absolute;left:var(--sx);top:var(--sy);width:clamp(3px,.45vw,8px);aspect-ratio:1;border-radius:50%;background:hsl(var(--hue) 100% 81%);color:hsl(var(--hue) 100% 73%);box-shadow:0 0 12px 3px currentColor;opacity:0;animation:itmURParticles 2.2s calc(1.57s + var(--sd)) ease-out both}
+.itm-ur-cinema-particles i:nth-child(4n){height:19px;width:3px;border-radius:12px;rotate:34deg}
+.itm-ur-cinema-footer{position:absolute;z-index:6;bottom:max(16px,4vh);left:12px;right:12px;display:grid;gap:6px;text-align:center;pointer-events:none;opacity:0;animation:itmURFooter 1.5s 1.84s both;text-shadow:0 0 18px #c495ff,0 0 35px #b78aff}
+.itm-ur-cinema-footer strong{font-size:clamp(13px,2vw,22px);letter-spacing:.22em;background:linear-gradient(90deg,#bcfbff,#ffa7e5,#fff4bd,#beadff,#bafaff);background-clip:text;-webkit-background-clip:text;color:transparent}
+.itm-ur-cinema-footer small{font-size:clamp(8px,1vw,11px);letter-spacing:.38em;color:#eeddfc}
+.itm-ur-cinema-skip{position:absolute;z-index:10;top:max(16px,env(safe-area-inset-top));right:max(19px,env(safe-area-inset-right));padding:12px 17px;border:1px solid #ffffff8c;border-radius:100px;background:#140b26ba;backdrop-filter:blur(6px);color:#fff;font-size:12px;letter-spacing:.05em;font-weight:700;cursor:pointer}
+.itm-ur-cinema-skip:hover,.itm-ur-cinema-skip:focus-visible{background:#4b2672;outline:2px solid #fff;outline-offset:3px}
+.itm-ur-cinema.leaving{animation:itmURExit .42s ease-in both}
+body.itm-concert .pack-reveal-stage.ur-meteor-impact .stage-main{animation:itmURStageMeteorHit .5s ease-out both}
+@keyframes itmURDarken{from{opacity:0}to{opacity:1}}
+@keyframes itmURMeteorLand{0%{opacity:0;transform:translate(78vw,-110vh) rotate(-510deg) scale(.12)}38%{opacity:1}75%{transform:translate(8vw,-13vh) rotate(-52deg) scale(.7)}91%{transform:translate(-1.5vw,2vh) rotate(9deg) scale(1.12)}100%{opacity:1;transform:translate(0,0) rotate(0) scale(1)}}
+@keyframes itmURGrandFlip{0%,47%{transform:rotateY(0deg)}74%{transform:rotateY(900deg)}100%{transform:rotateY(900deg)}}
+@keyframes itmURMeteorTrail{0%{opacity:0;transform:translate(78vw,-110vh) rotate(-47deg) scaleX(.7)}22%{opacity:.95}85%{opacity:.92}100%{opacity:0;transform:translate(-2vw,2vh) rotate(-47deg) scaleX(.09)}}
+@keyframes itmURCollision{0%,58%{opacity:0}64%{opacity:1}71%{opacity:.85}82%{opacity:.24}100%{opacity:0}}
+@keyframes itmURImpactRing{0%{opacity:0;transform:scale(.08)}8%{opacity:.95}100%{opacity:0;transform:scale(2.9)}}
+@keyframes itmURParticles{0%{opacity:0;transform:translate(0,0) scale(.2)}10%{opacity:1}55%{opacity:.85}100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(.12)}}
+@keyframes itmURBeams{0%{opacity:0;transform:rotate(-25deg) scale(.6)}19%{opacity:1}100%{opacity:.14;transform:rotate(42deg) scale(1.3)}}
+@keyframes itmURAurora{0%{opacity:0;transform:rotate(-20deg) scale(.75)}16%{opacity:.75}85%{opacity:.6}100%{opacity:.42;transform:rotate(28deg) scale(1.28)}}
+@keyframes itmURHalo{0%,15%{opacity:0;transform:scale(.6)}47%{opacity:1;transform:scale(1.1)}100%{opacity:.55;transform:scale(1.32)}}
+@keyframes itmURTwinkle{0%{opacity:.15;transform:scale(.6)}100%{opacity:.8;transform:scale(1.5)}}
+@keyframes itmURGloss{0%,24%{transform:translateX(-45%);opacity:0}53%{opacity:.9}80%,100%{transform:translateX(42%);opacity:0}}
+@keyframes itmURFooter{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+@keyframes itmURExit{to{opacity:0;filter:blur(8px)}}
+@keyframes itmURStageMeteorHit{0%,100%{translate:0 0}12%{translate:-9px 5px}29%{translate:7px -5px}44%{translate:-5px 3px}68%{translate:3px -2px}}
+@media(max-width:680px){.itm-ur-cinema-card{width:min(76vw,53vh)}.itm-ur-cinema-footer{bottom:max(9px,2vh)}.itm-ur-cinema-skip{font-size:11px;padding:10px 12px}.itm-ur-cinema-rings i{width:82vw}}
+@media(orientation:landscape) and (max-height:490px){.itm-ur-cinema-card{width:min(39vw,54vh)}.itm-ur-cinema-footer{bottom:7px;gap:2px}.itm-ur-cinema-footer strong{font-size:11px}.itm-ur-cinema-footer small{font-size:8px}}
+@media(prefers-reduced-motion:reduce){.itm-ur-cinema::before,.itm-ur-cinema-sky,.itm-ur-meteor-trail,.itm-ur-cinema-impact,.itm-ur-cinema-beams,.itm-ur-cinema-rings,.itm-ur-cinema-particles{display:none!important}.itm-ur-cinema-card,.itm-ur-cinema-inner,.itm-ur-cinema-aura,.itm-ur-cinema-footer{animation:none!important}.itm-ur-cinema-inner{transform:rotateY(180deg)}.itm-ur-cinema-footer{opacity:1}.itm-ur-cinema.leaving{animation:itmURExit .25s ease-out both}body.itm-concert .pack-reveal-stage.ur-meteor-impact .stage-main{animation:none!important}}
