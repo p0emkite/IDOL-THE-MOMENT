@@ -11,8 +11,9 @@ function packOddsFromForm(){
     const el=document.querySelector('[data-pack-odds="'+key+'"]');
     if(!el||!el.value.trim())return null;
     const number=Number(el.value);
-    if(!Number.isFinite(number)||number<0||number>100||Math.round(number*100)!==number*100)return null;
-    result[key]=number;
+    const basisPoints=Math.round(number*100);
+    if(!Number.isFinite(number)||number<0||number>100||Math.abs(number*100-basisPoints)>0.000001)return null;
+    result[key]=basisPoints/100;
   }
   return result;
 }
