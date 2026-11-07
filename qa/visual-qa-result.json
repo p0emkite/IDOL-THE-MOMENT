@@ -1,0 +1,194 @@
+{
+  "when": "2026-11-07T17:02:38.154Z",
+  "checks": {
+    "studio": {
+      "canvas": [
+        1024,
+        1492
+      ],
+      "grade": "UR",
+      "zoom": "135%",
+      "saveLocked": true,
+      "groupSaveLocked": true,
+      "packManagerCollapsed": true,
+      "packSaveLocked": true,
+      "packControls": true,
+      "groupsApi": {
+        "status": 200,
+        "body": "[{\"slug\":\"ive\"}, \n {\"slug\":\"rescene\"}]"
+      },
+      "catalogApi": {
+        "status": 200,
+        "body": "[{\"id\":\"dd7c1feb-ebd8-43ea-ae59-b574a79a08da\"}, \n {\"id\":\"680c4b90-75c7-4db0-bf17-566007923243\"}, \n {\"id\":\"623432a3-10cf-477f-9bb3-c9d2d6941338\"}, \n {\"id\":\"5a1c683c-685f-4d29-94e4-62b3e3eed56b\"}, \n {\"i"
+      }
+    },
+    "packLayout": {
+      "choices": 4,
+      "maxCheckboxWidth": 18,
+      "maxCheckboxHeight": 18,
+      "minTextWidth": 226.078125,
+      "horizontalOverflow": false,
+      "seriesColumns": "581.156px"
+    },
+    "frameTemplates": {
+      "count": 5,
+      "sizes": [
+        [
+          1024,
+          1492
+        ],
+        [
+          1024,
+          1492
+        ],
+        [
+          1024,
+          1492
+        ],
+        [
+          1024,
+          1492
+        ],
+        [
+          1024,
+          1492
+        ]
+      ],
+      "tiers": [
+        "N",
+        "R",
+        "SR",
+        "SSR",
+        "UR"
+      ]
+    },
+    "desktop": {
+      "webgl": true,
+      "canvas": [
+        1680,
+        940
+      ],
+      "buttons": [
+        {
+          "id": "drawOne",
+          "visible": true,
+          "disabled": false
+        },
+        {
+          "id": "drawFive",
+          "visible": true,
+          "disabled": false
+        }
+      ],
+      "soundPanel": true,
+      "soundDefault": {
+        "enabled": true,
+        "bgm": "50",
+        "sfx": "50"
+      },
+      "viewport": [
+        1680,
+        940
+      ],
+      "sceneRect": [
+        1680,
+        940
+      ]
+    },
+    "sound": {
+      "visible": true,
+      "bgm": true,
+      "sfx": true
+    },
+    "afterPackClick": {
+      "heading": "02 — BREAK THE SEAL",
+      "buttonDisabled": false,
+      "cinematic": true,
+      "overlay": "overlay"
+    },
+    "open": {
+      "reveal": true,
+      "actualCards": 5
+    },
+    "mobile": {
+      "webgl": true,
+      "canvas": [
+        390,
+        844
+      ],
+      "buttons": [
+        {
+          "id": "drawOne",
+          "visible": true,
+          "disabled": false
+        },
+        {
+          "id": "drawFive",
+          "visible": true,
+          "disabled": false
+        }
+      ],
+      "soundPanel": true,
+      "soundDefault": {
+        "enabled": true,
+        "bgm": "50",
+        "sfx": "50"
+      },
+      "viewport": [
+        390,
+        844
+      ],
+      "sceneRect": [
+        390,
+        844
+      ]
+    },
+    "landscape": {
+      "webgl": true,
+      "canvas": [
+        844,
+        390
+      ],
+      "buttons": [
+        {
+          "id": "drawOne",
+          "visible": true,
+          "disabled": false
+        },
+        {
+          "id": "drawFive",
+          "visible": true,
+          "disabled": false
+        }
+      ],
+      "soundPanel": true,
+      "soundDefault": {
+        "enabled": true,
+        "bgm": "50",
+        "sfx": "50"
+      },
+      "viewport": [
+        844,
+        390
+      ],
+      "sceneRect": [
+        844,
+        390
+      ]
+    }
+  },
+  "consoleErrors": [],
+  "screenshots": [
+    "qa/desktop-card-studio.png",
+    "qa/desktop-pack-manager.png",
+    "qa/desktop-frame-templates.png",
+    "qa/desktop-frame-bright-photo.png",
+    "qa/desktop-lobby.png",
+    "qa/desktop-reveal.png",
+    "qa/mobile-lobby.png",
+    "qa/landscape-lobby.png"
+  ],
+  "captureWarnings": [
+    "qa/desktop-foil-charge.png: page.screenshot: Timeout 6500ms exceeded."
+  ]
+}
