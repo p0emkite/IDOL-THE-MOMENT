@@ -1,5 +1,6 @@
 import {mountAudioPanel} from './audio-manager.js?v=studio-managed-20261107';
-import {createURRevealPayoff} from './ur-reveal.js?v=20261106';
+import {createURRevealPayoff} from './ur-reveal.js?v=20261108-ssr';
+import {createURCinematic} from './ur-cinematic.js?v=20261108';
 import {createOpeningEffects} from './opening-effects.js';
 import {renderITMCard} from './card-frame.js?v=ur-photo-window-20261105';
 /* ITM — IDOL : THE MOMENT | Standalone, fan-made 3D prototype
@@ -176,7 +177,7 @@ function guestChosen(){try{return localStorage.getItem(ENTRY_KEY)==='guest'}catc
 function syncCanvasPointerEvents(){const canvas=$('threeCanvas');if(canvas)canvas.classList.toggle('itm-canvas-interactive',state.phase==='reveal');}
 let scene,renderer,camera,pack,packRim,packParts,packTop,packBottom,packSeam,tornSide,tornFace,openingCard,cardMeshes=[],dust,halos,stageLights=[],openingFx=null,THREE,clock,lastTime=0,openingAt=0,audioContext=null;
 
-let soundManager=null,urPayoff=null,urRevealTimer=0,urRevealPending=false,urQueuedReveal=null;
+let soundManager=null,urPayoff=null,urCinematic=null,urRevealTimer=0,urRevealPending=false,urQueuedReveal=null;
 let concertStage=null,hoverChimeAt=0,splashTimer=null,urCoverTimer=null,audioPreferenceSet=false,introTimers=[],introCameraActive=false,introCameraStart=0;
 const RARITY_CLASSES=['rarity-n','rarity-r','rarity-sr','rarity-ssr','rarity-ur'];
 function setSound(on){
@@ -262,18 +263,21 @@ function closeRaritySplash({complete=true}={}){
   if(cover){cover.hidden=true;cover.classList.remove('playing')}
   const queued=urQueuedReveal;urQueuedReveal=null;
   if(!complete||!queued)return;
-  // The full-screen art has closed. Only NOW prepare the 300ms silence and
-  // execute the original flip, fireworks, shake, impact and sound payoff.
+  // Keep the full-screen artwork first, then showcase the actual UR card in
+  // a centered meteor flip. The real stage card is revealed on impact.
   const button=stageCardAt(queued.index);
-  urPayoff?.prepare(button);
-  clearTimeout(urRevealTimer);
-  urRevealTimer=setTimeout(()=>{
-    urRevealTimer=0;urRevealPending=false;
-    $('stageRevealAll').disabled=false;
+  const revealOnImpact=()=>{
     if(state.phase!=='reveal')return;
+    urRevealPending=false;
+    $('stageRevealAll').disabled=false;
+    const stage=$('packRevealStage');
+    stage.classList.add('ur-meteor-impact');
+    setTimeout(()=>stage.classList.remove('ur-meteor-impact'),520);
     if(queued.all)revealAll(true);
     else revealIndex(queued.index,false,true);
-  },300);
+  };
+  if(urCinematic)urCinematic.start({button,onReveal:revealOnImpact});
+  else revealOnImpact();
 }
 function showRaritySplash(card){
   if(!card||card.rarity!=='UR')return;
@@ -327,8 +331,24 @@ function beginURCinematic(index,all=false){
   urRevealPending=true;
   urQueuedReveal={index,all};
   $('stageRevealAll').disabled=true;
-  // Do not add .is-revealed or UR impact effects until the user closes art.
+  // The full-screen artwork remains; the meteor card follows its dismissal.
   queueRaritySplash(card);
+}
+function beginSSRImpact(index,all=false){
+  if(urRevealPending||state.phase!=='reveal')return;
+  if(state.cards[index]?.rarity!=='SSR')return;
+  urRevealPending=true;
+  $('stageRevealAll').disabled=true;
+  const button=stageCardAt(index);
+  urPayoff?.prepare(button);
+  clearTimeout(urRevealTimer);
+  urRevealTimer=setTimeout(()=>{
+    urRevealTimer=0;urRevealPending=false;
+    $('stageRevealAll').disabled=false;
+    if(state.phase!=='reveal')return;
+    if(all)revealAll(true);
+    else revealIndex(index,false,true);
+  },300);
 }
 const EASE = t => 1-Math.pow(1-Math.min(1,Math.max(0,t)),3);
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
@@ -977,6 +997,9 @@ function revealIndex(i,silent=false,skipURLead=false){
   if(!silent&&!skipURLead&&state.cards[i].rarity==='UR'){
     beginURCinematic(i,false);return;
   }
+  if(!silent&&!skipURLead&&state.cards[i].rarity==='SSR'){
+    beginSSRImpact(i,false);return;
+  }
   state.revealed.add(i);
   const card=state.cards[i],button=stageCardAt(i),tier=TIERS.find(t=>t.key===card.rarity);
   if(button){
@@ -993,14 +1016,16 @@ function revealIndex(i,silent=false,skipURLead=false){
   }
   if(!silent){
     const freq={N:440,R:523,SR:659,SSR:784,UR:1047}[card.rarity]||523;
-    if(card.rarity==='UR'){
+    if(card.rarity==='SSR'){
+      // Former UR flash/shockwaves/fanfare now belong to SSR.
       urPayoff?.impact(button);
       if(button){
         button.classList.add('ur-impact-card');
         setTimeout(()=>button.classList.remove('ur-impact-card'),800);
       }
-    }else{
-      chime(freq,card.rarity==='SSR'?.14:.075);
+    }else if(card.rarity!=='UR'){
+      // UR receives its own meteor impact and original musical sting.
+      chime(freq,.075);
     }
     setConcertRarity(card.rarity);
     if(card.rarity==='UR')concertStage?.burst('UR');
@@ -1028,14 +1053,17 @@ function revealAll(skipURLead=false){
   if(!skipURLead&&highest.rarity==='UR'){
     beginURCinematic(bestIndex,true);return;
   }
+  if(!skipURLead&&highest.rarity==='SSR'){
+    beginSSRImpact(bestIndex,true);return;
+  }
   hiddenIndices.forEach(i=>revealIndex(i,true));
-  if(highest.rarity==='UR'){
+  if(highest.rarity==='SSR'){
     const button=stageCardAt(bestIndex);
     urPayoff?.impact(button);
     button?.classList.add('ur-impact-card');
     if(button)setTimeout(()=>button.classList.remove('ur-impact-card'),800);
-  }else{
-    chime(highest.rarity==='SSR'?784:659,.16);
+  }else if(highest.rarity!=='UR'){
+    chime(659,.16);
   }
   setConcertRarity(highest.rarity);
   if(highest.rarity==='UR')concertStage?.burst('UR');
@@ -1044,6 +1072,8 @@ function revealAll(skipURLead=false){
 function reset(){
   clearTimeout(urRevealTimer);urRevealTimer=0;urRevealPending=false;urQueuedReveal=null;
   urPayoff?.cancel();
+  urCinematic?.cancel();
+  $('packRevealStage').classList.remove('ur-meteor-impact');
   $('stageRevealAll').disabled=false;
   closeRaritySplash({complete:false});concertStage?.endOpening();openingFx?.reset();setConcertRarity('DEFAULT');
   document.body.classList.remove('pack-cinematic','pack-revealing');
@@ -1419,6 +1449,14 @@ function bind(){
     onToggle:(enabled)=>{audioPreferenceSet=true;setSound(enabled);}
   });
   urPayoff=createURRevealPayoff({
+    getSfxGain:()=>soundManager?.getSfxGain()??0,
+    getAudioContext:()=>{
+      audioContext ||= new (window.AudioContext||window.webkitAudioContext)();
+      return audioContext;
+    },
+    setBgmDucking:level=>soundManager?.setBgmDucking(level)
+  });
+  urCinematic=createURCinematic({
     getSfxGain:()=>soundManager?.getSfxGain()??0,
     getAudioContext:()=>{
       audioContext ||= new (window.AudioContext||window.webkitAudioContext)();
