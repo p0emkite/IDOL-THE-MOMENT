@@ -6,19 +6,18 @@ export function mountAudioPanel({onToggle,initialEnabled=true}){
   const byId=id=>document.getElementById(id);
   const panel=byId('soundPanel'),button=byId('audioToggle'),master=byId('soundMaster');
   const volumeBgm=byId('bgmVolume'),volumeFx=byId('sfxVolume'),caption=byId('musicTrackInfo');
-  const input=byId('musicFiles'),uploadLabel=byId('musicUploadLabel');
   const base=[
     {title:'Afterglow Arcade',url:'./assets/audio/1_ITM_Afterglow_Arcade_Lobby_BGM.mp3'},
     {title:'Chrome Rush',url:'./assets/audio/2_ITM_Chrome_Rush_Track03_No_Lead.mp3'},
     {title:'Sugar Parade',url:'./assets/audio/3_ITM_Sugar_Parade_Track04_No_Lead.mp3'}
   ];
   let tracks=base.slice(),index=0,enabled=!!initialEnabled,bgmGain=.5,fxGain=.5;
-  let playerReady=false,playing=false,manualPaused=false,serial=0,failures=0,backend=null,isAdmin=false;
+  let playerReady=false,playing=false,manualPaused=false,serial=0,failures=0,backend=null;
   let cinematicDuck=1;
   const player=new Audio();
   player.preload='auto';player.loop=false;player.volume=bgmGain;
   const status=msg=>{caption.textContent=msg};
-  const describe=()=>status('♪ '+(index+1)+'/'+tracks.length+' · '+tracks[index].title);
+  const describe=()=>status(tracks[index]?'♪ '+(index+1)+'/'+tracks.length+' · '+tracks[index].title:'등록된 BGM이 없습니다.');
   function controls(){
     player.volume=enabled?bgmGain*cinematicDuck:0;
     master.checked=enabled;
@@ -26,10 +25,9 @@ export function mountAudioPanel({onToggle,initialEnabled=true}){
     byId('bgmValue').textContent=Math.round(bgmGain*100)+'%';
     byId('sfxValue').textContent=Math.round(fxGain*100)+'%';
     button.setAttribute('aria-expanded',String(!panel.hidden));
-    uploadLabel.hidden=!isAdmin;
   }
   function loadCurrent(){
-    if(!tracks.length)return;
+    if(!tracks.length){player.pause();playing=false;playerReady=false;player.removeAttribute('src');describe();return;}
     serial++;
     player.pause();playing=false;
     player.src=tracks[index].url;
@@ -112,48 +110,23 @@ export function mountAudioPanel({onToggle,initialEnabled=true}){
     if(!backend)return;
     const {data,error}=await backend.from('itm_bgm_tracks').select('title,file_path,sort_order').order('sort_order').order('created_at');
     if(error){console.warn('BGM catalogue read failed',error.message);return}
-    const extras=(data||[]).map(row=>({
+    const serverTracks=(data||[]).map(row=>({
       title:row.title,
-      url:backend.storage.from('itm-bgm').getPublicUrl(row.file_path).data.publicUrl
+      url:row.file_path.startsWith('builtin:')?
+        './assets/audio/'+row.file_path.slice('builtin:'.length):
+        backend.storage.from('itm-bgm').getPublicUrl(row.file_path).data.publicUrl
     }));
     const oldUrl=tracks[index]?.url;
-    tracks=[...base,...extras];
+    tracks=serverTracks;
     const oldIndex=tracks.findIndex(track=>track.url===oldUrl);
-    if(oldIndex>=0)index=oldIndex;
-    else index=0;
-    if(!playing){loadCurrent();if(enabled)void playCurrent()}
+    index=oldIndex>=0?oldIndex:0;
+    if(oldIndex<0||!playing){loadCurrent();if(enabled&&tracks.length)void playCurrent()}
     else describe();
   }
   async function setBackend(client,admin=false){
-    backend=client||null;isAdmin=!!client&&!!admin;controls();
+    backend=client||null;controls();
     if(client)await reloadTracks();
   }
-  input.addEventListener('change',async event=>{
-    const files=[...(event.target.files||[])];input.value='';
-    if(!backend||!isAdmin){status('관리자 계정으로 로그인해야 BGM을 추가할 수 있습니다.');return}
-    let uploaded=0;
-    for(const file of files){
-      if(!/\.mp3$/i.test(file.name)||file.size>15*1024*1024||file.size===0){
-        status('MP3 파일만 업로드할 수 있습니다 (곡당 15MB 이하).');continue
-      }
-      const path='tracks/'+crypto.randomUUID()+'.mp3';
-      const title=file.name.replace(/\.mp3$/i,'').slice(0,120).trim()||'ITM BGM';
-      const {error:uploadError}=await backend.storage.from('itm-bgm').upload(path,file,{contentType:'audio/mpeg',cacheControl:'3600',upsert:false});
-      if(uploadError){status('업로드 실패: '+uploadError.message);continue}
-      const {error:recordError}=await backend.from('itm_bgm_tracks').insert({
-        title,file_path:path,sort_order:tracks.length+uploaded
-      });
-      if(recordError){
-        await backend.storage.from('itm-bgm').remove([path]);
-        status('곡 등록 실패: '+recordError.message);continue
-      }
-      uploaded++;
-    }
-    if(uploaded){
-      await reloadTracks();
-      status('BGM '+uploaded+'곡이 서버에 영구 등록되었습니다. GitHub에 자동 동기화됩니다.');
-    }
-  });
   controls();loadCurrent();void playCurrent();
   return {getSfxGain:()=>enabled?fxGain:0,setEnabled,setBgmDucking,initialPlay,next:()=>next(1),
     get trackNames(){return tracks.map(t=>t.title)},isEnabled:()=>enabled,setBackend};

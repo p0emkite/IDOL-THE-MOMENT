@@ -21,6 +21,9 @@ allowed = set()
 for row in rows:
     song_id = str(row.get("id", ""))
     path = str(row.get("file_path", ""))
+    if path.startswith("builtin:"):
+        # Stock tracks are already committed under assets/audio/; sync uploads only.
+        continue
     if not re.fullmatch(r"[0-9a-f-]{36}", song_id) or not re.fullmatch(r"tracks/[0-9a-f-]{36}\.mp3", path):
         raise RuntimeError("Invalid BGM storage path")
     target = DEST / (song_id + ".mp3")

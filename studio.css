@@ -143,3 +143,14 @@ input[type=range]{width:100%;accent-color:#e5a2e9;margin:0 0 15px}.range-control
 .pack-odds-total.invalid{color:#ff97ae}
 .pack-odds-panel>.helper{margin:9px 0 0}
 @media(max-width:550px){.pack-odds-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+
+/* Unified BGM library, admin-only modification actions. */
+.bgm-library{display:grid;gap:10px;margin:18px 0}
+.bgm-upload-label{display:grid;gap:9px;border:1px dashed #bc95de78;border-radius:11px;padding:13px 15px;color:#ead8f6;font-weight:800}
+.bgm-upload-label input{width:100%;font-size:12px}
+.bgm-track{display:grid;grid-template-columns:36px minmax(0,1fr);gap:9px 13px;padding:12px;border:1px solid #cda5f53d;border-radius:12px;background:#170f27}
+.bgm-position{align-self:center;text-align:center;font-size:13px;font-weight:950;color:#ebb8ff}
+.bgm-track>label{display:grid;gap:7px;font-size:11px;color:#bdabc9;font-weight:700;min-width:0}
+.bgm-track>label input{font-size:13px;width:100%;min-width:0}
+.bgm-track-actions{grid-column:2;display:flex;flex-wrap:wrap;gap:6px}
+.bgm-track-actions .soft-btn{padding:8px 12px;font-size:11px}

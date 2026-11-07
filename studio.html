@@ -4,9 +4,9 @@
 <meta name="theme-color" content="#110b21"/>
 <title>ITM — CARD STUDIO</title>
 <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml"/>
-<link rel="stylesheet" href="./studio.css?v=pack-odds-20261107"/>
+<link rel="stylesheet" href="./studio.css?v=bgm-control-20261107"/>
 <script src="./config.js"></script>
-<script type="module" src="./studio.js?v=pack-odds-20261107"></script>
+<script type="module" src="./studio.js?v=bgm-control-20261107"></script>
 </head><body>
 <header class="studio-header">
   <a class="brand" href="./"><img src="./assets/itm-logo.png" alt="ITM" /> <span>카드 제작 스튜디오 <small>ITM · THE MOMENT</small></span></a>
@@ -90,6 +90,15 @@
         <label class="check-row"><input id="packActive" type="checkbox" checked/> 팩 공개 및 사용</label>
         <div class="submit-row"><button class="action" id="savePack" type="submit" disabled>팩 저장</button><button class="soft-btn danger-btn" id="deletePack" type="button" disabled>팩 삭제</button></div>
       </form>
+    </details>
+    <details class="bgm-section panel"><summary>BGM 관리</summary>
+      <div class="section-heading"><div><span class="eyebrow">SOUND LIBRARY</span><h2>배경음악 관리</h2></div><button type="button" id="bgmRefresh" class="soft-btn">목록 새로고침</button></div>
+      <p class="helper">카드 스튜디오 관리자만 BGM을 등록·삭제하고, 표시명과 재생 순서를 수정할 수 있습니다. 메인 화면은 재생 전용입니다.</p>
+      <label class="bgm-upload-label">MP3 파일 추가 (곡당 15MB 이하)
+        <input id="bgmFiles" type="file" accept=".mp3,audio/mpeg" multiple disabled/>
+      </label>
+      <p id="bgmCount" class="helper" aria-live="polite">BGM 목록을 확인하는 중입니다.</p>
+      <div id="bgmLibrary" class="bgm-library"></div>
     </details>
     <article class="card-section panel">
       <div class="section-heading"><div><span class="eyebrow">02 / CARD EDITOR</span><h2>카드 정보 및 사진</h2></div><button id="newCard" type="button" class="soft-btn">+ 신규 카드</button></div>

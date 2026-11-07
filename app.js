@@ -1,4 +1,4 @@
-import {mountAudioPanel} from './audio-manager.js?v=ur-payoff-20261106';
+import {mountAudioPanel} from './audio-manager.js?v=studio-managed-20261107';
 import {createURRevealPayoff} from './ur-reveal.js?v=20261106';
 import {createOpeningEffects} from './opening-effects.js';
 import {renderITMCard} from './card-frame.js?v=ur-photo-window-20261105';

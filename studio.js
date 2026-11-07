@@ -33,7 +33,7 @@ function setPackOdds(odds=DEFAULT_PACK_ODDS){
   syncPackOddsValidation();
 }
 const state={
-  client:null,admin:false,logged:false,groups:[],members:[],cards:[],series:[],packs:[],editingId:null,
+  client:null,admin:false,logged:false,groups:[],members:[],cards:[],series:[],packs:[],bgmTracks:[],bgmBusy:false,editingId:null,
   photoFile:null,fullArtFile:null,groupLogoFile:null,packFile:null,packImagePath:null,
   photoImage:null,groupImage:null,groupEditorImage:null,
   imagePath:null,fullArtPath:null,
@@ -65,6 +65,7 @@ function accessControls(){
   $('saveGroup').disabled=!allowed;
   $('saveMember').disabled=!allowed||!$('groupPicker').value;
   $('savePack').disabled=!allowed;
+  $('bgmFiles').disabled=!allowed||state.bgmBusy;
   $('deletePack').disabled=!allowed||!$('packPicker').value;
   refreshDeleteControls();
   $('studioLogout').hidden=!state.logged;
@@ -781,7 +782,7 @@ async function refreshAccess(){
       if(permission.error)throw permission.error;
       state.admin=!!permission.data;
     }
-    accessControls();await loadCatalog();
+    accessControls();await Promise.all([loadCatalog(),loadBgmCatalog()]);
   }catch(err){setAuthState('오류');toast('스튜디오 연결 오류: '+(err?.message||err))}
 }
 async function signIn(event){
@@ -800,9 +801,113 @@ async function signOut(){
   if(error)return toast(error.message);
   await refreshAccess();
 }
+
+async function loadBgmCatalog(){
+  if(!state.client)return;
+  const {data,error}=await state.client.from('itm_bgm_tracks')
+    .select('id,title,file_path,sort_order,created_at').order('sort_order').order('created_at');
+  if(error){toast('BGM 목록 오류: '+error.message);return}
+  state.bgmTracks=data||[];
+  renderBgmManager();
+}
+function renderBgmManager(){
+  const list=$('bgmLibrary');
+  list.replaceChildren();
+  $('bgmCount').textContent='등록된 BGM '+state.bgmTracks.length+'곡 · 재생 순서대로 표시';
+  if(!state.bgmTracks.length){
+    const note=document.createElement('p');note.className='helper';
+    note.textContent='등록된 BGM이 없습니다. MP3 파일을 추가해 주세요.';list.append(note);
+    return;
+  }
+  for(const [index,track] of state.bgmTracks.entries()){
+    const item=document.createElement('div');item.className='bgm-track';
+    const position=document.createElement('span');position.className='bgm-position';position.textContent=String(index+1).padStart(2,'0');
+    const label=document.createElement('label');label.textContent='메인 화면 표시 트랙명';
+    const title=document.createElement('input');title.type='text';title.maxLength=120;title.value=track.title;title.disabled=!state.admin||state.bgmBusy;
+    label.append(title);
+    const actions=document.createElement('div');actions.className='bgm-track-actions';
+    const action=(caption,fn,disabled=false,danger=false)=>{
+      const button=document.createElement('button');button.type='button';
+      button.textContent=caption;button.className='soft-btn'+(danger?' danger-btn':'');
+      button.disabled=!state.admin||state.bgmBusy||disabled;
+      button.onclick=fn;actions.append(button);
+    };
+    action('이름 저장',()=>renameBgm(track,title.value));
+    action('↑',()=>moveBgm(index,-1),index===0);
+    action('↓',()=>moveBgm(index,1),index===state.bgmTracks.length-1);
+    action('삭제',()=>deleteBgm(track),false,true);
+    item.append(position,label,actions);list.append(item);
+  }
+}
+async function withBgmBusy(fn){
+  if(!state.admin||state.bgmBusy||state.saving)return toast('BGM 관리는 관리자만 가능합니다.');
+  state.bgmBusy=true;renderBgmManager();accessControls();
+  try{await fn();await loadBgmCatalog()}
+  catch(err){toast('BGM 관리 실패: '+(err?.message||err));await loadBgmCatalog()}
+  finally{state.bgmBusy=false;accessControls();renderBgmManager()}
+}
+async function addBgmFiles(event){
+  const files=[...(event.target.files||[])];event.target.value='';
+  if(!files.length)return;
+  await withBgmBusy(async()=>{
+    let count=0;
+    let order=Math.max(-1,...state.bgmTracks.map(track=>Number(track.sort_order)||0))+1;
+    for(const file of files){
+      if(!/\.mp3$/i.test(file.name)||!['audio/mpeg','audio/mp3',''].includes(file.type)||file.size<=0||file.size>15*1024*1024){
+        toast('MP3만 업로드할 수 있습니다 (곡당 15MB 이하).');continue;
+      }
+      const path='tracks/'+crypto.randomUUID()+'.mp3';
+      const title=file.name.replace(/\.mp3$/i,'').trim().slice(0,120)||'ITM BGM';
+      const {error:uploadError}=await state.client.storage.from('itm-bgm').upload(path,file,{contentType:'audio/mpeg',cacheControl:'3600',upsert:false});
+      if(uploadError){toast('음원 업로드 실패: '+uploadError.message);continue}
+      const {error:dbError}=await state.client.from('itm_bgm_tracks').insert({title,file_path:path,sort_order:order++});
+      if(dbError){await state.client.storage.from('itm-bgm').remove([path]);toast('음원 등록 실패: '+dbError.message);continue}
+      count++;
+    }
+    if(count)toast('BGM '+count+'곡이 추가됐습니다. 메인 화면의 재생 목록에 반영됩니다.');
+  });
+}
+async function renameBgm(track,title){
+  title=title.trim();
+  if(!title||title.length>120)return toast('트랙명은 1~120자로 입력해 주세요.');
+  if(title===track.title)return;
+  await withBgmBusy(async()=>{
+    const {data,error}=await state.client.from('itm_bgm_tracks').update({title}).eq('id',track.id).select('id');
+    if(error)throw error;if(!data?.length)throw Error('관리자 권한을 확인해 주세요.');
+    toast('트랙 이름을 변경했습니다.');
+  });
+}
+async function moveBgm(index,delta){
+  const next=index+delta;
+  if(next<0||next>=state.bgmTracks.length)return;
+  await withBgmBusy(async()=>{
+    const ordered=[...state.bgmTracks];
+    [ordered[index],ordered[next]]=[ordered[next],ordered[index]];
+    for(let i=0;i<ordered.length;i++){
+      const {error}=await state.client.from('itm_bgm_tracks').update({sort_order:i}).eq('id',ordered[i].id);
+      if(error)throw error;
+    }
+    toast('BGM 재생 순서를 변경했습니다.');
+  });
+}
+async function deleteBgm(track){
+  if(!confirm('BGM ['+track.title+']을 재생 목록에서 삭제할까요?'))return;
+  await withBgmBusy(async()=>{
+    const {data,error}=await state.client.from('itm_bgm_tracks').delete().eq('id',track.id).select('id');
+    if(error)throw error;if(!data?.length)throw Error('관리자 권한을 확인해 주세요.');
+    if(!track.file_path.startsWith('builtin:')){
+      const {error:storageError}=await state.client.storage.from('itm-bgm').remove([track.file_path]);
+      if(storageError)toast('트랙은 삭제했지만 파일 정리에 실패했습니다: '+storageError.message);
+    }
+    toast('BGM을 재생 목록에서 삭제했습니다.');
+  });
+}
+
 function bind(){
   state.previewCanvas=$('previewCanvas');
   $('studioLogin').onsubmit=signIn;
+  $('bgmFiles').onchange=addBgmFiles;
+  $('bgmRefresh').onclick=()=>loadBgmCatalog();
   $('studioLogout').onclick=signOut;
   $('groupForm').onsubmit=saveGroup;
   $('deleteGroup').onclick=deleteGroup;
