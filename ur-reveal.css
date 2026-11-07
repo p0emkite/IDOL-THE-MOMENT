@@ -1,4 +1,4 @@
-/* ITM UR reveal payoff — additive effects only. Card frames and artwork are untouched. */
+/* Legacy UR explosion reassigned to SSR; UR foil on the real card remains. */
 body.itm-concert .pack-reveal-stage.ur-anticipating .stage-headline,
 body.itm-concert .pack-reveal-stage.ur-anticipating .stage-kicker,
 body.itm-concert .pack-reveal-stage.ur-anticipating .stage-card-button:not(.ur-primed){
@@ -24,7 +24,7 @@ body.itm-concert .pack-reveal-stage.ur-impact .stage-main{
   0%{translate:0 0}11%{translate:-6px 4px}25%{translate:5px -3px}
   43%{translate:-3px 2px}65%{translate:2px -1px}100%{translate:0 0}
 }
-body.itm-concert .stage-card-button.rarity-ur.is-revealed.ur-impact-card .stage-card-inner{
+body.itm-concert .stage-card-button.rarity-ssr.is-revealed.ur-impact-card .stage-card-inner{
   animation:itmURCardHit .75s cubic-bezier(.15,.8,.16,1) both!important;
 }
 @keyframes itmURCardHit{
