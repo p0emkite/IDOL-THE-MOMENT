@@ -1,12 +1,12 @@
 /* UR-exclusive meteor arrival: the official card artwork remains unchanged. */
 .itm-ur-cinema{position:fixed;inset:0;z-index:188;display:grid;place-items:center;overflow:hidden;isolation:isolate;color:#fff;perspective:1400px;font-family:Inter,Pretendard,'Noto Sans KR',sans-serif}
 .itm-ur-cinema-backdrop{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 47%,#2112339c 0%,#080410cc 72%,#030207dc 100%);-webkit-backdrop-filter:blur(17px) brightness(.5);backdrop-filter:blur(17px) brightness(.5);animation:itmURDarken .46s ease-out both}
-.itm-ur-cinema::before{content:"";position:absolute;inset:-40%;pointer-events:none;background:conic-gradient(from 0deg at 50% 50%,transparent 0deg,#f3e9ff50 18deg,transparent 24deg,#e78aff7a 63deg,transparent 73deg,#b3fbff72 108deg,transparent 117deg,#ffe3aa8e 151deg,transparent 166deg,#f4acfa6e 220deg,transparent 232deg,#fff8da5c 283deg,transparent 298deg,#7cf4ff6b 335deg,transparent 351deg);mask-image:radial-gradient(ellipse at center,#000 0%,#0008 22%,transparent 66%);opacity:0;animation:itmURAurora 4s 1.44s ease-out both}
+.itm-ur-cinema::before{content:"";position:absolute;inset:-40%;pointer-events:none;background:radial-gradient(circle at 50% 50%,#fffdf265 0%,#f7cdff45 21%,#b3fbff29 44%,transparent 70%);opacity:0;animation:itmURAurora 4s 1.44s ease-out both}
 .itm-ur-cinema::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:7;background:radial-gradient(ellipse at center,transparent 37%,#0301088c 100%)}
 .itm-ur-cinema-sky,.itm-ur-cinema-particles,.itm-ur-cinema-rings,.itm-ur-cinema-beams,.itm-ur-cinema-impact,.itm-ur-cinema-aura{position:absolute;inset:0;pointer-events:none}
 .itm-ur-cinema-sky i{position:absolute;left:var(--x);top:var(--y);height:3px;width:3px;border-radius:50%;background:#fff;box-shadow:0 0 13px 3px #d9c7ffbf;opacity:0;animation:itmURTwinkle 2.2s var(--delay) ease-in-out infinite alternate}
 .itm-ur-cinema-aura{z-index:2;background:radial-gradient(ellipse 22% 34% at 50% 49%,#ffebff88 0%,#c282ff55 32%,#8efaff3a 56%,transparent 100%);opacity:0;animation:itmURHalo 3.4s .95s ease-out both}
-.itm-ur-cinema-beams{z-index:2;inset:-35%;background:repeating-conic-gradient(from 3deg at center,#ffffff00 0deg,#fffbfb42 5deg,#ffffff00 8deg,#ffffff00 21deg);mask-image:radial-gradient(circle at center,#000 0%,transparent 44%);opacity:0;animation:itmURBeams 2.6s 1.52s ease-out both}
+.itm-ur-cinema-beams{z-index:2;inset:-35%;background:radial-gradient(circle at center,#ffffffc5 0%,#fff7dd66 16%,#f2a8ff3d 33%,#9dfaff18 51%,transparent 68%);opacity:0;animation:itmURBeams 2.6s 1.52s ease-out both}
 .itm-ur-meteor-trail{position:absolute;z-index:3;left:50%;top:50%;width:93vmax;height:14px;transform-origin:100% 50%;background:linear-gradient(90deg,transparent 0%,#af7bff00 19%,#b6bfff38 48%,#92fcffc4 79%,#ffffff 96%);filter:blur(3px) drop-shadow(0 0 24px #d88fff);opacity:0;animation:itmURMeteorTrail 1.55s cubic-bezier(.1,.58,.2,1) both;pointer-events:none}
 .itm-ur-meteor-trail::before{content:"";position:absolute;right:0;top:50%;width:35px;aspect-ratio:1;border-radius:50%;transform:translateY(-50%);background:#fff;box-shadow:0 0 26px 14px #f5baff,0 0 85px 35px #91f3ff}
 .itm-ur-cinema-card{z-index:5;position:relative;width:min(445px,56vw,57vh);aspect-ratio:512/746;transform-style:preserve-3d;filter:drop-shadow(0 0 28px #d7afffc9);animation:itmURMeteorLand 1.5s cubic-bezier(.13,.75,.18,1) both;will-change:transform}
@@ -37,7 +37,7 @@ body.itm-concert .pack-reveal-stage.ur-meteor-impact .stage-main{animation:itmUR
 @keyframes itmURCollision{0%,58%{opacity:0}64%{opacity:1}71%{opacity:.85}82%{opacity:.24}100%{opacity:0}}
 @keyframes itmURImpactRing{0%{opacity:0;transform:scale(.08)}8%{opacity:.95}100%{opacity:0;transform:scale(2.9)}}
 @keyframes itmURParticles{0%{opacity:0;transform:translate(0,0) scale(.2)}10%{opacity:1}55%{opacity:.85}100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(.12)}}
-@keyframes itmURBeams{0%{opacity:0;transform:rotate(-25deg) scale(.6)}19%{opacity:1}100%{opacity:.14;transform:rotate(42deg) scale(1.3)}}
+@keyframes itmURBeams{0%{opacity:0;transform:scale(.45)}19%{opacity:.95}100%{opacity:.12;transform:scale(1.8)}}
 @keyframes itmURAurora{0%{opacity:0;transform:rotate(-20deg) scale(.75)}16%{opacity:.75}85%{opacity:.6}100%{opacity:.42;transform:rotate(28deg) scale(1.28)}}
 @keyframes itmURHalo{0%,15%{opacity:0;transform:scale(.6)}47%{opacity:1;transform:scale(1.1)}100%{opacity:.55;transform:scale(1.32)}}
 @keyframes itmURTwinkle{0%{opacity:.15;transform:scale(.6)}100%{opacity:.8;transform:scale(1.5)}}
@@ -56,20 +56,15 @@ body.itm-concert .ur-screen-transition.playing{
   animation:itmURLongBlackout 2.15s cubic-bezier(.26,.08,.24,1) both!important;
   background:#000;
 }
-body.itm-concert .ur-screen-transition.playing::before{
-  content:"";display:block;position:absolute;inset:-32%;pointer-events:none;
-  background:repeating-conic-gradient(from -7deg at 50% 50%,transparent 0deg,#fffdfca6 3deg,#fbeaffed 5deg,transparent 9deg,transparent 28deg);
-  mask-image:radial-gradient(ellipse at 50% 50%,#000 0%,#000a 36%,transparent 69%);
-  filter:drop-shadow(0 0 32px #fff);
-  opacity:0;animation:itmURWhiteRays 2.15s ease-out both;
-}
+/* No spokes or alternating sectors: all white light comes from one point. */
+body.itm-concert .ur-screen-transition.playing::before{display:none!important;content:none!important}
+/* Small white star ignites, expands rapidly and washes the whole screen. */
 body.itm-concert .ur-screen-transition.playing::after{
   content:"";display:block!important;position:absolute;inset:0;pointer-events:none;
-  background:
-    radial-gradient(ellipse 56% 64% at 50% 46%,#fff 0%,#fff 34%,#fffcffed 64%,#f9ddffaf 84%,transparent 100%),
-    radial-gradient(ellipse at 50% 50%,#fff 0%,#fff 66%,#fffcff 100%);
-  filter:brightness(1.6);
-  opacity:0;animation:itmURWhiteIgnitionGrand 2.15s cubic-bezier(.24,.06,.3,1) both!important;
+  background:radial-gradient(circle at 50% 47%,#fff 0%,#fff 14%,#fffefa 30%,#fffaffd9 47%,#f6eaff7a 64%,transparent 79%);
+  filter:brightness(1.25) blur(1px);
+  opacity:0;transform-origin:50% 47%;
+  animation:itmURWhiteIgnitionGrand 2.15s cubic-bezier(.24,.06,.3,1) both!important;
 }
 @keyframes itmURLongBlackout{
   0%{opacity:0}
@@ -77,19 +72,14 @@ body.itm-concert .ur-screen-transition.playing::after{
   100%{opacity:0}
 }
 @keyframes itmURWhiteIgnitionGrand{
-  0%,44%{opacity:0;transform:scale(.58);filter:brightness(1)}
-  51%{opacity:.12;transform:scale(.85);filter:brightness(1.6)}
-  55%{opacity:.95;transform:scale(1.08);filter:brightness(2)}
-  61%{opacity:1;transform:scale(1.26);filter:brightness(2.25)}
-  70%{opacity:.87;transform:scale(1.39);filter:brightness(1.8)}
-  83%{opacity:.27;transform:scale(1.55);filter:brightness(1.25)}
-  100%{opacity:0;transform:scale(1.7);filter:brightness(1)}
-}
-@keyframes itmURWhiteRays{
-  0%,43%{opacity:0;transform:rotate(-24deg) scale(.4)}
-  54%{opacity:.78}
-  65%{opacity:.98;transform:rotate(4deg) scale(1.1)}
-  100%{opacity:0;transform:rotate(23deg) scale(1.7)}
+  0%,44%{opacity:0;transform:scale(.10);filter:brightness(1) blur(5px)}
+  49%{opacity:.28;transform:scale(.28);filter:brightness(1.25) blur(3px)}
+  55%{opacity:.96;transform:scale(.62);filter:brightness(1.7) blur(2px)}
+  61%{opacity:1;transform:scale(1.22);filter:brightness(2.2) blur(0)}
+  69%{opacity:1;transform:scale(2);filter:brightness(2.25) blur(0)}
+  78%{opacity:.65;transform:scale(2.5);filter:brightness(1.65)}
+  89%{opacity:.18;transform:scale(2.9);filter:brightness(1.1)}
+  100%{opacity:0;transform:scale(3.1);filter:brightness(1)}
 }
 @media(prefers-reduced-motion:reduce){
   body.itm-concert .ur-screen-transition.playing{
@@ -99,3 +89,12 @@ body.itm-concert .ur-screen-transition.playing::after{
   body.itm-concert .ur-screen-transition.playing::after{display:none!important;animation:none!important}
   @keyframes itmURBlackoutAccessible{0%{opacity:0}40%{opacity:.7}100%{opacity:0}}
 }
+
+/* Keep the grand UR card visible after the impact until the user closes it. */
+.itm-ur-cinema.ready{cursor:pointer}
+.itm-ur-cinema.ready .itm-ur-cinema-card{filter:drop-shadow(0 0 30px #d7afffc9)}
+.itm-ur-cinema-ready-hint{position:absolute;z-index:10;bottom:max(7px,env(safe-area-inset-bottom));left:12px;right:12px;text-align:center;font-size:clamp(10px,1.05vw,13px);font-weight:700;letter-spacing:.08em;text-shadow:0 0 16px #000,0 2px 8px #000;opacity:0;pointer-events:none;transition:opacity .45s ease-out}
+.itm-ur-cinema.ready .itm-ur-cinema-ready-hint{opacity:1}
+.itm-ur-cinema.ready .itm-ur-cinema-skip{background:#25123aca}
+@media(orientation:landscape) and (max-height:490px){.itm-ur-cinema-ready-hint{bottom:4px;font-size:9px}.itm-ur-cinema-footer{bottom:19px}}
+@media(prefers-reduced-motion:reduce){.itm-ur-cinema-ready-hint{transition:none}}
