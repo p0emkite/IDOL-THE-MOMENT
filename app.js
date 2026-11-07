@@ -178,7 +178,7 @@ function guestChosen(){try{return localStorage.getItem(ENTRY_KEY)==='guest'}catc
 function syncCanvasPointerEvents(){const canvas=$('threeCanvas');if(canvas)canvas.classList.toggle('itm-canvas-interactive',state.phase==='reveal');}
 let scene,renderer,camera,pack,packRim,packParts,packTop,packBottom,packSeam,tornSide,tornFace,openingCard,cardMeshes=[],dust,halos,stageLights=[],openingFx=null,THREE,clock,lastTime=0,openingAt=0,audioContext=null;
 
-let soundManager=null,urPayoff=null,urCinematic=null,rarityFx=null,urBgmLocked=false,urRevealTimer=0,urRevealPending=false,urQueuedReveal=null;
+let soundManager=null,urPayoff=null,urCinematic=null,rarityFx=null,urBgmLocked=false,ssrBgmLocked=false,urRevealTimer=0,urRevealPending=false,urQueuedReveal=null;
 let concertStage=null,hoverChimeAt=0,splashTimer=null,urCoverTimer=null,audioPreferenceSet=false,introTimers=[],introCameraActive=false,introCameraStart=0;
 const RARITY_CLASSES=['rarity-n','rarity-r','rarity-sr','rarity-ssr','rarity-ur'];
 function setSound(on){
@@ -345,8 +345,9 @@ function beginSSRImpact(index,all=false){
   if(state.cards[index]?.rarity!=='SSR')return;
   urRevealPending=true;
   $('stageRevealAll').disabled=true;
-  // Duck immediately on the click: the large SSR card preview is part of
-  // the reveal, not a prelude before audio attenuation begins.
+  // SSR audio stays quiet from the initial click through the entire
+  // enlarged-card display, including the user's viewing hold.
+  ssrBgmLocked=true;
   soundManager?.setBgmDucking(.16);
   const button=stageCardAt(index);
   // A stationary centered preview replaces the old 300ms hold. Its final
@@ -360,12 +361,20 @@ function beginSSRImpact(index,all=false){
   };
   if(rarityFx)rarityFx.startSSR(button,{
     onPrepare:()=>urPayoff?.prepare(button),
-    onReveal
+    onReveal,
+    onDismiss:()=>{
+      ssrBgmLocked=false;
+      soundManager?.setBgmDucking(1);
+    }
   });
   else{
     urPayoff?.prepare(button);
     clearTimeout(urRevealTimer);
-    urRevealTimer=setTimeout(onReveal,300);
+    urRevealTimer=setTimeout(()=>{
+      onReveal();
+      ssrBgmLocked=false;
+      soundManager?.setBgmDucking(1);
+    },300);
   }
 }
 const EASE = t => 1-Math.pow(1-Math.min(1,Math.max(0,t)),3);
@@ -1097,6 +1106,7 @@ function reset(){
   urCinematic?.cancel();
   rarityFx?.cancel();
   urBgmLocked=false;
+  ssrBgmLocked=false;
   soundManager?.setBgmDucking(1);
   $('packRevealStage').classList.remove('ur-meteor-impact');
   $('stageRevealAll').disabled=false;
@@ -1482,7 +1492,10 @@ function bind(){
     // A previous SSR fanfare may still be winding down when UR begins.
     // Its delayed restoration must never override the UR cinematic BGM hold.
     setBgmDucking:level=>{
-      if(!urBgmLocked)soundManager?.setBgmDucking(level);
+      // The old SSR impact timer must not restore BGM during the showcase.
+      // It also must not interfere with the separate UR cinematic hold.
+      if(urBgmLocked||(ssrBgmLocked&&level>=1))return;
+      soundManager?.setBgmDucking(level);
     }
   });
   urCinematic=createURCinematic({
