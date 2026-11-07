@@ -164,7 +164,7 @@ const PACK_DESIGN_WIDTH=1024,PACK_DESIGN_HEIGHT=1538;
 function readDemoInventory(){try{localStorage.removeItem('itm-test-pack-inventory-v1')}catch{}return {}}
 function writeDemoInventory(){/* Retired demo cards. */}
 
-const state = {phase:'ready',cards:[],revealed:new Set(),inventory:readLocal(),demoInventory:readDemoInventory(),remoteDemoInventory:{},liveInventory:readLiveInventory(),remoteLiveInventory:{},supabase:null,user:null,accountName:null,studioAdmin:false,accountMode:'login',entryRequired:false,playerId:null,hasRecovery:false,authError:null,backendReady:false,accountBusy:false,issuedRecovery:null,three:false,audio:true,busy:false};
+const state = {phase:'ready',cards:[],revealed:new Set(),pullBadges:[],inventory:readLocal(),demoInventory:readDemoInventory(),remoteDemoInventory:{},liveInventory:readLiveInventory(),remoteLiveInventory:{},supabase:null,user:null,accountName:null,studioAdmin:false,accountMode:'login',entryRequired:false,playerId:null,hasRecovery:false,authError:null,backendReady:false,accountBusy:false,issuedRecovery:null,three:false,audio:true,busy:false};
 const ENTRY_KEY='itm-entry-choice-v1';
 const ACCOUNT_PATTERN=/^[a-z][a-z0-9_]{3,19}$/;
 const accountEmail=name=>'itm.'+name+'@accounts.itm.example';
@@ -264,7 +264,7 @@ function closeRaritySplash({complete=true}={}){
   if(!complete||!queued)return;
   // The full-screen art has closed. Only NOW prepare the 300ms silence and
   // execute the original flip, fireworks, shake, impact and sound payoff.
-  const button=$('stageCardTrack')?.children[queued.index];
+  const button=stageCardAt(queued.index);
   urPayoff?.prepare(button);
   clearTimeout(urRevealTimer);
   urRevealTimer=setTimeout(()=>{
@@ -828,17 +828,22 @@ function renderPackOdds(){
 }
 function updateCounts(){let total=Object.values(visibleInventory()).reduce((a,n)=>a+Number(n||0),0);$('collectionCount').textContent=total}
 // Immersive reveal UI: real interactive, keyboard-accessible flip cards.
+function stageCardAt(index){return $('stageCardTrack')?.querySelector('[data-card-index="'+index+'"]')}
 function renderRevealStage(){
   const stage=$('packRevealStage'),rail=$('stageCardRail');
   rail.replaceChildren();
   rail.classList.toggle('one-card',state.cards.length===1);
+  const isEleven=state.cards.length===11;
+  rail.classList.toggle('eleven-cards',isEleven);
   const track=document.createElement('div');
-  track.id='stageCardTrack';track.className='stage-card-track';
+  track.id='stageCardTrack';track.className='stage-card-track'+(isEleven?' eleven-layout':'');
   rail.appendChild(track);
+  const rows=isEleven?[0,1].map(()=>{const row=document.createElement('div');row.className='stage-card-row';track.append(row);return row}):null;
   $('stagePackLabel').textContent=state.cards.length===11?'10+1회 뽑기':state.cards.length+'회 뽑기';
   state.cards.forEach((card,i)=>{
     const button=document.createElement('button');
     button.type='button';button.className='stage-card-button rarity-'+card.rarity.toLowerCase();
+    button.dataset.cardIndex=String(i);
     button.style.setProperty('--arrive-delay',i*125+'ms');
     button.style.setProperty('--tier-color',tone(card.rarity));
     button.style.setProperty('--tier-gradient',tierCssGradient(card.rarity));
@@ -854,6 +859,13 @@ function renderRevealStage(){
     front.append(frontImg);inner.append(back,front);
     const badge=document.createElement('span');badge.className='stage-card-badge';badge.textContent=TIERS.find(t=>t.key===card.rarity)?.label||card.rarity;
     button.append(inner,badge);
+    const pullLabel=state.pullBadges[i];
+    if(pullLabel){
+      const tag=document.createElement('span');
+      tag.className='stage-pull-tag'+(pullLabel==='NEW!'?' is-new':' is-duplicate');
+      tag.textContent=pullLabel;
+      button.append(tag);
+    }
     button.addEventListener('click',()=>state.revealed.has(i)?openCardFocus(card):revealIndex(i));
     if(card.rarity==='UR'){
       button.addEventListener('pointermove',event=>{
@@ -869,14 +881,14 @@ function renderRevealStage(){
     }
     button.addEventListener('pointerenter',()=>{if(state.revealed.has(i))hoverRaritySound(card)});
     button.addEventListener('focus',()=>{if(state.revealed.has(i))hoverRaritySound(card)});
-    track.append(button);
+    (rows?(i<5?rows[0]:rows[1]):track).append(button);
   });
   fillConcertCrowd();
   setConcertRarity(state.pullHighlight||'DEFAULT');
   stage.hidden=false;stage.setAttribute('aria-hidden','false');document.body.classList.add('pack-revealing');
   $('stageHint').textContent='카드를 터치해서 한 장씩 확인하세요.';
   updateStageProgress();
-  track.firstElementChild?.focus({preventScroll:true});
+  track.querySelector('.stage-card-button')?.focus({preventScroll:true});
 }
 function updateStageProgress(){
   const total=state.cards.length,done=state.revealed.size;
@@ -899,6 +911,7 @@ async function openPack(count){
   if(state.busy||state.phase!=='ready'||state.entryRequired||(isNamedAccount()&&!state.backendReady))return;
   if(!selectedPack())return toast('관리자가 공개한 카드팩이 없습니다.');
   state.busy=true;setDrawButtonsDisabled(true);
+  const inventoryBefore=visibleInventory();
   let rolled=[];
   try{
     if(state.supabase)await loadPublishedCatalog().catch(err=>console.warn('카드 목록 갱신 실패',err));
@@ -923,6 +936,12 @@ async function openPack(count){
     state.busy=false;setDrawButtonsDisabled(false);
     toast('카드팩 개봉 실패: '+(err?.message||String(err)));return;
   }
+  const seenThisPull=new Map();
+  state.pullBadges=rolled.map(card=>{
+    const countBefore=Number(inventoryBefore[card.id]||0)+(seenThisPull.get(card.id)||0);
+    seenThisPull.set(card.id,(seenThisPull.get(card.id)||0)+1);
+    return countBefore===0?'NEW!':'×'+(countBefore+1);
+  });
   state.cards=rolled;state.revealed=new Set();
   // Reveal the pull's strongest rarity through the LED wall during the foil opening.
   const tierOrder={N:0,R:1,SR:2,SSR:3,UR:4};
@@ -959,7 +978,7 @@ function revealIndex(i,silent=false,skipURLead=false){
     beginURCinematic(i,false);return;
   }
   state.revealed.add(i);
-  const card=state.cards[i],button=$('stageCardTrack')?.children[i],tier=TIERS.find(t=>t.key===card.rarity);
+  const card=state.cards[i],button=stageCardAt(i),tier=TIERS.find(t=>t.key===card.rarity);
   if(button){
     button.classList.add('is-revealed');
     button.setAttribute('aria-label',card.rarity+' '+card.name+' 공개됨');
@@ -1011,7 +1030,7 @@ function revealAll(skipURLead=false){
   }
   hiddenIndices.forEach(i=>revealIndex(i,true));
   if(highest.rarity==='UR'){
-    const button=$('stageCardTrack')?.children[bestIndex];
+    const button=stageCardAt(bestIndex);
     urPayoff?.impact(button);
     button?.classList.add('ur-impact-card');
     if(button)setTimeout(()=>button.classList.remove('ur-impact-card'),800);
@@ -1031,7 +1050,7 @@ function reset(){
   const stage=$('packRevealStage');stage.hidden=true;stage.setAttribute('aria-hidden','true');
   $('stageBurst').className='stage-burst';$('stageRarityBanner').className='stage-rarity-banner';
   requestAnimationFrame(resizeScene);
-  state.phase='ready';syncCanvasPointerEvents();state.cards=[];state.revealed.clear();state.busy=false;
+  state.phase='ready';syncCanvasPointerEvents();state.cards=[];state.revealed.clear();state.pullBadges=[];state.busy=false;
   closeCardFocus();
   clearCards();if(!state.three)resetFallback();
   showControls(['drawOne','drawFive','drawEleven']);setDrawButtonsDisabled(!AVAILABLE_PACKS.length);
@@ -1096,18 +1115,18 @@ function renderCollection(groupChanged=false){
   refreshCollectionFilters(groupChanged);
   const inventory=visibleInventory();
   const owned=Object.entries(inventory).filter(([id,q])=>Number(q)>0&&byId.has(id));
-  const unique=owned.length,total=POOL.length+LIVE_POOL.length;
-  $('collectionSummary').textContent=`DISCOVERED ${unique} / ${total}   •   OWNED ${owned.reduce((sum,[,q])=>sum+Number(q),0)} CARDS`;
+  const total=POOL.length+LIVE_POOL.length;
+  $('collectionSummary').textContent=`DISCOVERED ${owned.length} / ${total}   •   OWNED ${owned.reduce((sum,[,q])=>sum+Number(q),0)} CARDS`;
   const group=$('collectionGroup').value,series=$('collectionSeries').value;
   const rarity=$('collectionRarity').value,member=$('collectionMember').value;
-  const cardRank={UR:0,SSR:1,SR:2,R:3,N:4};
+  const rank={UR:0,SSR:1,SR:2,R:3,N:4};
   const cards=[...POOL,...LIVE_POOL].filter(card=>
     (!group||collectionGroupKey(card)===group)&&
     (!series||card.edition===series)&&
     (!rarity||card.rarity===rarity)&&
     (!member||card.name===member)
   ).sort((a,b)=>Number(Number(inventory[b.id]||0)>0)-Number(Number(inventory[a.id]||0)>0)||
-    (cardRank[a.rarity]??5)-(cardRank[b.rarity]??5));
+    (rank[a.rarity]??5)-(rank[b.rarity]??5));
   $('collectionFilteredCount').textContent=cards.length+'장 표시 · 보유 '+cards.filter(c=>Number(inventory[c.id])>0).length+'종';
   const grid=$('collectionGrid');grid.replaceChildren();
   if(!cards.length){
@@ -1115,27 +1134,65 @@ function renderCollection(groupChanged=false){
     empty.textContent=total?'선택한 조건에 해당하는 카드가 없습니다. 필터를 바꿔 주세요.':'아직 등록된 카드가 없습니다.';
     grid.append(empty);return;
   }
-  const fragment=document.createDocumentFragment();
+  const groups=new Map();
   for(const card of cards){
-    const qty=Number(inventory[card.id]||0);
-    const box=document.createElement(qty?'button':'div');
-    if(qty){box.type='button';box.onclick=()=>openCardFocus(card);box.setAttribute('aria-label',card.group+' '+card.name+' 카드 크게 보기');}
-    box.className='col-item rarity-'+card.rarity.toLowerCase()+(qty?'':' unowned');
-    box.style.setProperty('--tier-color',tone(card.rarity));
-    box.style.setProperty('--tier-gradient',tierCssGradient(card.rarity));
-    const img=document.createElement('img');img.alt=card.group+' '+card.name;img.loading='lazy';
-    img.src=qty?makeCardArt(card).toDataURL('image/png'):'./assets/itm-card-back.png';
-    if(qty&&card.isLive)void preloadCard(card).then(()=>{
-      if(img.isConnected)img.src=makeCardArt(card).toDataURL('image/png');
-    }).catch(err=>console.warn('Artwork preview unavailable',err));
-    const q=document.createElement('span');q.className='qty';q.textContent=qty?'×'+qty:'미수집';
-    const title=document.createElement('strong');title.textContent=card.group+' · '+card.name;
-    const sub=document.createElement('small');sub.textContent=card.rarity+' · '+(card.edition||'기본');
-    box.append(img,q,title,sub);fragment.append(box);
+    const key=collectionGroupKey(card);
+    if(!groups.has(key))groups.set(key,{name:card.group,series:new Map(),cards:[]});
+    const g=groups.get(key);g.cards.push(card);
+    const edition=card.edition||'기본 컬렉션';
+    if(!g.series.has(edition))g.series.set(edition,{members:new Map(),cards:[]});
+    const collection=g.series.get(edition);collection.cards.push(card);
+    const name=card.name||'이름 없음';
+    if(!collection.members.has(name))collection.members.set(name,[]);
+    collection.members.get(name).push(card);
+  }
+  const ownedCount=items=>items.filter(card=>Number(inventory[card.id]||0)>0).length;
+  const heading=(name,items,level)=>{
+    const details=document.createElement('details');details.className='collection-accordion '+level;
+    const summary=document.createElement('summary');
+    const main=document.createElement('span');main.className='collection-accordion-label';main.textContent=name;
+    const count=document.createElement('span');count.className='collection-accordion-count';
+    count.textContent=ownedCount(items)+' / '+items.length+'종 수집';
+    summary.append(main,count);details.append(summary);
+    return details;
+  };
+  const gridFor=items=>{
+    const shelf=document.createElement('div');shelf.className='collection-card-shelf';
+    for(const card of items){
+      const qty=Number(inventory[card.id]||0);
+      const box=document.createElement(qty?'button':'div');
+      if(qty){box.type='button';box.onclick=()=>openCardFocus(card);box.setAttribute('aria-label',card.group+' '+card.name+' 카드 크게 보기');}
+      box.className='col-item rarity-'+card.rarity.toLowerCase()+(qty?'':' unowned');
+      box.style.setProperty('--tier-color',tone(card.rarity));
+      box.style.setProperty('--tier-gradient',tierCssGradient(card.rarity));
+      const img=document.createElement('img');img.alt=card.group+' '+card.name;img.loading='lazy';
+      img.src=qty?makeCardArt(card).toDataURL('image/png'):'./assets/itm-card-back.png';
+      if(qty&&card.isLive)void preloadCard(card).then(()=>{
+        if(img.isConnected)img.src=makeCardArt(card).toDataURL('image/png');
+      }).catch(err=>console.warn('Artwork preview unavailable',err));
+      const q=document.createElement('span');q.className='qty';q.textContent=qty?'×'+qty:'미수집';
+      const title=document.createElement('strong');title.textContent=card.group+' · '+card.name;
+      const sub=document.createElement('small');sub.textContent=card.rarity+' · '+(card.edition||'기본');
+      box.append(img,q,title,sub);shelf.append(box);
+    }
+    return shelf;
+  };
+  const fragment=document.createDocumentFragment();
+  for(const [,g] of groups){
+    const groupDetails=heading(g.name,g.cards,'level-group');
+    for(const [seriesName,collection] of g.series){
+      const collectionDetails=heading(seriesName,collection.cards,'level-series');
+      for(const [memberName,memberCards] of collection.members){
+        const memberDetails=heading(memberName,memberCards,'level-member');
+        memberDetails.append(gridFor(memberCards));
+        collectionDetails.append(memberDetails);
+      }
+      groupDetails.append(collectionDetails);
+    }
+    fragment.append(groupDetails);
   }
   grid.append(fragment);
 }
-
 async function syncRemote(){
   if(!state.supabase||!state.playerId)return false;
   const live=await state.supabase.from('itm_card_inventory').select('card_id,quantity');
