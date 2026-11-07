@@ -72,10 +72,10 @@ export function createURCinematic({getSfxGain,getAudioContext,setBgmDucking}){
   function start({button,onReveal}={}){
     // BGM has already been ducked since the UR card was tapped.
     end({restoreAudio:false});
-    if(!button||typeof onReveal!=='function'){onReveal?.();return}
+    if(!button||typeof onReveal!=='function'){onReveal?.();setBgmDucking?.(1);return}
     const front=button.querySelector('.stage-card-front img');
     const back=button.querySelector('.stage-card-back img');
-    if(!front){onReveal();return}
+    if(!front){onReveal();setBgmDucking?.(1);return}
     previousFocus=document.activeElement;
     flip=onReveal;completed=false;
     const el=document.createElement('div');
@@ -94,6 +94,7 @@ export function createURCinematic({getSfxGain,getAudioContext,setBgmDucking}){
         <div class="itm-ur-cinema-face front"><img alt="" /><span class="itm-ur-cinema-foil"></span></div>
       </div></div>
       <div class="itm-ur-cinema-footer" aria-hidden="true"><strong>✦ U L T R A &nbsp; R A R E ✦</strong><small>THE MOMENT IS YOURS</small></div>
+      <div class="itm-ur-cinema-ready-hint" aria-hidden="true">카드를 감상한 뒤 클릭하면 결과로 돌아갑니다</div>
       <button type="button" class="itm-ur-cinema-skip" aria-label="UR 등장 연출 건너뛰기">건너뛰기 ✕</button>`;
     el.querySelector('.itm-ur-cinema-face.front img').src=front.currentSrc||front.src;
     el.querySelector('.itm-ur-cinema-face.back img').src=back?.currentSrc||back?.src||'./assets/itm-card-back.png';
@@ -122,10 +123,17 @@ export function createURCinematic({getSfxGain,getAudioContext,setBgmDucking}){
       s.style.setProperty('--delay',(i%9*145)+'ms');
       sky.append(s);
     }
-    el.querySelector('.itm-ur-cinema-skip').addEventListener('click',()=>end({reveal:true}));
+    const dismissButton=el.querySelector('.itm-ur-cinema-skip');
+    dismissButton.addEventListener('click',()=>end({reveal:true}));
+    el.addEventListener('click',()=>{
+      if(layer===el&&el.classList.contains('ready'))end({reveal:true});
+    });
     el.addEventListener('keydown',event=>{
       if(event.key==='Escape'){event.preventDefault();end({reveal:true})}
-      if(event.key==='Tab'){event.preventDefault();el.querySelector('.itm-ur-cinema-skip')?.focus()}
+      if(event.key==='Tab'){event.preventDefault();dismissButton.focus()}
+      if((event.key==='Enter'||event.key===' ')&&event.target===el&&el.classList.contains('ready')){
+        event.preventDefault();end({reveal:true});
+      }
     });
     document.body.append(el);layer=el;
     setBgmDucking?.(.12);
@@ -134,8 +142,14 @@ export function createURCinematic({getSfxGain,getAudioContext,setBgmDucking}){
     el.querySelector('.itm-ur-cinema-skip').focus({preventScroll:true});
     const quick=reduced();
     later(()=>{if(layer===el&&!completed){completed=true;flip?.()}},quick?80:1760);
-    later(()=>{if(layer===el)el.classList.add('leaving')},quick?1000:3690);
-    later(()=>{if(layer===el)end({reveal:true})},quick?1250:4080);
+    // Keep the fully revealed card centered after all meteor effects finish.
+    // The visual and reduced BGM persist until the user explicitly dismisses.
+    later(()=>{
+      if(layer!==el)return;
+      el.classList.add('ready');
+      dismissButton.textContent='결과 화면으로 돌아가기 ↗';
+      dismissButton.setAttribute('aria-label','UR 카드 감상 종료하고 결과 화면으로 돌아가기');
+    },quick?100:3920);
   }
   function cancel(){end()}
   return {start,cancel};
