@@ -178,7 +178,7 @@ function guestChosen(){try{return localStorage.getItem(ENTRY_KEY)==='guest'}catc
 function syncCanvasPointerEvents(){const canvas=$('threeCanvas');if(canvas)canvas.classList.toggle('itm-canvas-interactive',state.phase==='reveal');}
 let scene,renderer,camera,pack,packRim,packParts,packTop,packBottom,packSeam,tornSide,tornFace,openingCard,cardMeshes=[],dust,halos,stageLights=[],openingFx=null,THREE,clock,lastTime=0,openingAt=0,audioContext=null;
 
-let soundManager=null,urPayoff=null,urCinematic=null,rarityFx=null,urRevealTimer=0,urRevealPending=false,urQueuedReveal=null;
+let soundManager=null,urPayoff=null,urCinematic=null,rarityFx=null,urBgmLocked=false,urRevealTimer=0,urRevealPending=false,urQueuedReveal=null;
 let concertStage=null,hoverChimeAt=0,splashTimer=null,urCoverTimer=null,audioPreferenceSet=false,introTimers=[],introCameraActive=false,introCameraStart=0;
 const RARITY_CLASSES=['rarity-n','rarity-r','rarity-sr','rarity-ssr','rarity-ur'];
 function setSound(on){
@@ -336,6 +336,7 @@ function beginURCinematic(index,all=false){
   $('stageRevealAll').disabled=true;
   // Keep BGM at meteor-cinematic level from the very first card click,
   // including the full-screen artwork; the cinematic owns final restoration.
+  urBgmLocked=true;
   soundManager?.setBgmDucking(.12);
   queueRaritySplash(card);
 }
@@ -1092,6 +1093,7 @@ function reset(){
   urPayoff?.cancel();
   urCinematic?.cancel();
   rarityFx?.cancel();
+  urBgmLocked=false;
   soundManager?.setBgmDucking(1);
   $('packRevealStage').classList.remove('ur-meteor-impact');
   $('stageRevealAll').disabled=false;
@@ -1474,7 +1476,11 @@ function bind(){
       audioContext ||= new (window.AudioContext||window.webkitAudioContext)();
       return audioContext;
     },
-    setBgmDucking:level=>soundManager?.setBgmDucking(level)
+    // A previous SSR fanfare may still be winding down when UR begins.
+    // Its delayed restoration must never override the UR cinematic BGM hold.
+    setBgmDucking:level=>{
+      if(!urBgmLocked)soundManager?.setBgmDucking(level);
+    }
   });
   urCinematic=createURCinematic({
     getSfxGain:()=>soundManager?.getSfxGain()??0,
@@ -1482,7 +1488,10 @@ function bind(){
       audioContext ||= new (window.AudioContext||window.webkitAudioContext)();
       return audioContext;
     },
-    setBgmDucking:level=>soundManager?.setBgmDucking(level)
+    setBgmDucking:level=>{
+      urBgmLocked=level<1;
+      soundManager?.setBgmDucking(level);
+    }
   });
   rarityFx=createRarityRevealAccents();
   $('drawOne').onclick=()=>openPack(1);$('drawFive').onclick=()=>openPack(5);$('drawEleven').onclick=()=>openPack(11);
