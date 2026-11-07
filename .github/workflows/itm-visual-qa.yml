@@ -10,6 +10,10 @@ on:
       - 'audio-manager.js'
       - 'ur-reveal.js'
       - 'ur-reveal.css'
+      - 'ur-cinematic.js'
+      - 'ur-cinematic.css'
+      - 'rarity-accents.js'
+      - 'rarity-accents.css'
       - 'app.js'
       - 'card-frame.js'
       - 'frame-preview.html'
@@ -23,7 +27,7 @@ permissions:
   contents: write
 jobs:
   browser:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
