@@ -80,7 +80,7 @@ export function createURCinematic({getSfxGain,getAudioContext,setBgmDucking}){
     const el=document.createElement('div');
     el.className='itm-ur-cinema';el.setAttribute('role','dialog');
     el.setAttribute('aria-modal','true');el.setAttribute('aria-label','UR 카드 등장 연출');
-    el.innerHTML=\`<div class="itm-ur-cinema-backdrop"></div>
+    el.innerHTML=`<div class="itm-ur-cinema-backdrop"></div>
       <div class="itm-ur-cinema-sky" aria-hidden="true"></div>
       <div class="itm-ur-meteor-trail" aria-hidden="true"></div>
       <div class="itm-ur-cinema-aura" aria-hidden="true"></div>
@@ -93,7 +93,7 @@ export function createURCinematic({getSfxGain,getAudioContext,setBgmDucking}){
         <div class="itm-ur-cinema-face front"><img alt="" /><span class="itm-ur-cinema-foil"></span></div>
       </div></div>
       <div class="itm-ur-cinema-footer" aria-hidden="true"><strong>✦ U L T R A &nbsp; R A R E ✦</strong><small>THE MOMENT IS YOURS</small></div>
-      <button type="button" class="itm-ur-cinema-skip" aria-label="UR 등장 연출 건너뛰기">건너뛰기 ✕</button>\`;
+      <button type="button" class="itm-ur-cinema-skip" aria-label="UR 등장 연출 건너뛰기">건너뛰기 ✕</button>`;
     el.querySelector('.itm-ur-cinema-face.front img').src=front.currentSrc||front.src;
     el.querySelector('.itm-ur-cinema-face.back img').src=back?.currentSrc||back?.src||'./assets/itm-card-back.png';
     const sky=el.querySelector('.itm-ur-cinema-sky'),particles=el.querySelector('.itm-ur-cinema-particles');
