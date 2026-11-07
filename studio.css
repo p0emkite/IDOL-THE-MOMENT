@@ -111,3 +111,14 @@ input[type=range]{width:100%;accent-color:#e5a2e9;margin:0 0 15px}.range-control
 .ur-color-controls button.selected{border-color:#f9a9ed;box-shadow:0 0 0 1px #f9a9ed;background:#4a2b55}
 .ur-color-preview{width:70px;height:17px;border-radius:8px;border:1px solid #fff6;box-shadow:0 0 14px #fff3}
 .pack-series-placeholder{grid-column:1/-1;margin:0;padding:12px;border:1px dashed #ba99d64a;border-radius:10px}
+ 
+/* Destructive actions are visually distinct, require admin access and a confirmation. */
+.soft-btn.danger-btn{color:#ffc5cd;border-color:#ee667e80;background:#4b1b304f}
+.soft-btn.danger-btn:hover:enabled{background:#6b2746;color:#fff1f3;border-color:#ff8ba4}
+.soft-btn.danger-btn:disabled{opacity:.42;cursor:not-allowed}
+.series-picker-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:end}
+.series-picker-row>label{min-width:0}
+.series-picker-row>.danger-btn{min-height:43px;margin-bottom:18px}
+.record-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:8px}
+.record-actions>.soft-btn{margin-top:0}
+@media(max-width:420px){.series-picker-row{grid-template-columns:1fr;gap:0}.series-picker-row>.danger-btn{justify-self:start;margin:-8px 0 18px}}

@@ -4,9 +4,9 @@
 <meta name="theme-color" content="#110b21"/>
 <title>ITM — CARD STUDIO</title>
 <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml"/>
-<link rel="stylesheet" href="./studio.css?v=series-picker-20261106"/>
+<link rel="stylesheet" href="./studio.css?v=studio-delete-controls-20261107"/>
 <script src="./config.js"></script>
-<script type="module" src="./studio.js?v=series-picker-20261106"></script>
+<script type="module" src="./studio.js?v=studio-delete-controls-20261107"></script>
 </head><body>
 <header class="studio-header">
   <a class="brand" href="./"><img src="./assets/itm-logo.png" alt="ITM" /> <span>카드 제작 스튜디오 <small>ITM · THE MOMENT</small></span></a>
@@ -36,12 +36,12 @@
         <label>그룹명 <input id="groupName" placeholder="그룹명" maxlength="70" required/></label>
         <label>그룹 로고 (투명 PNG · WebP 권장) <input id="groupLogo" type="file" accept="image/png,image/jpeg,image/webp"/></label>
         <div class="logo-display"><img id="groupLogoPreview" hidden alt="등록할 그룹 로고"/><span id="groupLogoEmpty">그룹 로고 미등록 — 나중에 추가 가능</span></div>
-        <button class="action" id="saveGroup" type="submit" disabled>그룹 저장</button>
+        <div class="submit-row"><button class="action" id="saveGroup" type="submit" disabled>그룹 저장</button><button class="soft-btn danger-btn" id="deleteGroup" type="button" disabled>그룹 삭제</button></div>
       </form>
       <form id="memberForm">
         <label>선택한 그룹의 멤버 <select id="memberPicker"></select></label>
         <label>멤버명 <input id="memberName" required maxlength="100" /></label>
-        <button type="submit" class="action" id="saveMember" disabled>멤버 저장</button>
+        <div class="submit-row"><button type="submit" class="action" id="saveMember" disabled>멤버 저장</button><button type="button" class="soft-btn danger-btn" id="deleteMember" disabled>멤버 삭제</button></div>
       </form>
     </details>
     <details class="pack-section panel"><summary>팩 관리</summary>
@@ -56,7 +56,7 @@
         <label>등장 그룹</label><div id="packGroups" class="choice-grid"></div>
         <label>등장 컬렉션 / 시리즈</label><div id="packSeries" class="choice-grid"></div>
         <label class="check-row"><input id="packActive" type="checkbox" checked/> 팩 공개 및 사용</label>
-        <div class="submit-row"><button class="action" id="savePack" type="submit" disabled>팩 저장</button><button class="soft-btn" id="deletePack" type="button" disabled>팩 삭제</button></div>
+        <div class="submit-row"><button class="action" id="savePack" type="submit" disabled>팩 저장</button><button class="soft-btn danger-btn" id="deletePack" type="button" disabled>팩 삭제</button></div>
       </form>
     </details>
     <article class="card-section panel">
@@ -68,9 +68,12 @@
         </div>
         <label>등록 멤버 <select id="cardMember"></select></label>
         <label>카드명 <input id="cardName" required maxlength="100" placeholder="카드에 기록될 멤버명"/></label>
-        <label>컬렉션 / 시리즈 (선택한 그룹별 관리)
-          <select id="cardSeriesPicker" aria-label="기존 컬렉션 / 시리즈 선택"><option value="">＋ 새 컬렉션 / 시리즈 직접 입력</option></select>
-        </label>
+        <div class="series-picker-row">
+          <label>컬렉션 / 시리즈 (선택한 그룹별 관리)
+            <select id="cardSeriesPicker" aria-label="기존 컬렉션 / 시리즈 선택"><option value="">＋ 새 컬렉션 / 시리즈 직접 입력</option></select>
+          </label>
+          <button type="button" class="soft-btn danger-btn" id="deleteSeries" disabled>컬렉션 삭제</button>
+        </div>
         <label id="cardEditionField">새 컬렉션 / 시리즈 이름
           <input id="cardEdition" maxlength="100" value="DEBUT COLLECTION" placeholder="앨범명 · 시즌명 등을 입력" />
         </label>
@@ -107,7 +110,7 @@
           <label>공개 상태 <select id="cardStatus"><option value="draft">임시 저장 (비공개)</option><option value="private">비공개</option><option value="published">공개 (팩·도감 반영)</option></select></label>
           <label>카드 ID <input id="cardId" readonly placeholder="새 카드"/></label>
         </div>
-        <div class="submit-row"><button id="saveCard" class="action" type="submit" disabled>카드 저장</button><button id="exportPreview" type="button" class="soft-btn">미리보기 PNG</button></div>
+        <div class="submit-row"><button id="saveCard" class="action" type="submit" disabled>카드 저장</button><button id="exportPreview" type="button" class="soft-btn">미리보기 PNG</button><button id="deleteCard" type="button" class="soft-btn danger-btn" disabled>카드 삭제</button></div>
       </form>
     </article>
     </div>
@@ -127,7 +130,7 @@
       <select id="libraryStatus" aria-label="공개 상태 필터"><option value="">모든 상태</option><option value="draft">임시 저장</option><option value="published">공개</option><option value="private">비공개</option></select>
     </div>
     <div id="cardLibrary" class="card-library"><p class="empty">아직 등록된 카드가 없습니다.</p></div>
-    <p class="helper">실제 운영은 관리자 권한이 있어야 가능합니다. 공개 카드는 등급 N·R·SR·SSR·UR 각 1장 이상 등록된 뒤 일반 팩에 반영됩니다. 테스트 카드는 그대로 보존됩니다.</p>
+    <p class="helper">삭제 기능은 관리자만 사용할 수 있습니다. 다른 카드·팩에서 사용 중인 그룹·컬렉션 등은 연결을 정리한 뒤 삭제할 수 있으며, 이미 유저가 보유한 카드는 삭제되지 않습니다. 공개 카드는 등급 N·R·SR·SSR·UR 각 1장 이상 등록된 뒤 일반 팩에 반영됩니다.</p>
   </section>
   <p class="studio-toast" id="studioMessage" role="status" aria-live="polite"></p>
 </main>

@@ -20,6 +20,13 @@ function toast(message){
   toastTimer=setTimeout(()=>$('studioMessage').classList.remove('show'),4500);
 }
 function setAuthState(text){$('accessState').textContent=text}
+function refreshDeleteControls(){
+  const allowed=state.admin&&!state.saving;
+  $('deleteGroup').disabled=!allowed||!$('groupPicker').value;
+  $('deleteMember').disabled=!allowed||!$('memberPicker').value;
+  $('deleteSeries').disabled=!allowed||!$('cardGroup').value||!$('cardSeriesPicker').value;
+  $('deleteCard').disabled=!allowed||!state.editingId;
+}
 function accessControls(){
   const allowed=state.admin&&!state.saving;
   document.querySelector('.tools').inert=state.saving;
@@ -29,6 +36,7 @@ function accessControls(){
   $('saveMember').disabled=!allowed||!$('groupPicker').value;
   $('savePack').disabled=!allowed;
   $('deletePack').disabled=!allowed||!$('packPicker').value;
+  refreshDeleteControls();
   $('studioLogout').hidden=!state.logged;
   $('studioLogin').hidden=state.logged;
   if(state.admin){
@@ -133,6 +141,7 @@ function newGroup(){
   state.groupLogoFile=null;state.groupEditorImage=null;
   refreshMembers();
   $('groupLogoPreview').hidden=true;$('groupLogoEmpty').hidden=false;
+  refreshDeleteControls();
 }
 async function selectGroup(){
   const slug=$('groupPicker').value;
@@ -146,6 +155,7 @@ async function selectGroup(){
   $('groupLogoPreview').hidden=true;$('groupLogoEmpty').hidden=true;
   if(path){$('groupLogoPreview').src=publicUrl(path);$('groupLogoPreview').hidden=false}
   else $('groupLogoEmpty').hidden=false;
+  refreshDeleteControls();
 }
 function memberOptions(slug){
   return state.members.filter(m=>m.group_slug===slug).map(m=>new Option(m.name,m.id));
@@ -163,6 +173,7 @@ function refreshMembers(id=''){
   picker.value=id;
   $('memberName').value=state.members.find(m=>m.id===id)?.name||'';
   $('saveMember').disabled=!state.admin||state.saving||!group;
+  refreshDeleteControls();
 }
 async function saveMember(event){
   event.preventDefault();
@@ -212,12 +223,14 @@ function refreshSeriesOptions(reset=false){
   picker.value=existing?edition:'';
   picker.disabled=!slug;
   $('cardEditionField').hidden=existing;
+  refreshDeleteControls();
 }
 function selectCardSeries(){
   const edition=$('cardSeriesPicker').value;
   $('cardEdition').value=edition;
   $('cardEditionField').hidden=Boolean(edition);
   if(!edition)$('cardEdition').focus();
+  refreshDeleteControls();
   queuePreview();
 }
 function renderChoiceGrid(target,items,selected,formatter){
@@ -309,18 +322,107 @@ async function savePack(event){
   }catch(err){toast('팩 저장 실패: '+(err?.message||err))}
   finally{state.saving=false;accessControls()}
 }
-async function deletePack(){
-  const id=$('packPicker').value;
-  if(!state.admin||!id||state.saving)return;
-  if(!confirm('이 팩을 삭제하시겠습니까? 기존 카드와 도감은 유지됩니다.'))return;
+async function removeStoredRow(table,field,value){
+  const {data,error}=await state.client.from(table).delete().eq(field,value).select(field);
+  if(error)throw error;
+  if(!data?.length)throw new Error('삭제할 수 없는 항목이거나 관리자 권한이 없습니다.');
+}
+function linkedPacks(groupSlug,seriesName=null){
+  return state.packs.filter(pack=>{
+    if(seriesName!==null){
+      return (pack.series_filters||[]).some(filter=>filter.group_slug===groupSlug&&filter.name===seriesName);
+    }
+    return (pack.group_slugs||[]).includes(groupSlug)||
+      (pack.series_filters||[]).some(filter=>filter.group_slug===groupSlug);
+  });
+}
+function deleteFailure(label,error){
+  if(error?.code==='23503')return label+' 삭제 불가: 유저의 보유 기록 또는 연결 데이터가 남아 있습니다. 먼저 연결을 정리해 주세요.';
+  return label+' 삭제 실패: '+(error?.message||error);
+}
+async function deleteGroup(){
+  const slug=$('groupPicker').value;
+  const group=state.groups.find(g=>g.slug===slug);
+  if(!state.admin||state.saving||!group)return;
+  const cardCount=state.cards.filter(c=>c.group_slug===slug).length;
+  const memberCount=state.members.filter(m=>m.group_slug===slug).length;
+  const packCount=linkedPacks(slug).length;
+  if(cardCount||memberCount||packCount){
+    toast('그룹 삭제 불가: 카드 '+cardCount+'장, 멤버 '+memberCount+'명, 연결된 팩 '+packCount+'개를 먼저 정리해 주세요.');
+    return;
+  }
+  const seriesCount=state.series.filter(s=>s.group_slug===slug).length;
+  if(!confirm('그룹 ['+group.name+']을 삭제할까요? 해당 그룹의 미사용 컬렉션 '+seriesCount+'개도 함께 삭제됩니다. 이 작업은 되돌릴 수 없습니다.'))return;
   state.saving=true;accessControls();
   try{
-    const {error}=await state.client.from('itm_packs').delete().eq('id',id);
-    if(error)throw error;
-    await loadCatalog();selectPack('');toast('팩을 삭제했습니다.');
-  }catch(err){toast('팩 삭제 실패: '+(err?.message||err))}
+    await removeStoredRow('itm_groups','slug',slug);
+    await loadCatalog();newGroup();
+    toast('그룹과 미사용 컬렉션을 삭제했습니다. 기존 업로드 이미지 원본은 보존됩니다.');
+  }catch(err){toast(deleteFailure('그룹',err))}
   finally{state.saving=false;accessControls()}
 }
+async function deleteMember(){
+  const id=$('memberPicker').value;
+  const member=state.members.find(m=>m.id===id);
+  if(!state.admin||state.saving||!member)return;
+  const cardCount=state.cards.filter(c=>c.member_id===id).length;
+  if(cardCount){toast('멤버 삭제 불가: 연결된 카드 '+cardCount+'장의 등록 멤버를 먼저 변경하거나 카드를 삭제해 주세요.');return;}
+  if(!confirm('멤버 ['+member.name+']을 등록 명단에서 삭제할까요? 이 작업은 되돌릴 수 없습니다.'))return;
+  state.saving=true;accessControls();
+  try{
+    await removeStoredRow('itm_members','id',id);
+    await loadCatalog();refreshMembers('');
+    toast('멤버를 삭제했습니다.');
+  }catch(err){toast(deleteFailure('멤버',err))}
+  finally{state.saving=false;accessControls()}
+}
+async function deleteSeries(){
+  const groupSlug=$('cardGroup').value,name=$('cardSeriesPicker').value;
+  if(!state.admin||state.saving||!groupSlug||!name)return;
+  const cardCount=state.cards.filter(c=>c.group_slug===groupSlug&&c.edition===name).length;
+  const packCount=linkedPacks(groupSlug,name).length;
+  if(cardCount||packCount){
+    toast('컬렉션 삭제 불가: 사용 중인 카드 '+cardCount+'장, 연결된 팩 '+packCount+'개를 먼저 정리해 주세요.');
+    return;
+  }
+  const series=state.series.find(s=>s.group_slug===groupSlug&&s.name===name);
+  if(!series){toast('카드에서 사용 중인 컬렉션은 삭제할 수 없습니다.');return;}
+  if(!confirm('컬렉션 ['+name+']을 삭제할까요? 이 작업은 되돌릴 수 없습니다.'))return;
+  state.saving=true;accessControls();
+  try{
+    await removeStoredRow('itm_series','id',series.id);
+    $('cardEdition').value='';
+    await loadCatalog();refreshSeriesOptions();queuePreview();
+    toast('컬렉션을 삭제했습니다.');
+  }catch(err){toast(deleteFailure('컬렉션',err))}
+  finally{state.saving=false;accessControls()}
+}
+async function deletePack(){
+  const id=$('packPicker').value;
+  const pack=state.packs.find(p=>p.id===id);
+  if(!state.admin||!pack||state.saving)return;
+  if(!confirm('카드팩 ['+pack.name+']을 삭제할까요? 기존 카드·도감·개봉 기록은 유지되지만 이 팩은 더 이상 사용할 수 없습니다.'))return;
+  state.saving=true;accessControls();
+  try{
+    await removeStoredRow('itm_packs','id',id);
+    await loadCatalog();selectPack('');toast('카드팩을 삭제했습니다. 이미지 원본은 보존됩니다.');
+  }catch(err){toast(deleteFailure('카드팩',err))}
+  finally{state.saving=false;accessControls()}
+}
+async function deleteCard(id=state.editingId){
+  const card=state.cards.find(c=>c.id===id);
+  if(!state.admin||state.saving||!card)return;
+  if(!confirm('카드 ['+card.display_name+' · '+card.rarity+' · '+card.edition+']를 영구 삭제할까요? 유저가 이미 보유한 카드는 보호되어 삭제할 수 없습니다.'))return;
+  state.saving=true;accessControls();
+  try{
+    await removeStoredRow('itm_catalog','id',id);
+    await loadCatalog();
+    if(state.editingId===id){clearCard();await syncLogo();}
+    toast('카드를 삭제했습니다. 업로드 이미지 원본은 보존됩니다.');
+  }catch(err){toast(errorIsCollectedCard(err)?'이미 유저가 보유한 카드는 삭제할 수 없습니다. 팩에서 제외하려면 공개 상태를 비공개로 변경해 주세요.':deleteFailure('카드',err))}
+  finally{state.saving=false;accessControls()}
+}
+function errorIsCollectedCard(error){return error?.code==='23503';}
 
 function refreshURColorControls(){
   const input=$('urNameColor');
@@ -341,6 +443,7 @@ function clearCard(){
   $('cardId').value='';
   refreshSeriesOptions();
   setTransform({scale:1,x:0,y:0});
+  refreshDeleteControls();
   queuePreview();
 }
 async function loadCard(card){
@@ -418,7 +521,11 @@ function renderLibrary(){
     status.textContent=card.status==='published'?'● 공개 중':card.status==='private'?'● 비공개':'● 임시 저장';
     const edit=document.createElement('button');edit.className='soft-btn';edit.type='button';
     edit.textContent='편집하기';edit.disabled=!state.admin;edit.onclick=()=>loadCard(card);
-    info.append(title,small,status,edit);tile.append(img,info);list.append(tile);
+    const remove=document.createElement('button');remove.className='soft-btn danger-btn';remove.type='button';
+    remove.textContent='삭제';remove.disabled=!state.admin;remove.onclick=()=>deleteCard(card.id);
+    const actions=document.createElement('div');actions.className='record-actions';
+    actions.append(edit,remove);
+    info.append(title,small,status,actions);tile.append(img,info);list.append(tile);
   }
 }
 async function uploadFile(file,prefix){
@@ -571,6 +678,10 @@ function bind(){
   $('studioLogin').onsubmit=signIn;
   $('studioLogout').onclick=signOut;
   $('groupForm').onsubmit=saveGroup;
+  $('deleteGroup').onclick=deleteGroup;
+  $('deleteMember').onclick=deleteMember;
+  $('deleteSeries').onclick=deleteSeries;
+  $('deleteCard').onclick=()=>deleteCard();
   $('cardForm').onsubmit=saveCard;
   $('groupPicker').onchange=selectGroup;
   $('newGroup').onclick=newGroup;
