@@ -1,4 +1,4 @@
-/* ITM UR reveal payoff — visual-only DOM overlay + synthesized SFX.
+/* ITM SSR impact payoff (formerly UR) — visual-only DOM overlay + synthesized SFX.
  * Intentionally leaves card-frame.js, card textures, rarity odds and inventory unchanged.
  */
 export function createURRevealPayoff({getSfxGain,getAudioContext,setBgmDucking}){
@@ -64,7 +64,7 @@ export function createURRevealPayoff({getSfxGain,getAudioContext,setBgmDucking})
         g.gain.exponentialRampToValueAtTime(.0001,start+duration);
         src.connect(filter).connect(g).connect(comp);src.start(start);src.stop(start+duration);
       };
-      // First frame: deep, tactile impact and bright transient.
+      // SSR impact: deep, tactile hit and bright transient.
       note(0,130,.46,.92,'sine',.32);
       note(.012,210,.18,.37,'triangle',.42);
       noise(0,.27,.57,420);
@@ -82,7 +82,7 @@ export function createURRevealPayoff({getSfxGain,getAudioContext,setBgmDucking})
       note(.91,784,1.1,.15,'sine');
       noise(.39,.24,.10,3300);
       noise(.76,.19,.12,3600);
-    }catch(err){console.warn('UR SFX unavailable',err);}
+    }catch(err){console.warn('SSR impact SFX unavailable',err);}
   }
   function impact(button){
     stage?.classList.remove('ur-anticipating');
