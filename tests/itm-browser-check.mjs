@@ -73,6 +73,31 @@ async function check(name,device){
        !draw.prices[0].includes('100 M')||!draw.prices[1].includes('500 M')||!draw.prices[2].includes('1,000 M'))
       throw new Error('Guest M pricing/mailbox access regression');
   }
+  if(name==='desktop'){
+    await page.locator('#taskOpen').click();
+    const open=await page.locator('#taskOverlay').evaluate(el=>el.classList.contains('active'));
+    await page.locator('#taskTabWeekly').click();
+    const weekly=await page.locator('#taskContent').textContent();
+    await page.locator('#taskTabAchievements').click();
+    const achievements=await page.locator('#taskContent').textContent();
+    await page.locator('#taskClose').click();
+    await page.locator('#loginButton').click();
+    await page.locator('#accountTabSignup').click();
+    const signup=await page.evaluate(()=>({
+      nicknameVisible:!document.getElementById('accountNickname').hidden,
+      nicknameRequired:document.getElementById('accountNickname').required,
+      accountIdSeparate:document.getElementById('accountUsername')!==document.getElementById('accountNickname'),
+      profileHubExists:!!document.getElementById('profileAvatar')&&!!document.getElementById('nicknameForm'),
+      circleAvatar:getComputedStyle(document.getElementById('profileAvatar')).borderRadius==='50%'
+    }));
+    await page.locator('#accountClose').click();
+    report.checks.desktopProfileMissionUI={open,weeklyPlaceholder:weekly.includes('준비 중'),
+      achievementLoginMessage:achievements.includes('로그인 후'),signup};
+    if(!open||!weekly.includes('준비 중')||!achievements.includes('로그인 후')||
+       !signup.nicknameVisible||!signup.nicknameRequired||!signup.accountIdSeparate||
+       !signup.profileHubExists||!signup.circleAvatar)
+       throw new Error('Profile/mission/signup UI regression');
+  }
   await context.close();
 }
 
@@ -110,6 +135,12 @@ async function checkStudio(){
       packManagerCollapsed:!document.querySelector('.pack-section')?.open,
       packSaveLocked:document.getElementById('savePack')?.disabled,
       packControls:['packGroups','packSeries','packImage','packActive'].every(id=>!!document.getElementById(id)),
+      celebrations:{
+        exists:['eventForm','eventPicker','eventGreeting','eventReward','eventImage','frameForm','frameCollection','frameImage'].every(id=>!!document.getElementById(id)),
+        eventSaveLocked:document.getElementById('eventSave')?.disabled,
+        frameSaveLocked:document.getElementById('frameSave')?.disabled,
+        defaultGift:document.getElementById('eventReward')?.value
+      },
       groupsApi:await api('itm_groups?select=slug'),
       catalogApi:await api('itm_catalog?select=id')
     };
@@ -202,6 +233,11 @@ if(report.checks.packLayout?.maxCheckboxWidth>24||
 if(report.checks.studio?.grade!=='UR'||!report.checks.studio?.saveLocked||
  !report.checks.studio?.packManagerCollapsed||!report.checks.studio?.packSaveLocked||!report.checks.studio?.packControls||
  report.checks.studio?.groupsApi?.status!==200||report.checks.studio?.catalogApi?.status!==200)process.exitCode=1;
+if(!report.checks.studio?.celebrations?.exists||
+ !report.checks.studio?.celebrations?.eventSaveLocked||
+ !report.checks.studio?.celebrations?.frameSaveLocked||
+ report.checks.studio?.celebrations?.defaultGift!=='1000')process.exitCode=1;
+if(!report.checks.desktopProfileMissionUI?.signup?.nicknameVisible)process.exitCode=1;
 if(report.checks.desktop?.soundDefault?.enabled!==true||
  report.checks.desktop?.soundDefault?.bgm!=='50'||
  report.checks.desktop?.soundDefault?.sfx!=='50'||
