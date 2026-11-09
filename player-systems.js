@@ -93,6 +93,7 @@ export function createPlayerSystems({state,$,toast,refreshWallet,refreshMailbox,
     const card=byId.get(String(profile?.avatar_card_id||''));
     const portrait=$('profileAvatarPhoto');
     portrait.src=imageFor(card);portrait.alt=card?card.name+' 프로필 사진':'기본 ITM 프로필';
+    applyAvatarTransform(portrait,{zoom:profile?.avatar_zoom,x:profile?.avatar_x,y:profile?.avatar_y});
     const frame=frames.find(f=>f.id===profile?.selected_frame_id&&ownedFrames.has(f.id));
     $('profileAvatar').classList.toggle('itm-profile-framed',!!frame);
     $('profileAvatarFrame').hidden=!frame?.image_path;
@@ -146,15 +147,53 @@ export function createPlayerSystems({state,$,toast,refreshWallet,refreshMailbox,
     };
     list.append(choice(null),...frames.filter(f=>ownedFrames.has(f.id)).map(choice));
   }
-  async function selectAvatar(cardId){
+  let cropCardId=null,cropValues={zoom:1,x:0,y:0},cropPointer=null;
+  const clamp=(v,min,max)=>Math.min(max,Math.max(min,v));
+  function applyAvatarTransform(image,values){
+    const zoom=clamp(Number(values?.zoom)||1,.5,5);
+    const x=clamp(Number(values?.x)||0,-1.5,1.5);
+    const y=clamp(Number(values?.y)||0,-1.5,1.5);
+    image.style.transform='translate('+Math.round(x*1000)/10+'%, '+Math.round(y*1000)/10+'%) scale('+zoom+')';
+  }
+  function renderCrop(){
+    applyAvatarTransform($('avatarCropPhoto'),cropValues);
+    $('avatarCropZoom').value=String(cropValues.zoom);
+    $('avatarCropZoomLabel').textContent=Math.round(cropValues.zoom*100)+'%';
+  }
+  function openAvatarCrop(cardId){
+    if(profileBusy||!state.profile)return;
+    if(cardId&&!ownedCards().some(c=>String(c.id)===String(cardId)))return toast('수집한 카드만 설정할 수 있습니다.');
+    cropCardId=cardId;
+    const card=byId.get(String(cardId||''));
+    cropValues=cardId===state.profile.avatar_card_id?
+      {zoom:Number(state.profile.avatar_zoom)||1,x:Number(state.profile.avatar_x)||0,
+       y:Number(state.profile.avatar_y)||0}:{zoom:1,x:0,y:0};
+    $('avatarCropPhoto').src=imageFor(card);
+    $('avatarCropName').textContent=card?card.group+' · '+card.name:'기본 프로필';
+    $('avatarCropOverlay').hidden=false;
+    renderCrop();
+  }
+  function closeAvatarCrop(){cropPointer=null;$('avatarCropOverlay').hidden=true}
+  async function saveAvatarCrop(){
     if(profileBusy)return;
-    profileBusy=true;
+    profileBusy=true;$('avatarCropSave').disabled=true;
     try{
-      const {data,error}=await client().rpc('itm_set_profile_avatar',{p_card_id:cardId});
-      if(error)throw error;
-      state.profile=data;renderProfile();toast('프로필 사진을 변경했습니다.');
-    }catch(err){toast('프로필 사진 변경 실패: '+err.message)}
-    finally{profileBusy=false}
+      if(guest()){
+        if(cropCardId&&!ownedCards().some(c=>String(c.id)===String(cropCardId)))
+          throw Error('수집한 카드만 설정할 수 있습니다.');
+        Object.assign(state.guestData.profile,{
+          avatar_card_id:cropCardId,avatar_zoom:cropValues.zoom,avatar_x:cropValues.x,avatar_y:cropValues.y
+        });
+        persistGuest();state.profile=state.guestData.profile;
+      }else{
+        const {data,error}=await client().rpc('itm_set_profile_avatar_crop',{
+          p_card_id:cropCardId,p_zoom:cropValues.zoom,p_x:cropValues.x,p_y:cropValues.y
+        });
+        if(error)throw error;state.profile=data;
+      }
+      closeAvatarCrop();renderProfile();toast('프로필 사진 위치와 크기를 저장했습니다.');
+    }catch(err){toast('프로필 사진 저장 실패: '+err.message)}
+    finally{profileBusy=false;$('avatarCropSave').disabled=false}
   }
   async function selectFrame(id){
     if(profileBusy)return;profileBusy=true;
@@ -332,6 +371,32 @@ export function createPlayerSystems({state,$,toast,refreshWallet,refreshMailbox,
   }
   function bind(){
     $('nicknameForm').onsubmit=changeNickname;
+    $('avatarCropClose').onclick=closeAvatarCrop;
+    $('avatarCropCancel').onclick=closeAvatarCrop;
+    $('avatarCropSave').onclick=saveAvatarCrop;
+    $('avatarCropReset').onclick=()=>{cropValues={zoom:1,x:0,y:0};renderCrop()};
+    $('avatarCropZoom').oninput=value=>{cropValues.zoom=clamp(Number(value.target.value),.5,5);renderCrop()};
+    $('avatarCropOverlay').addEventListener('click',e=>{if(e.target===$('avatarCropOverlay'))closeAvatarCrop()});
+    const stage=$('avatarCropViewport');
+    stage.addEventListener('wheel',e=>{
+      if($('avatarCropOverlay').hidden)return;
+      e.preventDefault();
+      cropValues.zoom=clamp(Math.round(cropValues.zoom*(e.deltaY<0?1.085:.922)*1000)/1000,.5,5);
+      renderCrop();
+    },{passive:false});
+    stage.addEventListener('pointerdown',e=>{
+      if($('avatarCropOverlay').hidden)return;
+      e.preventDefault();stage.setPointerCapture(e.pointerId);
+      cropPointer={id:e.pointerId,x:e.clientX,y:e.clientY,left:cropValues.x,top:cropValues.y};
+    });
+    stage.addEventListener('pointermove',e=>{
+      if(!cropPointer||cropPointer.id!==e.pointerId)return;
+      cropValues.x=clamp(cropPointer.left+(e.clientX-cropPointer.x)/Math.max(1,stage.clientWidth),-1.5,1.5);
+      cropValues.y=clamp(cropPointer.top+(e.clientY-cropPointer.y)/Math.max(1,stage.clientHeight),-1.5,1.5);
+      renderCrop();
+    });
+    const endPointer=e=>{if(cropPointer?.id===e.pointerId)cropPointer=null};
+    stage.addEventListener('pointerup',endPointer);stage.addEventListener('pointercancel',endPointer);
     $('birthdayForm').onsubmit=saveBirthday;
     $('taskOpen').onclick=()=>{activeTab='daily';renderTasks();$('taskOverlay').classList.add('active');$('taskOverlay').setAttribute('aria-hidden','false')};
     $('taskClose').onclick=()=>{$('taskOverlay').classList.remove('active');$('taskOverlay').setAttribute('aria-hidden','true')};
@@ -342,6 +407,7 @@ export function createPlayerSystems({state,$,toast,refreshWallet,refreshMailbox,
     $('anniversaryClose').onclick=closeCelebration;
     $('anniversaryOverlay').addEventListener('click',e=>{if(e.target===$('anniversaryOverlay'))closeCelebration()});
     document.addEventListener('keydown',e=>{if(e.key==='Escape'){
+      if(!$('avatarCropOverlay').hidden){closeAvatarCrop();return}
       if(!$('anniversaryOverlay').hidden){closeCelebration();return}
       if($('taskOverlay').classList.contains('active'))$('taskClose').click();
     }});
