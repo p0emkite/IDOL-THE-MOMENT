@@ -166,7 +166,7 @@ const PACK_DESIGN_WIDTH=1024,PACK_DESIGN_HEIGHT=1538;
 function readDemoInventory(){try{localStorage.removeItem('itm-test-pack-inventory-v1')}catch{}return {}}
 function writeDemoInventory(){/* Retired demo cards. */}
 
-const state = {phase:'ready',cards:[],revealed:new Set(),pullBadges:[],inventory:readLocal(),demoInventory:readDemoInventory(),remoteDemoInventory:{},liveInventory:readLiveInventory(),remoteLiveInventory:{},supabase:null,user:null,accountName:null,studioAdmin:false,accountMode:'login',entryRequired:false,playerId:null,hasRecovery:false,authError:null,backendReady:false,accountBusy:false,issuedRecovery:null,three:false,audio:true,busy:false};
+const state = {phase:'ready',cards:[],revealed:new Set(),pullBadges:[],inventory:readLocal(),demoInventory:readDemoInventory(),remoteDemoInventory:{},liveInventory:readLiveInventory(),remoteLiveInventory:{},supabase:null,user:null,accountName:null,studioAdmin:false,accountMode:'login',entryRequired:false,playerId:null,hasRecovery:false,authError:null,backendReady:false,accountBusy:false,issuedRecovery:null,walletBalance:0,walletReady:false,mailItems:[],mailBusy:false,three:false,audio:true,busy:false};
 const ENTRY_KEY='itm-entry-choice-v1';
 const ACCOUNT_PATTERN=/^[a-z][a-z0-9_]{3,19}$/;
 const accountEmail=name=>'itm.'+name+'@accounts.itm.example';
@@ -175,6 +175,104 @@ const isNamedAccount=()=>!!(state.accountName&&state.playerId);
 const visibleInventory=()=>isNamedAccount()?{...state.remoteLiveInventory}:{...state.liveInventory};
 function saveEntryChoice(value){try{localStorage.setItem(ENTRY_KEY,value)}catch{}}
 function guestChosen(){try{return localStorage.getItem(ENTRY_KEY)==='guest'}catch{return false}}
+
+const priceOf=count=>count===11?1000:count*100;
+function renderWalletStatus(){
+  const signed=isNamedAccount(),admin=signed&&state.studioAdmin===true;
+  const amount=admin?'∞ M':signed&&!state.walletReady?'… M':Number(state.walletBalance||0).toLocaleString('ko-KR')+' M';
+  $('walletBalance').textContent=amount;
+  $('profileWalletBalance').textContent=amount;
+  $('profileWalletNote').textContent=admin?'관리자 계정 · 뽑기 시 M이 차감되지 않습니다.':'카드팩 개봉에 사용하는 재화입니다.';
+  $('drawOne').textContent='1회 뽑기 · '+(admin?'무료':'100 M');
+  $('drawFive').textContent='5회 뽑기 · '+(admin?'무료':'500 M');
+  $('drawEleven').textContent='10+1회 뽑기 ✦ · '+(admin?'무료':'1,000 M');
+}
+async function refreshWallet(){
+  if(!isNamedAccount()||!state.supabase){state.walletBalance=0;state.walletReady=false;renderWalletStatus();return}
+  const {data,error}=await state.supabase.rpc('itm_get_wallet');
+  if(error){state.walletReady=false;renderWalletStatus();throw error}
+  state.walletBalance=Number(data??0);state.walletReady=true;renderWalletStatus();
+}
+function updateMailBadge(){
+  const unread=state.mailItems.filter(mail=>!mail.read_at).length;
+  $('mailUnread').hidden=!unread;
+  $('mailUnread').textContent=String(unread);
+}
+function renderMailbox(){
+  const list=$('mailList');list.replaceChildren();
+  $('mailAdminPanel').hidden=!(isNamedAccount()&&state.studioAdmin);
+  updateMailBadge();
+  if(!isNamedAccount()){
+    const p=document.createElement('p');p.className='itm-mail-empty';p.textContent='우편함은 ITM ID로 로그인하신 뒤 이용할 수 있습니다.';list.append(p);return;
+  }
+  if(!state.mailItems.length){
+    const p=document.createElement('p');p.className='itm-mail-empty';p.textContent='아직 도착한 우편이 없습니다.';list.append(p);return;
+  }
+  for(const mail of state.mailItems){
+    const details=document.createElement('details');details.className='itm-mail-item'+(!mail.read_at?' unread':'');
+    const summary=document.createElement('summary');summary.className='itm-mail-heading';
+    const main=document.createElement('span');main.className='itm-mail-subject';main.textContent=mail.subject;
+    const date=document.createElement('time');date.textContent=new Date(mail.created_at).toLocaleDateString('ko-KR');
+    summary.append(main,date);details.append(summary);
+    const body=document.createElement('div');body.className='itm-mail-body';
+    const message=document.createElement('p');message.textContent=mail.message||'내용이 없습니다.';body.append(message);
+    if(Number(mail.reward_m)>0){
+      const reward=document.createElement('div');reward.className='itm-mail-reward';
+      reward.textContent='✦ '+Number(mail.reward_m).toLocaleString('ko-KR')+' M';
+      const claim=document.createElement('button');claim.type='button';claim.className='itm-mail-claim';
+      claim.disabled=!!mail.claimed_at;claim.textContent=mail.claimed_at?'수령 완료':'M 수령하기';
+      claim.onclick=async()=>{
+        if(state.mailBusy||mail.claimed_at)return;
+        state.mailBusy=true;claim.disabled=true;
+        try{
+          const {error}=await state.supabase.rpc('itm_claim_mail',{p_mail_id:mail.id});
+          if(error)throw error;
+          await Promise.all([refreshWallet(),refreshMailbox()]);
+          toast('우편 보상을 수령했습니다.');
+        }catch(err){toast('보상 수령 실패: '+(err?.message||String(err)));claim.disabled=false}
+        finally{state.mailBusy=false}
+      };
+      reward.append(claim);body.append(reward);
+    }
+    details.append(body);
+    details.addEventListener('toggle',async()=>{
+      if(!details.open||mail.read_at||!isNamedAccount())return;
+      const {error}=await state.supabase.rpc('itm_read_mail',{p_mail_id:mail.id});
+      if(!error){mail.read_at=new Date().toISOString();details.classList.remove('unread');updateMailBadge()}
+    });
+    list.append(details);
+  }
+}
+async function refreshMailbox(){
+  if(!isNamedAccount()||!state.supabase){state.mailItems=[];renderMailbox();return}
+  const {data,error}=await state.supabase.from('itm_mailbox')
+    .select('id,subject,message,reward_m,read_at,claimed_at,created_at')
+    .order('created_at',{ascending:false}).limit(100);
+  if(error)throw error;
+  state.mailItems=data||[];renderMailbox();
+}
+async function sendAdminMail(event){
+  event.preventDefault();
+  if(!isNamedAccount()||!state.studioAdmin||state.mailBusy)return;
+  const form=$('mailAdminForm');
+  const username=$('mailRecipient').value.trim().toLowerCase();
+  const subject=$('mailSubject').value.trim();
+  const message=$('mailMessage').value.trim();
+  const reward=Number($('mailReward').value);
+  if(!/^[a-z][a-z0-9_]{3,19}$/.test(username)||!subject||!Number.isSafeInteger(reward)||reward<0||reward>1000000000)
+    return toast('수신 계정과 우편 내용을 확인해 주세요.');
+  state.mailBusy=true;$('mailSend').disabled=true;
+  try{
+    const {error}=await state.supabase.rpc('itm_admin_send_mail',{
+      p_username:username,p_subject:subject,p_message:message,p_reward_m:reward
+    });
+    if(error)throw error;
+    form.reset();toast('우편을 발송했습니다.');
+    if(username===state.accountName)await refreshMailbox();
+  }catch(err){toast('우편 발송 실패: '+(err?.message||String(err)))}
+  finally{state.mailBusy=false;$('mailSend').disabled=false}
+}
+
 function syncCanvasPointerEvents(){const canvas=$('threeCanvas');if(canvas)canvas.classList.toggle('itm-canvas-interactive',state.phase==='reveal');}
 let scene,renderer,camera,pack,packRim,packParts,packTop,packBottom,packSeam,tornSide,tornFace,openingCard,cardMeshes=[],dust,halos,stageLights=[],openingFx=null,THREE,clock,lastTime=0,openingAt=0,audioContext=null;
 
@@ -957,19 +1055,25 @@ async function openPack(count){
   // Cloud inventory draws still require the authenticated backend to be ready.
   if(state.busy||state.phase!=='ready'||state.entryRequired||(isNamedAccount()&&!state.backendReady))return;
   if(!selectedPack())return toast('관리자가 공개한 카드팩이 없습니다.');
+  if(!isNamedAccount())return toast('뽑기에는 M이 필요합니다. ITM ID로 로그인해 주세요.');
+  if(state.walletReady&&!state.studioAdmin&&state.walletBalance<priceOf(count))
+    return toast('M이 부족합니다. '+priceOf(count).toLocaleString('ko-KR')+' M이 필요합니다.');
   state.busy=true;setDrawButtonsDisabled(true);
   const inventoryBefore=visibleInventory();
   let rolled=[];
   try{
     if(state.supabase)await loadPublishedCatalog().catch(err=>console.warn('카드 목록 갱신 실패',err));
     if(isNamedAccount()){
+      await refreshWallet();
+      if(!state.studioAdmin&&state.walletBalance<priceOf(count))
+        throw Error('INSUFFICIENT_M');
       const {data,error}=await state.supabase.rpc('itm_open_managed_pack',{
         p_count:count,p_pack_id:selectedPack().id
       });
       if(error)throw error;
       rolled=(data||[]).map(x=>byId.get(String(x.id))).filter(Boolean);
       if(rolled.length!==count)throw Error('서버 카드 결과를 확인할 수 없습니다.');
-      await syncRemote();
+      await Promise.all([syncRemote(),refreshWallet()]);
     }else{
       rolled=drawLiveLocal(count,selectedPack());
       for(const card of rolled)state.liveInventory[card.id]=(state.liveInventory[card.id]||0)+1;
@@ -981,7 +1085,9 @@ async function openPack(count){
     }));
   }catch(err){
     state.busy=false;setDrawButtonsDisabled(false);
-    toast('카드팩 개봉 실패: '+(err?.message||String(err)));return;
+    const message=String(err?.message||err);
+    toast(message.includes('INSUFFICIENT_M')?'M이 부족합니다. 우편함에서 보상을 확인해 주세요.':'카드팩 개봉 실패: '+message);
+    if(isNamedAccount())void refreshWallet().catch(console.warn);return;
   }
   const seenThisPull=new Map();
   state.pullBadges=rolled.map(card=>{
@@ -1282,6 +1388,7 @@ function updateLogin(){
   $('restoreRecoveryCode').disabled=!signed||state.accountBusy;
   $('accountSubmit').disabled=state.accountBusy;
   $('accountSubmit').textContent=state.accountBusy?'확인 중…':state.accountMode==='signup'?'ITM ID 만들기 →':'내 도감 불러오기 →';
+  renderWalletStatus();renderMailbox();
   $('collectionFooter').textContent=signed?'계정에 저장된 도감입니다. 같은 ITM ID로 어디서나 불러올 수 있습니다.':'게스트 도감은 이 브라우저에만 저장됩니다. 브라우저 데이터를 삭제하거나 시크릿 모드를 종료하면 수집 기록이 사라질 수 있습니다.';
 }
 function setAccountMessage(message){$('accountMessage').textContent=message}
@@ -1304,13 +1411,14 @@ function accountOpen(required=false){
 }
 function chooseGuest(){
   state.entryRequired=false;saveEntryChoice('guest');
+  state.walletBalance=0;state.walletReady=false;state.mailItems=[];
   closeModal('accountOverlay');
   updateCounts();updateLogin();
   toast('게스트 모드 · 수집 기록은 이 브라우저에만 저장됩니다.');
 }
 async function activateNamedUser(user){
   if(!user||!accountNameOf(user))throw Error('ITM 계정 정보를 확인할 수 없습니다.');
-  state.user=user;state.accountName=accountNameOf(user);state.playerId=null;state.studioAdmin=false;
+  state.user=user;state.accountName=accountNameOf(user);state.playerId=null;state.studioAdmin=false;state.walletReady=false;state.walletBalance=0;state.mailItems=[];
   $('studioOpen').hidden=true;
   const {data:playerId,error}=await state.supabase.rpc('ensure_guest_player');
   if(error)throw error;
@@ -1325,6 +1433,8 @@ async function activateNamedUser(user){
     updateLogin();
     await soundManager?.setBackend(state.supabase,state.studioAdmin);
   }catch(err){state.studioAdmin=false;updateLogin();console.warn('Administrator lookup failed',err)}
+  await refreshWallet();
+  await refreshMailbox();
 }
 async function initBackend(){
   if(!CONFIG.supabaseUrl||!CONFIG.supabasePublishableKey){
@@ -1345,13 +1455,15 @@ async function initBackend(){
       await activateNamedUser(user);
       saveEntryChoice('account');
     }else{
-      state.accountName=null;state.playerId=null;state.user=null;
+      state.accountName=null;state.playerId=null;state.user=null;state.studioAdmin=false;
+      state.walletBalance=0;state.walletReady=false;state.mailItems=[];
       updateCounts();updateLogin();
       if(!guestChosen())accountOpen(true);
     }
   }catch(err){
     state.authError=err?.message||String(err);
-    state.accountName=null;state.playerId=null;state.user=null;
+    state.accountName=null;state.playerId=null;state.user=null;state.studioAdmin=false;
+    state.walletBalance=0;state.walletReady=false;state.mailItems=[];
     updateCounts();updateLogin();
     if(!guestChosen())accountOpen(true);
     setAccountMessage('서버에 연결하지 못했습니다. 게스트로는 플레이할 수 있습니다. '+state.authError);
@@ -1397,6 +1509,7 @@ async function logoutAccount(){
   catch(err){state.accountBusy=false;return setAccountMessage('로그아웃 실패: '+(err?.message||String(err)))}
   state.accountBusy=false;state.user=null;state.accountName=null;state.playerId=null;state.studioAdmin=false;
   state.remoteDemoInventory={};state.remoteLiveInventory={};
+  state.walletBalance=0;state.walletReady=false;state.mailItems=[];
   $('studioOpen').hidden=true;
   void soundManager?.setBackend(state.supabase,false);
   state.hasRecovery=false;state.issuedRecovery=null;
@@ -1451,7 +1564,7 @@ async function restoreRecovery(){
     state.issuedRecovery=null;
     $('issuedCodeBox').hidden=true;
     $('recoveryCodeInput').value='';
-    await syncRemote();
+    await syncRemote();await refreshWallet();await refreshMailbox();
     setAccountMessage('도감 불러오기 성공! 이 기기에서도 같은 카드와 수집 수량을 사용할 수 있습니다.');
     toast('✦ 다른 기기의 도감을 불러왔습니다!');
   }catch(err){setAccountMessage('불러오기 실패: '+(err?.message||String(err)))}
@@ -1523,6 +1636,9 @@ function bind(){
     renderCollection();openModal('collectionOverlay');
   };
   $('collectionClose').onclick=()=>closeModal('collectionOverlay');
+  $('walletOpen').onclick=$('mailOpen').onclick=()=>{openModal('mailOverlay');void refreshMailbox().catch(err=>toast('우편함 불러오기 실패: '+err.message))};
+  $('mailClose').onclick=()=>closeModal('mailOverlay');
+  $('mailAdminForm').onsubmit=sendAdminMail;
   $('collectionGroup').onchange=()=>renderCollection(true);
   for(const id of ['collectionSeries','collectionRarity','collectionMember'])$(id).onchange=()=>renderCollection();
   $('collectionResetFilters').onclick=()=>{
@@ -1539,7 +1655,7 @@ function bind(){
   $('accountLogout').onclick=logoutAccount;
   $('issueRecoveryCode').onclick=issueRecovery;$('copyRecoveryCode').onclick=copyRecovery;
   $('restoreRecoveryCode').onclick=restoreRecovery;$('accountRetry').onclick=initBackend;
-  ['collectionOverlay','oddsOverlay','accountOverlay'].forEach(id=>$(id).addEventListener('click',e=>{
+  ['collectionOverlay','oddsOverlay','accountOverlay','mailOverlay'].forEach(id=>$(id).addEventListener('click',e=>{
     if(e.target===$(id)){if(id==='accountOverlay')accountClose();else closeModal(id)}
   }));
   document.addEventListener('keydown',e=>{
@@ -1548,7 +1664,7 @@ function bind(){
       if(!$('concertIntro').hidden){closeConcertIntro();return}
       if(!$('raritySplash').hidden){closeRaritySplash();return}
       if(!$('packRevealStage').hidden){reset();return}
-      closeModal('collectionOverlay');closeModal('oddsOverlay');accountClose();
+      closeModal('collectionOverlay');closeModal('oddsOverlay');closeModal('mailOverlay');accountClose();
     }
     if(e.key==='Enter'&&document.activeElement===$('recoveryCodeInput'))restoreRecovery();
   });

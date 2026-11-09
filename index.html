@@ -15,6 +15,7 @@
   </style>
   <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="./style.css?v=itm-collection-accordion-20261107" />
+  <link rel="stylesheet" href="./moment-mail.css?v=20261109-v1" />
   <link rel="stylesheet" href="./pack-opening.css?v=itm-eleven-grid-20261107" />
   <link rel="stylesheet" href="./concert-ui.css?v=intro-synced-20261107" />
   <link rel="stylesheet" href="./concert-upgrade.css" />
@@ -24,7 +25,7 @@
   <link rel="stylesheet" href="./ur-cinematic.css?v=itm-ur-single-bloom-held-20261108" />
   <link rel="stylesheet" href="./rarity-accents.css?v=itm-ssr-held-20261108" />
   <script src="./config.js"></script>
-  <script type="module" src="./app.js?v=itm-bgm-and-manual-reveal-20261108"></script>
+  <script type="module" src="./app.js?v=itm-moment-mail-paid-draw-20261109"></script>
 </head>
 <body class="itm-concert itm-intro-pending">
   <section class="concert-intro" id="concertIntro" aria-label="ITM 콘서트 진입 연출">
@@ -67,6 +68,8 @@
       </a>
       <div class="top-actions">
         <button class="nav-button" id="audioToggle" aria-pressed="false" aria-expanded="false" aria-controls="soundPanel">♫ SOUND ON <span aria-hidden="true">▾</span></button>
+        <button class="nav-button itm-wallet-pill" type="button" id="walletOpen" aria-label="보유 M 확인 및 우편함 열기">✦ <span id="walletBalance">0 M</span></button>
+        <button class="nav-button itm-mail-nav" type="button" id="mailOpen">✉ 우편함 <span class="itm-mail-badge" id="mailUnread" hidden>0</span></button>
         <button class="nav-button" id="collectionOpen">▦ MY COLLECTION <span id="collectionCount">0</span></button>
         <a class="nav-button" id="studioOpen" href="./studio.html" hidden>✦ CARD STUDIO</a>
         <button class="account-button" id="loginButton">✦ ITM ID</button>
@@ -107,9 +110,9 @@
         <div class="control-left"><span class="section-number">02 / MAKE IT YOURS</span><div class="control-heading" id="controlHeading">어떤 순간을 열어 볼까요?</div></div>
         <div class="draw-actions" id="drawActions">
           <label class="pack-choice" id="packChoice">팩 종류 <select id="packPicker" aria-label="카드팩 종류" disabled><option value="">카드팩 확인 중</option></select></label>
-          <button id="drawOne" class="btn secondary">1회 뽑기</button>
-          <button id="drawFive" class="btn secondary">5회 뽑기</button>
-          <button id="drawEleven" class="btn primary">10+1회 뽑기 ✦</button>
+          <button id="drawOne" class="btn secondary">1회 뽑기 · 100 M</button>
+          <button id="drawFive" class="btn secondary">5회 뽑기 · 500 M</button>
+          <button id="drawEleven" class="btn primary">10+1회 뽑기 ✦ · 1,000 M</button>
         </div>
       </section>
     </main>
@@ -130,6 +133,27 @@
       <div id="collectionFilteredCount" class="collection-filter-count" aria-live="polite"></div>
       <div class="collection-grid" id="collectionGrid"></div>
       <div class="collection-footer" id="collectionFooter">게스트 기록은 이 브라우저에만 저장됩니다. 로그인하면 계정에 저장된 도감을 볼 수 있습니다.</div>
+    </div>
+  </div>
+
+  <div class="overlay" id="mailOverlay" aria-hidden="true">
+    <div class="itm-mail-modal" role="dialog" aria-modal="true" aria-labelledby="mailTitle">
+      <div class="modal-top">
+        <div><div class="eyebrow">YOUR MOMENT, DELIVERED</div><h2 id="mailTitle">우편함 <span class="pink">✦</span></h2><p>받은 우편과 M 보상을 확인해 보세요.</p></div>
+        <button class="close" type="button" id="mailClose" aria-label="우편함 닫기">×</button>
+      </div>
+      <div class="itm-mail-list" id="mailList"><p class="itm-mail-empty">우편함을 불러오는 중입니다.</p></div>
+      <section class="itm-mail-admin" id="mailAdminPanel" hidden>
+        <h3>✦ 관리자 우편 발송</h3>
+        <form id="mailAdminForm" class="itm-mail-admin-form">
+          <label>수신 ITM ID<input id="mailRecipient" required type="text" placeholder="수신자 아이디" minlength="4" maxlength="20" autocomplete="off" /></label>
+          <label>제목<input id="mailSubject" required type="text" placeholder="우편 제목" maxlength="120" /></label>
+          <label>내용<textarea id="mailMessage" rows="3" maxlength="5000" placeholder="우편 내용을 입력하세요."></textarea></label>
+          <label>첨부 M<input id="mailReward" type="number" value="0" min="0" max="1000000000" step="1" required /></label>
+          <button class="itm-mail-send" id="mailSend" type="submit">우편 보내기 →</button>
+        </form>
+        <small>신규가입·출석 보상은 별도 설정 전까지 자동 지급되지 않습니다.</small>
+      </section>
     </div>
   </div>
   <div class="overlay" id="accountOverlay" aria-hidden="true">
@@ -163,6 +187,7 @@
         </section>
         <section class="account-profile" id="accountProfile" hidden>
           <div class="identity-bar"><span class="identity-dot"></span><div><strong id="accountStatus">로그인된 도감</strong><small id="accountPlayerId"></small></div><button type="button" class="account-retry" id="accountRetry" hidden>다시 연결</button></div>
+          <div class="itm-profile-wallet">보유 MOMENT <strong id="profileWalletBalance">0 M</strong><small id="profileWalletNote">카드팩 개봉에 사용하는 재화입니다.</small></div>
           <p class="account-profile-note">수집 기록은 ITM 서버에 저장됩니다. 다른 기기에서도 같은 아이디와 비밀번호로 로그인하면 수집을 이어갈 수 있습니다.</p>
           <button type="button" class="account-action secondary" id="accountLogout">로그아웃</button>
           <details class="account-legacy">

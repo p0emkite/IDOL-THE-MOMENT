@@ -1,0 +1,33 @@
+/* ITM Moment (M) wallet and mailbox. Scoped to avoid modifying existing stages. */
+.itm-wallet-pill{white-space:nowrap;border-color:#f2bb6f68!important;color:#ffe2a4!important;background:linear-gradient(120deg,#3b2743,#392b26)!important}
+.itm-mail-nav{position:relative;white-space:nowrap}
+.itm-mail-badge{display:inline-grid;min-width:19px;height:19px;place-items:center;padding:0 4px;border-radius:999px;background:#ff65b6;color:#23111e;font-size:11px;font-weight:900}
+.itm-mail-badge[hidden],.itm-mail-admin[hidden]{display:none!important}
+.itm-profile-wallet{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;padding:13px 15px;margin:12px 0;border:1px solid #f5c87a55;border-radius:12px;background:linear-gradient(125deg,#49302166,#281435bb);font-size:13px;letter-spacing:.05em}
+.itm-profile-wallet strong{font-size:21px;color:#ffe1a0}
+.itm-profile-wallet small{display:block;flex-basis:100%;font-size:12px;letter-spacing:0;color:#cbb9d0}
+.itm-mail-modal{width:min(690px,calc(100vw - 28px));max-height:min(84dvh,780px);overflow-y:auto;padding:clamp(18px,3vw,28px);border-radius:18px;background:#140d20;border:1px solid #ffffff2b;box-shadow:0 25px 80px #000b}
+.itm-mail-list{display:flex;flex-direction:column;gap:10px;min-height:160px;margin-top:18px}
+.itm-mail-empty{text-align:center;margin:auto;color:#bdb0c9;padding:42px 14px}
+.itm-mail-item{border:1px solid #ffffff23;border-radius:12px;background:#ffffff08;overflow:hidden}
+.itm-mail-item.unread{border-color:#fc97cd77;background:#df7bb012}
+.itm-mail-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;padding:16px;list-style:none}
+.itm-mail-heading::-webkit-details-marker{display:none}
+.itm-mail-heading::before{content:'✉';color:#ff93cf;font-size:16px}
+.itm-mail-item:not(.unread) .itm-mail-heading::before{content:'✉';color:#9c8ea8}
+.itm-mail-subject{flex:1;min-width:0;color:#f8edff;font-weight:750;overflow-wrap:anywhere}
+.itm-mail-heading time{color:#a899b7;font-size:12px;white-space:nowrap}
+.itm-mail-body{padding:2px 16px 16px;border-top:1px solid #ffffff17}
+.itm-mail-body p{white-space:pre-wrap;overflow-wrap:anywhere;color:#d9cce5;line-height:1.65}
+.itm-mail-reward{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:16px;padding:12px;border:1px solid #f3c17d58;background:#e8a55816;border-radius:9px;font-weight:850;color:#ffe0a4}
+.itm-mail-claim,.itm-mail-send{border:0;border-radius:8px;padding:10px 14px;cursor:pointer;font:inherit;font-weight:850;color:#23131d;background:linear-gradient(115deg,#ffe1a1,#f3acda)}
+.itm-mail-claim:disabled{opacity:.6;cursor:default}
+.itm-mail-admin{border-top:1px solid #ffffff25;margin-top:24px;padding-top:18px}
+.itm-mail-admin h3{font-size:16px}
+.itm-mail-admin-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:14px 0}
+.itm-mail-admin-form label{display:flex;flex-direction:column;gap:6px;color:#d6c6de;font-size:13px}
+.itm-mail-admin-form label:nth-child(3){grid-column:1/-1}
+.itm-mail-admin-form input,.itm-mail-admin-form textarea{width:100%;background:#0b0814;color:#fff;border:1px solid #ffffff30;border-radius:8px;padding:11px;font:inherit}
+.itm-mail-admin-form .itm-mail-send{grid-column:1/-1}
+.itm-mail-admin small{color:#a99bb4}
+@media(max-width:640px){.itm-mail-admin-form{grid-template-columns:1fr}.itm-mail-admin-form label:nth-child(3){grid-column:auto}.itm-mail-admin-form .itm-mail-send{grid-column:auto}.itm-wallet-pill,.itm-mail-nav{font-size:12px!important}}
