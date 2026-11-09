@@ -25,8 +25,9 @@
   <link rel="stylesheet" href="./ur-reveal.css?v=itm-ssr-impact-20261108" />
   <link rel="stylesheet" href="./ur-cinematic.css?v=itm-ur-single-bloom-held-20261108" />
   <link rel="stylesheet" href="./rarity-accents.css?v=itm-ssr-held-20261108" />
+  <link rel="stylesheet" href="./itm-guest-polish.css?v=20261109-2" />
   <script src="./config.js"></script>
-  <script type="module" src="./app.js?v=itm-moment-mail-paid-draw-20261109"></script>
+  <script type="module" src="./app.js?v=guest-avatar-level-flat-20261109"></script>
 </head>
 <body class="itm-concert itm-intro-pending">
   <section class="concert-intro" id="concertIntro" aria-label="ITM 콘서트 진입 연출">
@@ -112,9 +113,9 @@
         <div class="control-left"><span class="section-number">02 / MAKE IT YOURS</span><div class="control-heading" id="controlHeading">어떤 순간을 열어 볼까요?</div></div>
         <div class="draw-actions" id="drawActions">
           <label class="pack-choice" id="packChoice">팩 종류 <select id="packPicker" aria-label="카드팩 종류" disabled><option value="">카드팩 확인 중</option></select></label>
-          <button id="drawOne" class="btn secondary">1회 뽑기 · 100 M</button>
-          <button id="drawFive" class="btn secondary">5회 뽑기 · 500 M</button>
-          <button id="drawEleven" class="btn primary">10+1회 뽑기 ✦ · 1,000 M</button>
+          <button id="drawOne" class="btn secondary itm-pull-btn"><span class="itm-draw-name">1회 뽑기</span><span class="itm-draw-price" id="drawOnePrice">100 M</span></button>
+          <button id="drawFive" class="btn secondary itm-pull-btn"><span class="itm-draw-name">5회 뽑기</span><span class="itm-draw-price" id="drawFivePrice">500 M</span></button>
+          <button id="drawEleven" class="btn primary itm-pull-btn"><span class="itm-draw-name">10+1회 뽑기 ✦</span><span class="itm-draw-price" id="drawElevenPrice">1,000 M</span></button>
         </div>
       </section>
     </main>
@@ -224,7 +225,7 @@
           <section id="profileHub" class="itm-profile-hub" hidden>
             <div class="itm-player-header">
               <div class="itm-avatar-ring" id="profileAvatar">
-                <img id="profileAvatarPhoto" src="./assets/itm-card-back.png" alt="프로필 카드" />
+                <div class="itm-avatar-photo-mask"><img id="profileAvatarPhoto" src="./assets/itm-card-back.png" alt="프로필 카드" /></div>
                 <img id="profileAvatarFrame" class="itm-avatar-custom-frame" src="./assets/itm-card-back.png" alt="획득 프레임" hidden />
                 <span class="itm-level-badge" id="profileLevelBadge">LV. 1</span>
               </div>
@@ -235,6 +236,7 @@
                 <small id="profileExperience">0 XP</small>
               </div>
             </div>
+            <p id="guestProfileNote" class="itm-guest-note" hidden>게스트의 프로필·M·우편·업적은 현재 브라우저에만 저장됩니다. 닉네임은 회원만 설정할 수 있습니다.</p>
             <div class="itm-profile-forms">
               <form id="nicknameForm" class="itm-profile-editor">
                 <h4>닉네임 변경</h4>
@@ -266,7 +268,8 @@
             </details>
           </section>
           <div class="itm-profile-wallet">보유 MOMENT <strong id="profileWalletBalance">0 M</strong><small id="profileWalletNote">카드팩 개봉에 사용하는 재화입니다.</small></div>
-          <p class="account-profile-note">수집 기록은 ITM 서버에 저장됩니다. 다른 기기에서도 같은 아이디와 비밀번호로 로그인하면 수집을 이어갈 수 있습니다.</p>
+          <p class="account-profile-note" id="accountProfileSaveNote">수집 기록은 ITM 서버에 저장됩니다. 다른 기기에서도 같은 아이디와 비밀번호로 로그인하면 수집을 이어갈 수 있습니다.</p>
+          <button type="button" class="account-action" id="guestSignIn" hidden>ITM ID로 로그인 / 가입하기</button>
           <button type="button" class="account-action secondary" id="accountLogout">로그아웃</button>
           <details class="account-legacy">
             <summary>기존 ITM 복구 코드 사용 (이전 버전 도감)</summary>
@@ -294,6 +297,36 @@
         </section>
         <div class="account-message" id="accountMessage" role="status" aria-live="polite"></div>
       </div>
+    </div>
+  </div>
+  <div id="avatarCropOverlay" class="itm-crop-overlay" role="dialog" aria-label="프로필 사진 위치 및 크기 편집" aria-modal="true" hidden>
+    <section class="itm-crop-modal">
+      <div class="itm-crop-head"><div><span>PROFILE PHOTO STUDIO</span><h2>프로필 사진 조정</h2></div>
+        <button type="button" id="avatarCropClose" aria-label="사진 편집 닫기">×</button></div>
+      <p class="itm-crop-desc">마우스로 사진을 끌어 위치를 옮기고, 휠로 확대·축소할 수 있습니다.</p>
+      <div class="itm-crop-stage" id="avatarCropViewport" aria-label="프로필 사진 위치 조정 영역">
+        <div class="itm-crop-circle">
+          <img id="avatarCropPhoto" src="./assets/itm-card-back.png" alt="선택한 프로필 카드 사진" draggable="false"/>
+        </div>
+      </div>
+      <div class="itm-crop-name" id="avatarCropName">카드 이름</div>
+      <div class="itm-crop-zoom"><label for="avatarCropZoom">확대 / 축소 <strong id="avatarCropZoomLabel">100%</strong></label>
+        <input id="avatarCropZoom" type="range" min="0.5" max="5" step="0.05" value="1" /></div>
+      <div class="itm-crop-actions">
+        <button type="button" id="avatarCropReset" class="itm-crop-secondary">중앙 초기화</button>
+        <button type="button" id="avatarCropCancel" class="itm-crop-secondary">취소</button>
+        <button type="button" id="avatarCropSave" class="itm-crop-primary">프로필 적용 ✦</button>
+      </div>
+    </section>
+  </div>
+  <div id="levelUpOverlay" class="itm-levelup-overlay" role="status" aria-live="polite" aria-label="레벨 업" hidden>
+    <div class="itm-levelup-sheen"></div>
+    <div class="itm-levelup-content">
+      <span class="itm-levelup-star">✦</span>
+      <p>CONGRATULATIONS</p>
+      <h2>LEVEL UP!</h2>
+      <strong id="levelUpNumber">LEVEL 2</strong>
+      <span>새로운 MOMENT에 도달했습니다.</span>
     </div>
   </div>
   <div class="card-focus-overlay" id="cardFocusOverlay" role="dialog" aria-modal="true" aria-label="카드 확대 팝업" hidden>
