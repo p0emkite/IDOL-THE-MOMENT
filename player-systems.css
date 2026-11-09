@@ -83,3 +83,9 @@
 @media(prefers-reduced-motion:reduce){
  .itm-party-animate .itm-party-glow,.itm-party-animate .itm-party-burst,.itm-party-animate .itm-party-content{animation:none;opacity:1}
 }
+
+/* Earned frames have a visible prestige effect even before custom art is uploaded. */
+.itm-avatar-ring.itm-profile-framed{background:conic-gradient(from -90deg,#fff6c7,#ffc565,#ef97ec,#fff6c7);box-shadow:0 0 27px #eec67975,0 0 46px #a855e24d}
+.itm-avatar-ring.itm-profile-framed::before{border-color:#ffe39a;box-shadow:inset 0 0 8px #ffe69a90,0 0 12px #ffd79671}
+.itm-avatar-ring.itm-profile-ur{background:conic-gradient(from 0deg,#68ecff,#bb8eff,#ff9bdc,#ffe3a0,#68ecff);box-shadow:0 0 31px #e286ff9d,0 0 40px #55e8ff70}
+.itm-avatar-ring.itm-profile-ur::before{border-color:#dffcff}
