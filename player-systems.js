@@ -1,11 +1,36 @@
 /* ITM player profile, collections, missions and celebrations.
- * All monetary/account mutations run through server-authorized Supabase RPCs. */
+ * Registered users use the server. Guest data is local to this browser only. */
+import {syncGuestAchievements,awardGuestAnniversaries,guestFrameKey,writeGuestSave} from './guest-state.js?v=20261109';
 export function createPlayerSystems({state,$,toast,refreshWallet,refreshMailbox,visibleInventory,byId,makeCardArt,assetUrl}){
   const RATINGS=['N','R','SR','SSR','UR'];
   const REWARDS={N:100,R:300,SR:500,SSR:1000,UR:3000,ALL:0};
   const names={N:'NORMAL',R:'RARE',SR:'SUPER RARE',SSR:'SPECIAL SUPER RARE',UR:'ULTRA RARE',ALL:'100% 완성'};
   let frames=[],ownedFrames=new Set(),claims=new Set(),events=[],loaded=false;
   let celebrations=[],celebrating=false,introClosed=false,profileBusy=false,activeTab='daily',pendingMailReward=false;
+  let lastObservedLevel=null,queuedLevelUp=null,levelTimer=null;
+  const guest=()=>state.guestMode&&!state.playerId;
+  const persistGuest=()=>{if(state.guestData&&!writeGuestSave(state.guestData))toast('브라우저 저장소가 차단되어 있습니다.')};
+  function showLevelUp(level){
+    if(!level||!$('levelUpOverlay'))return;
+    clearTimeout(levelTimer);
+    $('levelUpNumber').textContent='LEVEL '+level;
+    $('levelUpOverlay').hidden=false;
+    $('levelUpOverlay').classList.remove('itm-level-enter');
+    void $('levelUpOverlay').offsetWidth;
+    $('levelUpOverlay').classList.add('itm-level-enter');
+    levelTimer=setTimeout(()=>{$('levelUpOverlay').hidden=true},2350);
+  }
+  function trackLevel(next,{defer=false}={}){
+    const value=Number(next)||1;
+    if(lastObservedLevel!==null&&value>lastObservedLevel){
+      if(defer)queuedLevelUp=Math.max(queuedLevelUp||0,value);
+      else showLevelUp(value);
+    }
+    lastObservedLevel=value;
+  }
+  function flushLevelUp(){
+    if(queuedLevelUp){const n=queuedLevelUp;queuedLevelUp=null;showLevelUp(n)}
+  }
   const money=value=>Number(value||0).toLocaleString('ko-KR')+' M';
   const client=()=>state.supabase;
   const ownedCards=()=>[...byId.values()].filter(c=>Number(visibleInventory()[c.id]||0)>0&&c.isLive);
@@ -15,13 +40,32 @@ export function createPlayerSystems({state,$,toast,refreshWallet,refreshMailbox,
     try{return makeCardArt(card).toDataURL('image/png')}catch{return './assets/itm-card-back.png'}
   };
   async function updateProfile(){
+    if(guest()){state.profile=state.guestData?.profile||null;renderProfile();return}
     if(!state.playerId||!client())return;
     const {data,error}=await client().rpc('itm_get_profile');
     if(error)throw error;
-    state.profile=data;
-    renderProfile();
+    state.profile=data;renderProfile();
   }
   async function updateAchievements(){
+    if(guest()){
+      const data=state.guestData;
+      if(!data)return;
+      claims=new Set(data.claims||[]);ownedFrames=new Set(data.unlockedFrames||[]);
+      let published=[];
+      if(client()){
+        const {data:rows,error}=await client().from('itm_profile_frames')
+          .select('id,group_slug,edition,kind,title,image_path').order('created_at');
+        if(!error)published=rows||[];
+      }
+      frames=published.map(f=>({...f,id:guestFrameKey(f.group_slug,f.edition,f.kind)}));
+      for(const key of ownedFrames){
+        if(frames.some(f=>f.id===key))continue;
+        const parts=key.split('::');
+        frames.push({id:key,group_slug:parts[0],edition:parts[1],kind:parts[2],
+          title:parts[0]+' · '+parts[1]+(parts[2]==='ur'?' UR':' 100%'),image_path:null});
+      }
+      renderProfile();renderTasks();return;
+    }
     if(!state.playerId||!client())return;
     const results=await Promise.all([
       client().from('itm_achievement_claims').select('group_slug,edition,rarity,reward_m'),
@@ -57,13 +101,15 @@ export function createPlayerSystems({state,$,toast,refreshWallet,refreshMailbox,
     drawLevel($('profileAvatar'),$('profileLevelBadge'),$('profileXpBar'));
   }
   function renderProfile(){
-    const signed=!!state.accountName&&!!state.playerId,profile=state.profile;
-    $('profileHub').hidden=!signed;
-    $('profileDisplayName').textContent=profile?.nickname||state.accountName||'ITM PLAYER';
-    $('profileAccountId').textContent='ITM ID · @'+(state.accountName||'');
-    $('accountStatus').textContent=signed?'✦ '+(profile?.nickname||state.accountName):'계정 연결 필요';
-    $('loginButton').textContent=signed?'✦ '+(profile?.nickname||state.accountName):'✦ ITM ID';
-    if(!signed||!profile)return;
+    const signed=!!state.accountName&&!!state.playerId,local=guest(),profile=state.profile;
+    $('profileHub').hidden=!signed&&!local;
+    $('nicknameForm').hidden=local;
+    $('guestProfileNote').hidden=!local;
+    $('profileDisplayName').textContent=local?'GUEST':profile?.nickname||state.accountName||'ITM PLAYER';
+    $('profileAccountId').textContent=local?'LOCAL PLAYER · 브라우저 저장':'ITM ID · @'+(state.accountName||'');
+    $('accountStatus').textContent=signed?'✦ '+(profile?.nickname||state.accountName):local?'✦ GUEST PROFILE':'계정 연결 필요';
+    $('loginButton').textContent=signed?'✦ '+(profile?.nickname||state.accountName):local?'✦ GUEST':'✦ ITM ID';
+    if((!signed&&!local)||!profile)return;
     $('nicknameInput').value=profile.nickname;
     $('nicknameCost').textContent=Number(profile.next_rename_cost)===0?
       '다음 닉네임 변경 무료 (최초 1회)':'다음 닉네임 변경 비용 · '+money(profile.next_rename_cost);
@@ -84,7 +130,7 @@ export function createPlayerSystems({state,$,toast,refreshWallet,refreshMailbox,
       btn.classList.toggle('selected',String(state.profile?.avatar_card_id||'')===String(card?.id||''));
       const img=document.createElement('img');img.src=imageFor(card);img.alt=card?card.name:'기본 프로필';
       const label=document.createElement('span');label.textContent=card?card.group+' '+card.name+' · '+card.rarity:'기본';
-      btn.append(img,label);btn.onclick=()=>selectAvatar(card?.id||null);return btn;
+      btn.append(img,label);btn.onclick=()=>openAvatarCrop(card?.id||null);return btn;
     };
     list.append(makeButton(null),...cards.map(makeButton));
   }
@@ -113,13 +159,20 @@ export function createPlayerSystems({state,$,toast,refreshWallet,refreshMailbox,
   async function selectFrame(id){
     if(profileBusy)return;profileBusy=true;
     try{
-      const {data,error}=await client().rpc('itm_select_profile_frame',{p_frame_id:id});
-      if(error)throw error;state.profile=data;renderProfile();toast('프로필 프레임을 변경했습니다.');
+      if(guest()){
+        if(id&&!ownedFrames.has(id))throw Error('해금하지 않은 프레임입니다.');
+        state.guestData.profile.selected_frame_id=id;
+        persistGuest();state.profile=state.guestData.profile;
+      }else{
+        const {data,error}=await client().rpc('itm_select_profile_frame',{p_frame_id:id});
+        if(error)throw error;state.profile=data;
+      }
+      renderProfile();toast('프로필 프레임을 변경했습니다.');
     }catch(err){toast('프레임 변경 실패: '+err.message)}
     finally{profileBusy=false}
   }
   async function changeNickname(e){
-    e.preventDefault();if(profileBusy)return;
+    e.preventDefault();if(profileBusy||guest())return;
     const nickname=$('nicknameInput').value.trim();
     if(!/^[가-힣A-Za-z0-9_]{2,16}$/.test(nickname))return toast('닉네임은 한글·영문·숫자·밑줄 2~16자로 입력해 주세요.');
     const cost=Number(state.profile?.next_rename_cost||0);
@@ -141,8 +194,15 @@ export function createPlayerSystems({state,$,toast,refreshWallet,refreshMailbox,
     if(!confirm('생일은 최초 1회만 등록할 수 있습니다. '+m+'월 '+d+'일이 맞습니까?'))return;
     profileBusy=true;
     try{
-      const {data,error}=await client().rpc('itm_set_profile_birthday',{p_month:m,p_day:d});
-      if(error)throw error;state.profile=data;renderProfile();
+      if(guest()){
+        if(state.guestData.profile.birthday_month)throw Error('생일은 최초 1회만 등록할 수 있습니다.');
+        state.guestData.profile.birthday_month=m;state.guestData.profile.birthday_day=d;
+        persistGuest();state.profile=state.guestData.profile;
+      }else{
+        const {data,error}=await client().rpc('itm_set_profile_birthday',{p_month:m,p_day:d});
+        if(error)throw error;state.profile=data;
+      }
+      renderProfile();
       toast('생일을 등록했습니다. 기념일에는 우편함으로 선물이 도착합니다.');
       await checkAnniversaries();
     }catch(err){toast('생일 등록 실패: '+err.message)}
@@ -170,7 +230,7 @@ export function createPlayerSystems({state,$,toast,refreshWallet,refreshMailbox,
       const badge=document.createElement('small');badge.textContent='보상 및 진행 조건은 아직 설정되지 않았습니다.';
       empty.append(heading,p,badge);content.append(empty);return;
     }
-    if(!state.playerId){content.textContent='업적은 ITM ID 로그인 후 확인할 수 있습니다.';return}
+    if(!state.playerId&&!guest()){content.textContent='게스트 플레이 또는 ITM ID 로그인 후 업적을 확인할 수 있습니다.';return}
     const groups=collectionGroups();
     if(!groups.length){content.textContent='공개된 컬렉션이 없습니다.';return}
     for(const group of groups){
@@ -195,7 +255,16 @@ export function createPlayerSystems({state,$,toast,refreshWallet,refreshMailbox,
     }
   }
   async function checkAnniversaries(){
-    if(!state.playerId||!client())return;
+    if(!client())return;
+    if(guest()){
+      const {data,error}=await client().from('itm_anniversaries')
+        .select('id,kind,title,greeting,message,month,day,reward_m,image_path,active').eq('active',true);
+      if(error)throw error;
+      const news=awardGuestAnniversaries(state.guestData,data||[]);
+      if(news.length){persistGuest();celebrations.push(...news);await refreshMailbox();showNextCelebration()}
+      return;
+    }
+    if(!state.playerId)return;
     const {data,error}=await client().rpc('itm_check_anniversaries');
     if(error)throw error;
     if(Array.isArray(data)&&data.length){celebrations.push(...data);await refreshMailbox();showNextCelebration()}
@@ -223,21 +292,42 @@ export function createPlayerSystems({state,$,toast,refreshWallet,refreshMailbox,
   }
   async function afterLogin(){
     if(!state.playerId)return;
+    lastObservedLevel=null;queuedLevelUp=null;
     try{
       await updateProfile();
+      const initial=Number(state.profile?.level||1);
       const {error}=await client().rpc('itm_sync_collection_rewards');
       if(error)throw error;
       await Promise.all([updateProfile(),updateAchievements(),refreshWallet()]);
+      lastObservedLevel=initial;trackLevel(state.profile?.level);
       await checkAnniversaries();loaded=true;
     }catch(err){console.warn('ITM profile/rewards sync',err);toast('프로필 동기화 오류: '+err.message)}
   }
+  async function afterGuest(){
+    if(!guest()||!state.guestData)return;
+    lastObservedLevel=null;queuedLevelUp=null;
+    const initial=Number(state.guestData.profile.level||1);
+    try{
+      syncGuestAchievements(state.guestData,visibleInventory(),[...byId.values()]);
+      persistGuest();await updateProfile();
+      await Promise.all([updateAchievements(),refreshWallet(),refreshMailbox()]);
+      lastObservedLevel=initial;trackLevel(state.profile?.level);
+      if(client())await checkAnniversaries();
+      loaded=true;
+    }catch(err){console.warn('Guest profile sync',err);toast('게스트 프로필 확인 실패: '+err.message)}
+  }
   async function afterDraw(){
-    if(!state.playerId)return;
-    try{await Promise.all([updateProfile(),updateAchievements(),refreshWallet()])}
-    catch(err){console.warn('Profile XP refresh',err)}
+    if(!state.playerId&&!guest())return;
+    try{
+      await Promise.all([updateProfile(),updateAchievements(),refreshWallet()]);
+      trackLevel(state.profile?.level,{defer:true});
+      renderTasks();
+    }catch(err){console.warn('Profile XP refresh',err)}
   }
   function afterLogout(){
     state.profile=null;frames=[];ownedFrames=new Set();claims=new Set();celebrations=[];loaded=false;pendingMailReward=false;
+    lastObservedLevel=null;queuedLevelUp=null;
+    clearTimeout(levelTimer);$('levelUpOverlay').hidden=true;
     renderProfile();renderTasks();
   }
   function bind(){
@@ -258,5 +348,6 @@ export function createPlayerSystems({state,$,toast,refreshWallet,refreshMailbox,
     renderTasks();
   }
   bind();
-  return {afterLogin,afterDraw,afterLogout,renderProfile,renderTasks,onIntroClosed(){introClosed=true;showNextCelebration()},onAccountClose:showNextCelebration};
+  return {afterLogin,afterGuest,afterDraw,afterLogout,flushLevelUp,renderProfile,renderTasks,
+    onIntroClosed(){introClosed=true;showNextCelebration()},onAccountClose:showNextCelebration};
 }
