@@ -5,7 +5,7 @@ export function createPlayerSystems({state,$,toast,refreshWallet,refreshMailbox,
   const REWARDS={N:100,R:300,SR:500,SSR:1000,UR:3000,ALL:0};
   const names={N:'NORMAL',R:'RARE',SR:'SUPER RARE',SSR:'SPECIAL SUPER RARE',UR:'ULTRA RARE',ALL:'100% 완성'};
   let frames=[],ownedFrames=new Set(),claims=new Set(),events=[],loaded=false;
-  let celebrations=[],celebrating=false,introClosed=false,profileBusy=false,activeTab='daily';
+  let celebrations=[],celebrating=false,introClosed=false,profileBusy=false,activeTab='daily',pendingMailReward=false;
   const money=value=>Number(value||0).toLocaleString('ko-KR')+' M';
   const client=()=>state.supabase;
   const ownedCards=()=>[...byId.values()].filter(c=>Number(visibleInventory()[c.id]||0)>0&&c.isLive);
@@ -203,6 +203,7 @@ export function createPlayerSystems({state,$,toast,refreshWallet,refreshMailbox,
   function showNextCelebration(){
     if(celebrating||!introClosed||!celebrations.length||$('accountOverlay').classList.contains('active'))return;
     const event=celebrations.shift();celebrating=true;
+    if(Number(event.reward_m)>0)pendingMailReward=true;
     $('anniversaryTitle').textContent=event.greeting||event.title;
     $('anniversaryMessage').textContent=event.message||'빛나는 순간을 축하합니다!';
     $('anniversaryReward').textContent=money(event.reward_m)+' · 우편함에서 수령';
@@ -218,6 +219,7 @@ export function createPlayerSystems({state,$,toast,refreshWallet,refreshMailbox,
   function closeCelebration(){
     $('anniversaryOverlay').hidden=true;document.body.classList.remove('itm-anniversary-active');
     celebrating=false;showNextCelebration();
+    if(!celebrating&&pendingMailReward){pendingMailReward=false;$('mailOpen').click()}
   }
   async function afterLogin(){
     if(!state.playerId)return;
@@ -235,7 +237,7 @@ export function createPlayerSystems({state,$,toast,refreshWallet,refreshMailbox,
     catch(err){console.warn('Profile XP refresh',err)}
   }
   function afterLogout(){
-    state.profile=null;frames=[];ownedFrames=new Set();claims=new Set();celebrations=[];loaded=false;
+    state.profile=null;frames=[];ownedFrames=new Set();claims=new Set();celebrations=[];loaded=false;pendingMailReward=false;
     renderProfile();renderTasks();
   }
   function bind(){
