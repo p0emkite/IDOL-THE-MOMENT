@@ -5,8 +5,9 @@
 <title>ITM — CARD STUDIO</title>
 <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml"/>
 <link rel="stylesheet" href="./studio.css?v=bgm-control-20261107"/>
+<link rel="stylesheet" href="./studio-celebrations.css?v=20261109"/>
 <script src="./config.js"></script>
-<script type="module" src="./studio.js?v=bgm-control-20261107"></script>
+<script type="module" src="./studio.js?v=event-frame-editor-20261109"></script>
 </head><body>
 <header class="studio-header">
   <a class="brand" href="./"><img src="./assets/itm-logo.png" alt="ITM" /> <span>카드 제작 스튜디오 <small>ITM · THE MOMENT</small></span></a>
@@ -99,6 +100,60 @@
       </label>
       <p id="bgmCount" class="helper" aria-live="polite">BGM 목록을 확인하는 중입니다.</p>
       <div id="bgmLibrary" class="bgm-library"></div>
+    </details>
+
+    <details class="itm-extras-section panel">
+      <summary>기념일 · 생일 이벤트 관리</summary>
+      <div class="section-heading">
+        <div><span class="eyebrow">CELEBRATIONS</span><h2>기념일 연출 · 보상</h2></div>
+        <button id="studioExtrasRefresh" type="button" class="soft-btn">목록 새로고침</button>
+      </div>
+      <p class="helper">매년 해당 날짜에 로그인하면 최초 1회 축하 연출이 재생되고, 설정된 M이 우편함으로 발송됩니다. 생일은 유저별로 등록한 날짜를 사용합니다.</p>
+      <p class="helper" id="eventCount">기념일 목록 확인 중</p>
+      <form id="eventForm" class="itm-extra-form">
+        <div class="field-row">
+          <label>등록된 기념일 <select id="eventPicker"><option value="">＋ 신규 기념일 만들기</option></select></label>
+          <label>이벤트 유형 <select id="eventKind"><option value="global">공통 기념일 (날짜 지정)</option><option value="birthday">유저 개인 생일</option></select></label>
+        </div>
+        <label>이벤트 이름 <input id="eventTitle" required maxlength="120" placeholder="예: 데뷔 기념일"/></label>
+        <label>메인 축하 문구 <input id="eventGreeting" required maxlength="250" value="HAPPY ANNIVERSARY, {nickname}!" /></label>
+        <p class="helper">{nickname}을 입력하면 유저 닉네임으로 자동 치환됩니다.</p>
+        <label>보조 문구 <textarea id="eventMessage" rows="3" placeholder="축하 메시지"></textarea></label>
+        <div class="field-row" id="eventDateFields">
+          <label>월 <input id="eventMonth" type="number" min="1" max="12" required placeholder="월"/></label>
+          <label>일 <input id="eventDay" type="number" min="1" max="31" required placeholder="일"/></label>
+        </div>
+        <label>지급 M (기본값 1,000) <input id="eventReward" type="number" min="0" max="100000000" step="1" value="1000" required /></label>
+        <label>연출 이미지 (PNG, JPG, WebP) <input id="eventImage" type="file" accept="image/png,image/jpeg,image/webp" /></label>
+        <div class="logo-display"><img id="eventImagePreview" hidden alt="기념일 이미지" /><span id="eventImageEmpty">이미지가 없어도 기본 폭죽 연출이 실행됩니다.</span></div>
+        <label class="check-row"><input id="eventClearImage" type="checkbox"/> 등록된 이미지 해제</label>
+        <label class="check-row"><input id="eventActive" type="checkbox" checked/> 이벤트 활성화</label>
+        <div class="submit-row">
+          <button id="eventSave" class="action" type="submit" disabled>기념일 저장</button>
+          <button id="eventNew" class="soft-btn" type="button" disabled>+ 새 이벤트</button>
+          <button id="eventDelete" class="soft-btn danger-btn" type="button" disabled>이벤트 삭제</button>
+        </div>
+      </form>
+    </details>
+    <details class="itm-extras-section panel">
+      <summary>컬렉션 프로필 프레임 관리</summary>
+      <div class="section-heading"><div><span class="eyebrow">PROFILE FRAMES</span><h2>해금 테두리 이미지 관리</h2></div></div>
+      <p class="helper">컬렉션 UR 등급을 모두 모으면 UR 프레임, 컬렉션 100%를 모으면 완성 프레임을 자동으로 획득합니다. 프레임 이미지는 투명 PNG · WebP 권장입니다.</p>
+      <p class="helper" id="frameCount">프레임 목록 확인 중</p>
+      <form id="frameForm" class="itm-extra-form">
+        <label>등록된 프레임 <select id="framePicker"><option value="">＋ 새 프레임 등록</option></select></label>
+        <label>대상 컬렉션 <select id="frameCollection" required><option value="">컬렉션 선택</option></select></label>
+        <label>해금 조건 <select id="frameKind"><option value="collection">컬렉션 100% 수집</option><option value="ur">UR 등급 전체 수집</option></select></label>
+        <label>표시 이름 <input id="frameTitle" maxlength="100" placeholder="예: IVE · 100% 컬렉터" /></label>
+        <label>투명 테두리 이미지 업로드 <input id="frameImage" type="file" accept="image/png,image/jpeg,image/webp" /></label>
+        <div class="logo-display"><img id="frameImagePreview" hidden alt="프로필 프레임 미리보기" /><span id="frameImageEmpty">이미지를 나중에 등록할 수 있습니다. 기본 프레임이 먼저 지급됩니다.</span></div>
+        <label class="check-row"><input id="frameClearImage" type="checkbox"/> 등록된 이미지 해제</label>
+        <div class="submit-row">
+          <button id="frameSave" class="action" type="submit" disabled>프레임 저장</button>
+          <button id="frameNew" class="soft-btn" type="button" disabled>+ 새 프레임</button>
+          <button id="frameDelete" class="soft-btn danger-btn" type="button" disabled>프레임 삭제</button>
+        </div>
+      </form>
     </details>
     <article class="card-section panel">
       <div class="section-heading"><div><span class="eyebrow">02 / CARD EDITOR</span><h2>카드 정보 및 사진</h2></div><button id="newCard" type="button" class="soft-btn">+ 신규 카드</button></div>
