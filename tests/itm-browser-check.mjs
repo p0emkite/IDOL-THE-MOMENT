@@ -109,6 +109,7 @@ async function check(name,device){
 
     // Root-level archive sections: group / collection / member are siblings.
     await page.locator('#collectionOpen').click();
+    await page.locator('#collectionGrid > details.collection-accordion').first().waitFor({state:'attached',timeout:25000});
     report.checks.flatArchive=await page.evaluate(()=>{
       const root=document.getElementById('collectionGrid');
       const sections=[...root.querySelectorAll(':scope > details.collection-accordion')];
