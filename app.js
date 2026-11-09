@@ -1505,6 +1505,7 @@ async function submitAccount(event){
     $('accountPassword').value='';
     state.entryRequired=false;saveEntryChoice('account');updateLogin();
     closeModal('accountOverlay');
+    playerSystems.onAccountClose();
     toast(signup?'ITM 계정 생성 완료!':'로그인 성공! 클라우드 도감을 불러왔습니다.');
   }catch(err){
     setAccountMessage('계정 처리 실패: '+(err?.message||String(err)));
