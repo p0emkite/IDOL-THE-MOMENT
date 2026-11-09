@@ -33,7 +33,7 @@ async function check(name,device){
         enabled:document.getElementById('soundMaster')?.checked,
         bgm:document.getElementById('bgmVolume')?.value,
         sfx:document.getElementById('sfxVolume')?.value,
-        guestUploadHidden:document.getElementById('musicUploadLabel')?.hidden
+        guestUploadHidden:!document.getElementById('musicUploadLabel')||document.getElementById('musicUploadLabel').hidden
       },
       viewport:[innerWidth,innerHeight],sceneRect:[Math.round(r.width),Math.round(r.height)]};
   });
