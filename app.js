@@ -1264,6 +1264,7 @@ function reset(){
   $('controlHeading').textContent='어떤 순간을 열어 볼까요?';
   $('sceneHeading').textContent='01 — THE SEALED MOMENT';
   $('centerHint').innerHTML='<span>✧</span> THE SHOW IS ABOUT TO BEGIN';
+  playerSystems.flushLevelUp();
 }
 
 function resetFallback(){
@@ -1384,19 +1385,25 @@ function renderCollection(groupChanged=false){
     }
     return shelf;
   };
+  // Group, collection, and member accordions are now siblings, not nested levels.
+  // Render card thumbnails lazily only when a section is expanded.
   const fragment=document.createDocumentFragment();
+  const section=(name,items,level)=>{
+    const details=heading(name,items,level);
+    let hydrated=false;
+    details.addEventListener('toggle',()=>{
+      if(details.open&&!hydrated){hydrated=true;details.append(gridFor(items))}
+    });
+    return details;
+  };
   for(const [,g] of groups){
-    const groupDetails=heading(g.name,g.cards,'level-group');
+    fragment.append(section(g.name,g.cards,'level-group'));
     for(const [seriesName,collection] of g.series){
-      const collectionDetails=heading(seriesName,collection.cards,'level-series');
+      fragment.append(section(seriesName,collection.cards,'level-series'));
       for(const [memberName,memberCards] of collection.members){
-        const memberDetails=heading(memberName,memberCards,'level-member');
-        memberDetails.append(gridFor(memberCards));
-        collectionDetails.append(memberDetails);
+        fragment.append(section(memberName,memberCards,'level-member'));
       }
-      groupDetails.append(collectionDetails);
     }
-    fragment.append(groupDetails);
   }
   grid.append(fragment);
 }
@@ -1421,6 +1428,9 @@ function updateLogin(){
   $('accountClose').hidden=state.entryRequired&&!signed&&!isGuest();
   $('accountStatus').textContent=signed?'로그인됨 · '+(state.profile?.nickname||state.accountName):isGuest()?'게스트 프로필':'계정 연결 필요';
   $('accountPlayerId').textContent=signed?'ITM PLAYER · '+state.playerId.slice(0,8).toUpperCase():isGuest()?'LOCAL SAVE · 현재 브라우저 전용':'';
+  $('accountProfileSaveNote').textContent=isGuest()?
+    '게스트의 카드는 물론 M, 우편함, 프로필, 레벨, 업적도 이 브라우저에만 저장됩니다. 브라우저 데이터를 삭제하면 복구할 수 없습니다.':
+    '수집 기록은 ITM 서버에 저장됩니다. 다른 기기에서도 같은 아이디와 비밀번호로 로그인하면 수집을 이어갈 수 있습니다.';
   $('accountRetry').hidden=true;
   $('issueRecoveryCode').disabled=!signed||state.accountBusy;
   $('restoreRecoveryCode').disabled=!signed||state.accountBusy;
