@@ -23,13 +23,16 @@ Deno.serve(async (req) => {
   const length = Number(req.headers.get("content-length") || "0");
   if (length > 2048) return respond({ error: "요청 크기 제한을 초과했습니다." }, 413, origin);
 
-  let body: { username?: unknown; password?: unknown };
+  let body: { username?: unknown; password?: unknown; nickname?: unknown };
   try { body = await req.json(); }
   catch { return respond({ error: "입력값을 확인해 주세요." }, 400, origin); }
   const username = typeof body.username === "string" ? body.username.trim().toLowerCase() : "";
   const password = body.password;
+  const nickname = typeof body.nickname === "string" ? body.nickname.trim() : username;
   if (!USERNAME.test(username))
     return respond({ error: "아이디는 영문 소문자로 시작해야 합니다. 영문 소문자, 숫자, 밑줄을 사용해 4~20자로 입력해 주세요." }, 400, origin);
+  if (!/^[가-힣A-Za-z0-9_]{2,16}$/.test(nickname))
+    return respond({error:"닉네임은 한글·영문·숫자·밑줄 2~16자로 입력해 주세요."},400,origin);
   if (typeof password !== "string" || password.length < 10 || password.length > 72 ||
       !/[A-Za-z]/.test(password) || !/[0-9]/.test(password))
     return respond({ error: "비밀번호는 영문과 숫자를 포함한 10~72자로 설정해 주세요." }, 400, origin);
@@ -49,14 +52,20 @@ Deno.serve(async (req) => {
   if (limitError || canAttempt !== true)
     return respond({ error: limitError ? "가입 요청을 처리할 수 없습니다." : "가입 시도 횟수가 많습니다. 1시간 뒤 다시 시도해 주세요." }, 429, origin);
 
+  const {data: nicknameAvailable,error: nicknameCheckError} =
+    await admin.rpc("itm_nickname_available",{p_nickname:nickname});
+  if(nicknameCheckError)return respond({error:"닉네임 중복 확인에 실패했습니다."},503,origin);
+  if(nicknameAvailable!==true)return respond({error:"이미 사용 중인 닉네임입니다."},409,origin);
   const { error } = await admin.auth.admin.createUser({
     email: emailFor(username),
     password,
     email_confirm: true,
-    app_metadata: { itm_named_account: true }
+    app_metadata: { itm_named_account: true, itm_initial_nickname: nickname }
   });
   if (error) {
     const msg = (error.message || "").toLowerCase();
+    if(msg.includes("nickname")||msg.includes("profiles")||msg.includes("unique"))
+      return respond({error:"이미 사용 중인 닉네임입니다. 다른 닉네임을 입력해 주세요."},409,origin);
     if (msg.includes("already") || msg.includes("exists") || error.status === 422)
       return respond({ error: "이미 사용 중인 아이디입니다. 다른 아이디를 선택해 주세요." }, 409, origin);
     return respond({ error: "계정 생성에 실패했습니다. 입력값을 확인하거나 다시 시도해 주세요." }, 400, origin);
