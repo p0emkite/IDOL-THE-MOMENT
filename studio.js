@@ -1,4 +1,5 @@
 import {renderITMCard} from './card-frame.js?v=ur-photo-window-20261105';
+import {createStudioCelebrations} from './studio-celebrations.js?v=20261109';
 const $=id=>document.getElementById(id);
 const CONFIG=window.IDOL_CONFIG||{};
 const BUCKET='itm-card-media';
@@ -68,6 +69,7 @@ function accessControls(){
   $('bgmFiles').disabled=!allowed||state.bgmBusy;
   $('deletePack').disabled=!allowed||!$('packPicker').value;
   refreshDeleteControls();
+  studioExtras.permission();
   $('studioLogout').hidden=!state.logged;
   $('studioLogin').hidden=state.logged;
   if(state.admin){
@@ -782,7 +784,7 @@ async function refreshAccess(){
       if(permission.error)throw permission.error;
       state.admin=!!permission.data;
     }
-    accessControls();await Promise.all([loadCatalog(),loadBgmCatalog()]);
+    accessControls();await Promise.all([loadCatalog(),loadBgmCatalog()]);await studioExtras.load();
   }catch(err){setAuthState('오류');toast('스튜디오 연결 오류: '+(err?.message||err))}
 }
 async function signIn(event){
@@ -981,6 +983,7 @@ function bind(){
       preview.src=previewURL;preview.hidden=false;$('packImageEmpty').hidden=true;
     }catch(err){toast(err.message);e.target.value=''}
   };
+  studioExtras.bind();
   bindDrag();
   setTransform();queuePreview();
 }
@@ -997,4 +1000,5 @@ async function main(){
     state.client.auth.onAuthStateChange(()=>{setTimeout(refreshAccess,10)});
   }catch(err){toast('서버 연결 실패: '+err.message);setAuthState('연결 실패')}
 }
+const studioExtras=createStudioCelebrations({state,$,toast,publicUrl,fileCheck,uploadFile});
 main();
