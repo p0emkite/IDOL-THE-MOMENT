@@ -31,3 +31,13 @@
 .itm-mail-admin-form .itm-mail-send{grid-column:1/-1}
 .itm-mail-admin small{color:#a99bb4}
 @media(max-width:640px){.itm-mail-admin-form{grid-template-columns:1fr}.itm-mail-admin-form label:nth-child(3){grid-column:auto}.itm-mail-admin-form .itm-mail-send{grid-column:auto}.itm-wallet-pill,.itm-mail-nav{font-size:12px!important}}
+
+/* Keep all five lobby actions reachable on narrow screens. */
+.itm-wallet-pill #walletBalance{color:#ffe2a4!important}
+@media(max-width:780px){
+  .top-actions{width:100%;flex-wrap:wrap;justify-content:center;gap:10px 12px}
+}
+@media(max-width:420px){
+  .top-actions{justify-content:space-around;gap:9px 10px}
+  .itm-mail-nav,.itm-wallet-pill{padding:7px 9px;border-radius:9px}
+}
