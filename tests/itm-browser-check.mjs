@@ -43,117 +43,35 @@ async function check(name,device){
   report.screenshots.push(screenshot);
   if(name==='desktop'){
     await page.locator('#audioToggle').click();
-    const audioStats=await page.evaluate(()=>({
+    report.checks.sound=await page.evaluate(()=>({
       visible:!document.getElementById('soundPanel').hidden,
-      bgm:!!document.getElementById('bgmVolume'),sfx:!!document.getElementById('sfxVolume')
+      bgm:!!document.getElementById('bgmVolume'),
+      sfx:!!document.getElementById('sfxVolume')
     }));
-    report.checks.sound=audioStats;
     await page.locator('#audioToggle').click();
-    await page.locator('#drawFive').click({timeout:12000});
-    // Optional visual captures: software WebGL may take >30s to screenshot.
-    // Functional result/reveal checks remain strict, but frames are diagnostic.
-    const started=Date.now();
-    for(const [at,path] of [[2250,'qa/desktop-foil-charge.png'],[3400,'qa/desktop-card-emerge.png']]){
-      const remaining=at-(Date.now()-started);
-      if(remaining>0)await page.waitForTimeout(remaining);
-      if(Date.now()-started>4700)break;
-      try{
-        await page.screenshot({path,fullPage:false,timeout:6500,animations:'disabled'});
-        report.screenshots.push(path);
-      }catch(err){
-        (report.captureWarnings??=[]).push(path+': '+String(err.message).split('\n')[0]);
-      }
-    }
-    report.checks.afterPackClick=await page.evaluate(()=>({
-      heading:document.getElementById('sceneHeading')?.textContent,
-      buttonDisabled:document.getElementById('drawFive')?.disabled,
-      cinematic:document.body.classList.contains('pack-cinematic'),
-      overlay:document.getElementById('accountOverlay')?.className
-    }));
-    // Software WebGL runs much slower than native GPU hardware.
-    // Poll on a timer rather than a requestAnimationFrame callback.
-    try{
-      await page.waitForFunction(()=>{
-        const stage=document.getElementById('packRevealStage');
-        return stage&&!stage.hidden&&document.querySelectorAll('#stageCardTrack .stage-card-button').length===5;
-      },null,{timeout:40000,polling:300});
-    }catch(error){
-      report.checks.openTimeout=await page.evaluate(()=>({
-        heading:document.getElementById('sceneHeading')?.textContent,
-        bodyClasses:document.body.className,
-        overlay:document.getElementById('accountOverlay')?.className,
-        buttonDisabled:document.getElementById('drawFive')?.disabled,
-        hint:document.getElementById('stageHint')?.textContent,
-        count:document.querySelectorAll('#stageCardTrack .stage-card-button').length,
-        toast:document.querySelector('[role="alert"]')?.textContent
-      }));
-      const stalled='qa/desktop-stalled.png';
-      await page.screenshot({path:stalled,fullPage:false});
-      report.screenshots.push(stalled);
-      throw error;
-    }
-    report.checks.open=await page.evaluate(()=>({
-      reveal:!document.getElementById('packRevealStage').hidden,
-      actualCards:document.querySelectorAll('#stageCardTrack .stage-card-button').length
-    }));
-    const reveal='qa/desktop-reveal.png';
-    await page.screenshot({path:reveal,fullPage:false});
-    report.screenshots.push(reveal);
   }
-  if(name==='landscape'){
+  // Paid-draw release: guest visual QA must verify access denial, not spend or
+  // require a funded account. Authenticated cinematic QA needs a seeded fixture.
+  if(name==='desktop'||name==='landscape'){
+    await page.locator('#mailOpen').click();
+    const inbox=await page.evaluate(()=>({
+      visible:document.getElementById('mailOverlay').classList.contains('active'),
+      guestNotice:document.getElementById('mailList').textContent.includes('ITM ID'),
+      adminHidden:document.getElementById('mailAdminPanel').hidden
+    }));
+    await page.locator('#mailClose').click();
     await page.locator('#drawFive').click({timeout:12000});
-    await page.waitForFunction(()=>{
-      const stage=document.getElementById('packRevealStage');
-      return stage&&!stage.hidden&&document.querySelectorAll('#stageCardTrack .stage-card-button').length===5;
-    },null,{timeout:40000,polling:300});
-    const ur=page.locator('#stageCardTrack .stage-card-button.rarity-ur').first();
-    await ur.scrollIntoViewIfNeeded();
-    const lead=await page.evaluate(()=>{
-      const card=document.querySelector('#stageCardTrack .stage-card-button.rarity-ur');
-      card.click();
-      return {
-        stillFaceDown:!card.classList.contains('is-revealed'),
-        blackoutStarted:!document.getElementById('urScreenTransition').hidden,
-        controlsLocked:document.getElementById('stageRevealAll').disabled,
-        noImpactYet:!document.getElementById('packRevealStage').classList.contains('ur-impact')
-      };
-    });
-    report.checks.landscapeURLead=lead;
-    if(!lead.stillFaceDown||!lead.blackoutStarted||!lead.controlsLocked||!lead.noImpactYet)
-      throw new Error('UR reveal spoiled the card before full-screen art');
-    await page.waitForFunction(()=>!document.getElementById('raritySplash').hidden,
-      null,{timeout:13000,polling:70});
-    report.checks.landscapeUR=await page.evaluate(()=>{
-      const splash=document.getElementById('raritySplash');
-      const grade=document.getElementById('splashGrade');
-      const name=document.getElementById('splashName');
-      const card=document.querySelector('#stageCardTrack .stage-card-button.rarity-ur');
-      const box=el=>{const r=el.getBoundingClientRect();return {left:r.left,top:r.top,right:r.right,bottom:r.bottom,width:r.width,height:r.height}};
-      const g=box(grade),n=box(name);
-      return {visible:!splash.hidden,stillFaceDown:!card.classList.contains('is-revealed'),
-        grade:g,name:n,viewport:[innerWidth,innerHeight],
-        gradeFullyVisible:g.left>=0&&g.top>=0&&g.bottom<=innerHeight&&g.right<=innerWidth,
-        nameFullyVisible:n.left>=0&&n.top>=0&&n.bottom<=innerHeight&&n.right<=innerWidth};
-    });
-    if(!report.checks.landscapeUR.stillFaceDown)
-      throw new Error('UR card flipped behind the full-screen reveal');
-    await page.locator('#splashClose').click();
-    await page.waitForFunction(()=>document.querySelector('#stageCardTrack .stage-card-button.rarity-ur.is-revealed'),
-      null,{timeout:12000,polling:50});
-    report.checks.landscapeURPayoff=await page.evaluate(()=>{
-      const card=document.querySelector('#stageCardTrack .stage-card-button.rarity-ur.is-revealed');
-      return {
-        revealedAfterClose:!!card,
-        hologram:getComputedStyle(card.querySelector('.stage-card-front'),'::after').animationName,
-        allControlsUnlocked:!document.getElementById('stageRevealAll').disabled
-      };
-    });
-    if(!report.checks.landscapeURPayoff.revealedAfterClose||
-       !report.checks.landscapeURPayoff.hologram.includes('itmURFoilAlive'))
-      throw new Error('UR impact flip or hologram did not run after the cinematic');
-    const splashShot='qa/landscape-ur.png';
-    await page.screenshot({path:splashShot,fullPage:false});
-    report.screenshots.push(splashShot);
+    const draw=await page.evaluate(()=>({
+      toast:document.getElementById('toast').textContent,
+      revealing:!document.getElementById('packRevealStage').hidden,
+      wallet:document.getElementById('walletBalance').textContent,
+      prices:['drawOne','drawFive','drawEleven'].map(id=>document.getElementById(id).textContent)
+    }));
+    report.checks[name+'MomentAccess']={inbox,draw};
+    if(!inbox.visible||!inbox.guestNotice||!inbox.adminHidden||
+       !draw.toast.includes('ITM ID')||draw.revealing||
+       !draw.prices[0].includes('100 M')||!draw.prices[1].includes('500 M')||!draw.prices[2].includes('1,000 M'))
+      throw new Error('Guest M pricing/mailbox access regression');
   }
   await context.close();
 }
@@ -288,5 +206,7 @@ if(report.checks.desktop?.soundDefault?.enabled!==true||
  report.checks.desktop?.soundDefault?.bgm!=='50'||
  report.checks.desktop?.soundDefault?.sfx!=='50'||
  report.checks.desktop?.soundDefault?.guestUploadHidden!==true)process.exitCode=1;
-if(!report.checks.open?.reveal||report.checks.open?.actualCards!==5)process.exitCode=1;
-if(!report.checks.landscapeUR?.gradeFullyVisible||!report.checks.landscapeUR?.nameFullyVisible)process.exitCode=1;
+if(!report.checks.desktopMomentAccess?.inbox?.visible||
+   report.checks.desktopMomentAccess?.draw?.revealing)process.exitCode=1;
+if(!report.checks.landscapeMomentAccess?.inbox?.visible||
+   report.checks.landscapeMomentAccess?.draw?.revealing)process.exitCode=1;
