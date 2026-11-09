@@ -4,6 +4,7 @@ import {createURCinematic} from './ur-cinematic.js?v=20261108-v3';
 import {createRarityRevealAccents} from './rarity-accents.js?v=20261108-v3';
 import {createOpeningEffects} from './opening-effects.js';
 import {renderITMCard} from './card-frame.js?v=ur-photo-window-20261105';
+import {createPlayerSystems} from './player-systems.js?v=profile-hub-20261109';
 /* ITM — IDOL : THE MOMENT | Standalone, fan-made 3D prototype
    3D library is loaded from a pinned public ESM CDN; there is no build step.
    Offline demo cards are mock identities and stored only in localStorage.
@@ -166,7 +167,7 @@ const PACK_DESIGN_WIDTH=1024,PACK_DESIGN_HEIGHT=1538;
 function readDemoInventory(){try{localStorage.removeItem('itm-test-pack-inventory-v1')}catch{}return {}}
 function writeDemoInventory(){/* Retired demo cards. */}
 
-const state = {phase:'ready',cards:[],revealed:new Set(),pullBadges:[],inventory:readLocal(),demoInventory:readDemoInventory(),remoteDemoInventory:{},liveInventory:readLiveInventory(),remoteLiveInventory:{},supabase:null,user:null,accountName:null,studioAdmin:false,accountMode:'login',entryRequired:false,playerId:null,hasRecovery:false,authError:null,backendReady:false,accountBusy:false,issuedRecovery:null,walletBalance:0,walletReady:false,mailItems:[],mailBusy:false,three:false,audio:true,busy:false};
+const state = {phase:'ready',cards:[],revealed:new Set(),pullBadges:[],inventory:readLocal(),demoInventory:readDemoInventory(),remoteDemoInventory:{},liveInventory:readLiveInventory(),remoteLiveInventory:{},supabase:null,user:null,accountName:null,studioAdmin:false,accountMode:'login',entryRequired:false,playerId:null,hasRecovery:false,authError:null,backendReady:false,accountBusy:false,issuedRecovery:null,profile:null,walletBalance:0,walletReady:false,mailItems:[],mailBusy:false,three:false,audio:true,busy:false};
 const ENTRY_KEY='itm-entry-choice-v1';
 const ACCOUNT_PATTERN=/^[a-z][a-z0-9_]{3,19}$/;
 const accountEmail=name=>'itm.'+name+'@accounts.itm.example';
@@ -315,6 +316,7 @@ function closeConcertIntro(){
   document.body.classList.remove('itm-intro-pending','itm-intro-active');
   const el=$('concertIntro');
   if(el){el.hidden=true;el.classList.remove('opening','legal-visible')}
+  playerSystems.onIntroClosed();
   if(camera){
     camera.fov=42;
     camera.position.set(0,window.innerWidth<780?-.58:-.70,window.innerWidth<780?12.8:10.4);
@@ -1074,6 +1076,7 @@ async function openPack(count){
       rolled=(data||[]).map(x=>byId.get(String(x.id))).filter(Boolean);
       if(rolled.length!==count)throw Error('서버 카드 결과를 확인할 수 없습니다.');
       await Promise.all([syncRemote(),refreshWallet()]);
+      void playerSystems.afterDraw();
     }else{
       rolled=drawLiveLocal(count,selectedPack());
       for(const card of rolled)state.liveInventory[card.id]=(state.liveInventory[card.id]||0)+1;
@@ -1377,11 +1380,11 @@ async function syncRemote(){
 function updateLogin(){
   const signed=isNamedAccount();
   $('studioOpen').hidden=!(signed&&state.studioAdmin===true);
-  $('loginButton').textContent=signed?'✦ '+state.accountName.toUpperCase():'✦ ITM ID';
+  $('loginButton').textContent=signed?'✦ '+(state.profile?.nickname||state.accountName):'✦ ITM ID';
   $('accountEntry').hidden=signed;
   $('accountProfile').hidden=!signed;
   $('accountClose').hidden=state.entryRequired&&!signed;
-  $('accountStatus').textContent=signed?'로그인됨 · '+state.accountName:'계정 연결 필요';
+  $('accountStatus').textContent=signed?'로그인됨 · '+(state.profile?.nickname||state.accountName):'계정 연결 필요';
   $('accountPlayerId').textContent=signed?'ITM PLAYER · '+state.playerId.slice(0,8).toUpperCase():'';
   $('accountRetry').hidden=true;
   $('issueRecoveryCode').disabled=!signed||state.accountBusy;
@@ -1401,17 +1404,20 @@ function setAccountMode(mode){
   $('accountTabSignup').setAttribute('aria-pressed',String(signup));
   $('accountPassword').autocomplete=signup?'new-password':'current-password';
   $('accountPasswordNote').hidden=!signup;
+  $('accountNicknameLabel').hidden=!signup;
+  $('accountNickname').hidden=!signup;
+  $('accountNickname').required=signup;
   updateLogin();
 }
 function accountOpen(required=false){
   state.entryRequired=!!required;
-  setAccountMode('login');updateLogin();
+  setAccountMode('login');updateLogin();playerSystems.renderProfile();
   if(required)setAccountMessage('');
   openModal('accountOverlay');
 }
 function chooseGuest(){
   state.entryRequired=false;saveEntryChoice('guest');
-  state.walletBalance=0;state.walletReady=false;state.mailItems=[];
+  state.walletBalance=0;state.walletReady=false;state.mailItems=[];playerSystems.afterLogout();
   closeModal('accountOverlay');
   updateCounts();updateLogin();
   toast('게스트 모드 · 수집 기록은 이 브라우저에만 저장됩니다.');
@@ -1435,6 +1441,7 @@ async function activateNamedUser(user){
   }catch(err){state.studioAdmin=false;updateLogin();console.warn('Administrator lookup failed',err)}
   await refreshWallet();
   await refreshMailbox();
+  await playerSystems.afterLogin();
 }
 async function initBackend(){
   if(!CONFIG.supabaseUrl||!CONFIG.supabasePublishableKey){
@@ -1456,14 +1463,14 @@ async function initBackend(){
       saveEntryChoice('account');
     }else{
       state.accountName=null;state.playerId=null;state.user=null;state.studioAdmin=false;
-      state.walletBalance=0;state.walletReady=false;state.mailItems=[];
+      state.walletBalance=0;state.walletReady=false;state.mailItems=[];playerSystems.afterLogout();
       updateCounts();updateLogin();
       if(!guestChosen())accountOpen(true);
     }
   }catch(err){
     state.authError=err?.message||String(err);
     state.accountName=null;state.playerId=null;state.user=null;state.studioAdmin=false;
-    state.walletBalance=0;state.walletReady=false;state.mailItems=[];
+    state.walletBalance=0;state.walletReady=false;state.mailItems=[];playerSystems.afterLogout();
     updateCounts();updateLogin();
     if(!guestChosen())accountOpen(true);
     setAccountMessage('서버에 연결하지 못했습니다. 게스트로는 플레이할 수 있습니다. '+state.authError);
@@ -1477,6 +1484,8 @@ async function submitAccount(event){
   if(!ACCOUNT_PATTERN.test(name))return setAccountMessage('아이디는 영문 소문자로 시작해야 합니다. 영문 소문자, 숫자, 밑줄을 사용해 4~20자로 입력해 주세요.');
   if(!password)return setAccountMessage('비밀번호를 입력해 주세요.');
   const signup=state.accountMode==='signup';
+  const nickname=$('accountNickname').value.trim();
+  if(signup&&!/^[가-힣A-Za-z0-9_]{2,16}$/.test(nickname))return setAccountMessage('닉네임은 한글·영문·숫자·밑줄 2~16자로 입력해 주세요.');
   if(signup&&(password.length<10||password.length>72||!/[A-Za-z]/.test(password)||!/[0-9]/.test(password)))
     return setAccountMessage('비밀번호는 영문과 숫자를 포함해 10~72자로 입력해 주세요.');
   state.accountBusy=true;updateLogin();
@@ -1484,7 +1493,7 @@ async function submitAccount(event){
     if(signup){
       const res=await fetch(CONFIG.supabaseUrl+'/functions/v1/itm-register',{
         method:'POST',headers:{'content-type':'application/json','apikey':CONFIG.supabasePublishableKey},
-        body:JSON.stringify({username:name,password})
+        body:JSON.stringify({username:name,password,nickname})
       });
       const payload=await res.json().catch(()=>({}));
       if(!res.ok)throw Error(payload.error||'계정 생성에 실패했습니다.');
@@ -1509,7 +1518,7 @@ async function logoutAccount(){
   catch(err){state.accountBusy=false;return setAccountMessage('로그아웃 실패: '+(err?.message||String(err)))}
   state.accountBusy=false;state.user=null;state.accountName=null;state.playerId=null;state.studioAdmin=false;
   state.remoteDemoInventory={};state.remoteLiveInventory={};
-  state.walletBalance=0;state.walletReady=false;state.mailItems=[];
+  state.walletBalance=0;state.walletReady=false;state.mailItems=[];playerSystems.afterLogout();
   $('studioOpen').hidden=true;
   void soundManager?.setBackend(state.supabase,false);
   state.hasRecovery=false;state.issuedRecovery=null;
@@ -1589,6 +1598,7 @@ async function init3D(){
 function accountClose(){
   if(state.entryRequired&&!isNamedAccount())return;
   closeModal('accountOverlay');state.issuedRecovery=null;
+  playerSystems.onAccountClose();
   $('issuedCode').textContent='';$('issuedCodeBox').hidden=true;
 }
 function bind(){
@@ -1678,6 +1688,9 @@ function bind(){
     }
   });
 }
+const playerSystems=createPlayerSystems({
+  state,$,toast,refreshWallet,refreshMailbox,visibleInventory,byId,makeCardArt,assetUrl
+});
 bind();
 const stageReady=init3D();
 initBackend();
