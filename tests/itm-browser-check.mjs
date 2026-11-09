@@ -50,28 +50,21 @@ async function check(name,device){
     }));
     await page.locator('#audioToggle').click();
   }
-  // Paid-draw release: guest visual QA must verify access denial, not spend or
-  // require a funded account. Authenticated cinematic QA needs a seeded fixture.
+  // Guest mode now has a fully local wallet, mailbox, profile and achievements.
   if(name==='desktop'||name==='landscape'){
     await page.locator('#mailOpen').click();
     const inbox=await page.evaluate(()=>({
       visible:document.getElementById('mailOverlay').classList.contains('active'),
-      guestNotice:document.getElementById('mailList').textContent.includes('ITM ID'),
+      welcome:document.getElementById('mailList').textContent.includes('환영합니다'),
       adminHidden:document.getElementById('mailAdminPanel').hidden
     }));
+    await page.locator('#mailList summary').first().click();
+    await page.locator('#mailList .itm-mail-claim').first().click();
+    await page.waitForFunction(()=>document.getElementById('walletBalance').textContent.includes('5,000 M'),null,{timeout:20000});
     await page.locator('#mailClose').click();
-    await page.locator('#drawFive').click({timeout:12000});
-    const draw=await page.evaluate(()=>({
-      toast:document.getElementById('toast').textContent,
-      revealing:!document.getElementById('packRevealStage').hidden,
-      wallet:document.getElementById('walletBalance').textContent,
-      prices:['drawOne','drawFive','drawEleven'].map(id=>document.getElementById(id).textContent)
-    }));
-    report.checks[name+'MomentAccess']={inbox,draw};
-    if(!inbox.visible||!inbox.guestNotice||!inbox.adminHidden||
-       !draw.toast.includes('ITM ID')||draw.revealing||
-       !draw.prices[0].includes('100 M')||!draw.prices[1].includes('500 M')||!draw.prices[2].includes('1,000 M'))
-      throw new Error('Guest M pricing/mailbox access regression');
+    report.checks[name+'GuestInbox']={...inbox,balance:await page.locator('#walletBalance').textContent()};
+    if(!inbox.visible||!inbox.welcome||!inbox.adminHidden)
+      throw Error('Guest mailbox regression');
   }
   if(name==='desktop'){
     await page.locator('#taskOpen').click();
@@ -82,21 +75,59 @@ async function check(name,device){
     const achievements=await page.locator('#taskContent').textContent();
     await page.locator('#taskClose').click();
     await page.locator('#loginButton').click();
+    await page.waitForFunction(()=>!document.getElementById('profileHub').hidden,null,{timeout:20000});
+    const guestProfile=await page.evaluate(()=>({
+      profileVisible:!document.getElementById('accountProfile').hidden,
+      nicknameHidden:document.getElementById('nicknameForm').hidden,
+      switchAllowed:!document.getElementById('guestSignIn').hidden,
+      circular:getComputedStyle(document.getElementById('profileAvatar')).borderRadius==='50%',
+      cropExists:!!document.getElementById('avatarCropViewport'),
+      levelUpExists:!!document.getElementById('levelUpOverlay')
+    }));
+    await page.locator('.itm-profile-details summary').first().click();
+    await page.locator('#profileCardChoices button').first().click();
+    const cropVisible=await page.locator('#avatarCropOverlay').evaluate(el=>!el.hidden);
+    await page.locator('#avatarCropZoom').fill('1.35');
+    const cropZoom=await page.locator('#avatarCropZoomLabel').textContent();
+    await page.locator('#avatarCropCancel').click();
+    await page.locator('#guestSignIn').click();
     await page.locator('#accountTabSignup').click();
     const signup=await page.evaluate(()=>({
       nicknameVisible:!document.getElementById('accountNickname').hidden,
       nicknameRequired:document.getElementById('accountNickname').required,
-      accountIdSeparate:document.getElementById('accountUsername')!==document.getElementById('accountNickname'),
-      profileHubExists:!!document.getElementById('profileAvatar')&&!!document.getElementById('nicknameForm'),
-      circleAvatar:getComputedStyle(document.getElementById('profileAvatar')).borderRadius==='50%'
+      accountIdSeparate:document.getElementById('accountUsername')!==document.getElementById('accountNickname')
     }));
     await page.locator('#accountClose').click();
     report.checks.desktopProfileMissionUI={open,weeklyPlaceholder:weekly.includes('준비 중'),
-      achievementLoginMessage:achievements.includes('로그인 후'),signup};
-    if(!open||!weekly.includes('준비 중')||!achievements.includes('로그인 후')||
-       !signup.nicknameVisible||!signup.nicknameRequired||!signup.accountIdSeparate||
-       !signup.profileHubExists||!signup.circleAvatar)
-       throw new Error('Profile/mission/signup UI regression');
+      guestAchievementVisible:achievements.includes('IVE'),guestProfile,cropVisible,cropZoom,signup};
+    if(!open||!weekly.includes('준비 중')||!achievements.includes('IVE')||
+       !guestProfile.profileVisible||!guestProfile.nicknameHidden||!guestProfile.switchAllowed||
+       !guestProfile.circular||!guestProfile.cropExists||!guestProfile.levelUpExists||
+       !cropVisible||cropZoom!=='135%'||
+       !signup.nicknameVisible||!signup.nicknameRequired||!signup.accountIdSeparate)
+      throw Error('Guest profile/mission/crop regression');
+
+    // Test a real guest pull, including local M debit and on-device inventory.
+    await page.locator('#drawOne').click({timeout:12000});
+    await page.waitForFunction(()=>{
+      const raw=localStorage.getItem('itm-guest-save-v2');
+      const save=raw&&JSON.parse(raw);
+      const inventory=JSON.parse(localStorage.getItem('itm-live-card-inventory-v1')||'{}');
+      return save&&save.balance>=4900&&save.balance<5000&&
+        Object.values(inventory).some(n=>Number(n)>0);
+    },null,{timeout:30000,polling:250});
+    report.checks.guestDraw=await page.evaluate(()=>{
+      const save=JSON.parse(localStorage.getItem('itm-guest-save-v2'));
+      const cards=JSON.parse(localStorage.getItem('itm-live-card-inventory-v1')||'{}');
+      return {balance:save.balance,experience:save.profile.experience,
+        ownedCount:Object.values(cards).reduce((n,v)=>n+Number(v||0),0),
+        prices:['drawOne','drawFive','drawEleven'].map(id=>document.getElementById(id).textContent),
+        twoLines:document.getElementById('drawOne').children.length===2};
+    });
+    if(report.checks.guestDraw.balance<4900||
+       !report.checks.guestDraw.experience||!report.checks.guestDraw.ownedCount||
+       !report.checks.guestDraw.twoLines)
+      throw Error('Guest pull did not deduct M and grant card + XP');
   }
   await context.close();
 }
@@ -242,7 +273,5 @@ if(report.checks.desktop?.soundDefault?.enabled!==true||
  report.checks.desktop?.soundDefault?.bgm!=='50'||
  report.checks.desktop?.soundDefault?.sfx!=='50'||
  report.checks.desktop?.soundDefault?.guestUploadHidden!==true)process.exitCode=1;
-if(!report.checks.desktopMomentAccess?.inbox?.visible||
-   report.checks.desktopMomentAccess?.draw?.revealing)process.exitCode=1;
-if(!report.checks.landscapeMomentAccess?.inbox?.visible||
-   report.checks.landscapeMomentAccess?.draw?.revealing)process.exitCode=1;
+if(!report.checks.desktopGuestInbox?.visible||!report.checks.landscapeGuestInbox?.visible)process.exitCode=1;
+if(!report.checks.guestDraw?.ownedCount||!report.checks.desktopProfileMissionUI?.cropVisible)process.exitCode=1;
