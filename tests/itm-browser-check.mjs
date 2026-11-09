@@ -87,7 +87,7 @@ async function check(name,device){
     await page.locator('.itm-profile-details summary').first().click();
     await page.locator('#profileCardChoices button').first().click();
     const cropVisible=await page.locator('#avatarCropOverlay').evaluate(el=>!el.hidden);
-    await page.locator('#avatarCropZoom').fill('1.35');
+    await page.evaluate(()=>{const el=document.getElementById('avatarCropZoom');el.value='1.35';el.dispatchEvent(new Event('input',{bubbles:true}))});
     const cropZoom=await page.locator('#avatarCropZoomLabel').textContent();
     await page.locator('#avatarCropCancel').click();
     await page.locator('#guestSignIn').click();
