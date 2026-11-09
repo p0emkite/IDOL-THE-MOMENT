@@ -16,6 +16,7 @@
   <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="./style.css?v=itm-collection-accordion-20261107" />
   <link rel="stylesheet" href="./moment-mail.css?v=20261109-v1" />
+  <link rel="stylesheet" href="./player-systems.css?v=20261109-v1" />
   <link rel="stylesheet" href="./pack-opening.css?v=itm-eleven-grid-20261107" />
   <link rel="stylesheet" href="./concert-ui.css?v=intro-synced-20261107" />
   <link rel="stylesheet" href="./concert-upgrade.css" />
@@ -70,6 +71,7 @@
         <button class="nav-button" id="audioToggle" aria-pressed="false" aria-expanded="false" aria-controls="soundPanel">♫ SOUND ON <span aria-hidden="true">▾</span></button>
         <button class="nav-button itm-wallet-pill" type="button" id="walletOpen" aria-label="보유 M 확인 및 우편함 열기">✦ <span id="walletBalance">0 M</span></button>
         <button class="nav-button itm-mail-nav" type="button" id="mailOpen">✉ 우편함 <span class="itm-mail-badge" id="mailUnread" hidden>0</span></button>
+        <button class="nav-button" id="taskOpen">✧ MISSIONS</button>
         <button class="nav-button" id="collectionOpen">▦ MY COLLECTION <span id="collectionCount">0</span></button>
         <a class="nav-button" id="studioOpen" href="./studio.html" hidden>✦ CARD STUDIO</a>
         <button class="account-button" id="loginButton">✦ ITM ID</button>
@@ -156,6 +158,35 @@
       </section>
     </div>
   </div>
+  <div class="overlay" id="taskOverlay" aria-hidden="true">
+    <div class="itm-progress-modal" role="dialog" aria-modal="true" aria-labelledby="taskTitle">
+      <div class="modal-top">
+        <div><div class="eyebrow">THE MOMENT JOURNEY</div><h2 id="taskTitle">MISSIONS & ACHIEVEMENTS ✦</h2><p>컬렉션의 모든 순간을 모으세요.</p></div>
+        <button class="close" id="taskClose" aria-label="미션 창 닫기">×</button>
+      </div>
+      <div class="itm-task-tabs" role="tablist" aria-label="미션 종류">
+        <button id="taskTabDaily" type="button" class="selected">일일 미션</button>
+        <button id="taskTabWeekly" type="button">주간 미션</button>
+        <button id="taskTabAchievements" type="button">업적</button>
+      </div>
+      <div id="taskContent" class="itm-tasks-content"></div>
+    </div>
+  </div>
+  <section class="itm-anniversary-overlay" id="anniversaryOverlay" role="dialog" aria-modal="true" aria-label="ITM 기념일 축하 연출" hidden>
+    <div class="itm-party-glow"></div>
+    <div class="itm-party-burst first"></div>
+    <div class="itm-party-burst second"></div>
+    <div class="itm-party-burst third"></div>
+    <div class="itm-party-sparks"></div>
+    <div class="itm-party-content">
+      <span class="itm-party-label">IDOL : THE MOMENT • CELEBRATION</span>
+      <img id="anniversaryImage" alt="기념일 연출 이미지" hidden />
+      <h2 id="anniversaryTitle">HAPPY BIRTHDAY!</h2>
+      <p id="anniversaryMessage">소중한 하루를 축하합니다.</p>
+      <div id="anniversaryReward" class="itm-party-gift">1,000 M · 우편함에서 수령</div>
+      <button type="button" id="anniversaryClose">MOMENT 받으러 가기 ✦</button>
+    </div>
+  </section>
   <div class="overlay" id="accountOverlay" aria-hidden="true">
     <div class="account-modal" role="dialog" aria-modal="true" aria-labelledby="accountTitle">
       <div class="modal-top">
@@ -174,6 +205,9 @@
             <input id="accountUsername" type="text" required minlength="4" maxlength="20"
               pattern="[a-zA-Z][a-zA-Z0-9_]{3,19}" autocomplete="username"
               placeholder="영문·숫자·밑줄 4~20자" spellcheck="false" autocapitalize="none" />
+            <label for="accountNickname" id="accountNicknameLabel" hidden>닉네임 (한글 사용 가능 · 서버 내 중복 불가)</label>
+            <input id="accountNickname" type="text" minlength="2" maxlength="16"
+              placeholder="한글·영문·숫자·밑줄 2~16자" autocomplete="nickname" hidden/>
             <label for="accountPassword">비밀번호</label>
             <input id="accountPassword" type="password" required autocomplete="current-password"
               placeholder="비밀번호 입력" />
@@ -187,6 +221,50 @@
         </section>
         <section class="account-profile" id="accountProfile" hidden>
           <div class="identity-bar"><span class="identity-dot"></span><div><strong id="accountStatus">로그인된 도감</strong><small id="accountPlayerId"></small></div><button type="button" class="account-retry" id="accountRetry" hidden>다시 연결</button></div>
+          <section id="profileHub" class="itm-profile-hub" hidden>
+            <div class="itm-player-header">
+              <div class="itm-avatar-ring" id="profileAvatar">
+                <img id="profileAvatarPhoto" src="./assets/itm-card-back.png" alt="프로필 카드" />
+                <img id="profileAvatarFrame" class="itm-avatar-custom-frame" src="./assets/itm-card-back.png" alt="획득 프레임" hidden />
+                <span class="itm-level-badge" id="profileLevelBadge">LV. 1</span>
+              </div>
+              <div class="itm-player-heading">
+                <h3 id="profileDisplayName">ITM PLAYER</h3>
+                <p id="profileAccountId">ITM ID · @PLAYER</p>
+                <div class="itm-xp-track"><div class="itm-xp-fill" id="profileXpBar"></div></div>
+                <small id="profileExperience">0 XP</small>
+              </div>
+            </div>
+            <div class="itm-profile-forms">
+              <form id="nicknameForm" class="itm-profile-editor">
+                <h4>닉네임 변경</h4>
+                <label for="nicknameInput">게임에서 사용할 닉네임</label>
+                <input id="nicknameInput" required minlength="2" maxlength="16" />
+                <small id="nicknameCost">첫 번째 변경은 무료입니다.</small>
+                <button type="submit" id="nicknameSave" class="itm-profile-action">변경하기</button>
+              </form>
+              <form id="birthdayForm" class="itm-profile-editor">
+                <h4>생일 등록</h4>
+                <p id="birthdayStored" hidden></p>
+                <div id="birthdayEditor">
+                  <small>생일은 한 번만 등록할 수 있습니다. 기념일 보상은 우편으로 지급됩니다.</small>
+                  <div class="itm-birthday-row">
+                    <label>월<input id="birthdayMonth" type="number" min="1" max="12" placeholder="MM" required /></label>
+                    <label>일<input id="birthdayDay" type="number" min="1" max="31" placeholder="DD" required /></label>
+                  </div>
+                  <button type="submit" class="itm-profile-action">생일 저장</button>
+                </div>
+              </form>
+            </div>
+            <details class="itm-profile-details">
+              <summary>수집한 카드로 프로필 사진 변경</summary>
+              <div id="profileCardChoices" class="itm-profile-card-grid"></div>
+            </details>
+            <details class="itm-profile-details">
+              <summary>프로필 프레임 · 업적 보상</summary>
+              <div id="profileFrameChoices" class="itm-profile-frame-grid"></div>
+            </details>
+          </section>
           <div class="itm-profile-wallet">보유 MOMENT <strong id="profileWalletBalance">0 M</strong><small id="profileWalletNote">카드팩 개봉에 사용하는 재화입니다.</small></div>
           <p class="account-profile-note">수집 기록은 ITM 서버에 저장됩니다. 다른 기기에서도 같은 아이디와 비밀번호로 로그인하면 수집을 이어갈 수 있습니다.</p>
           <button type="button" class="account-action secondary" id="accountLogout">로그아웃</button>
