@@ -107,6 +107,30 @@ async function check(name,device){
        !signup.nicknameVisible||!signup.nicknameRequired||!signup.accountIdSeparate)
       throw Error('Guest profile/mission/crop regression');
 
+    // Root-level archive sections: group / collection / member are siblings.
+    await page.locator('#collectionOpen').click();
+    report.checks.flatArchive=await page.evaluate(()=>{
+      const root=document.getElementById('collectionGrid');
+      const sections=[...root.querySelectorAll(':scope > details.collection-accordion')];
+      const nested=root.querySelectorAll('details.collection-accordion details.collection-accordion').length;
+      return {sections:sections.length,nested,
+        classes:sections.map(x=>[...x.classList].find(c=>c.startsWith('level-')))};
+    });
+    await page.locator('#collectionClose').click();
+    if(report.checks.flatArchive.sections<3||report.checks.flatArchive.nested!==0||
+       !['level-group','level-series','level-member'].every(c=>report.checks.flatArchive.classes.includes(c)))
+       throw Error('Archive sections must be siblings at the same level');
+
+    report.checks.pullButtonFit=await page.evaluate(()=>['drawOne','drawFive','drawEleven'].map(id=>{
+      const button=document.getElementById(id),name=button.querySelector('.itm-draw-name'),
+        price=button.querySelector('.itm-draw-price');
+      const outer=button.getBoundingClientRect(),upper=name.getBoundingClientRect(),
+        lower=price.getBoundingClientRect();
+      return {id,fit:upper.left>=outer.left-2&&upper.right<=outer.right+2&&
+        lower.left>=outer.left-2&&lower.right<=outer.right+2&&upper.bottom<=lower.top+1};
+    }));
+    if(report.checks.pullButtonFit.some(b=>!b.fit))throw Error('Draw button labels overflow');
+
     // Test a real guest pull, including local M debit and on-device inventory.
     await page.locator('#drawOne').click({timeout:12000});
     await page.waitForFunction(()=>{
