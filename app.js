@@ -4,7 +4,8 @@ import {createURCinematic} from './ur-cinematic.js?v=20261108-v3';
 import {createRarityRevealAccents} from './rarity-accents.js?v=20261108-v3';
 import {createOpeningEffects} from './opening-effects.js';
 import {renderITMCard} from './card-frame.js?v=ur-photo-window-20261105';
-import {createPlayerSystems} from './player-systems.js?v=profile-hub-20261109';
+import {createPlayerSystems} from './player-systems.js?v=guest-crop-level-20261109';
+import {readGuestSave,writeGuestSave,grantGuestMail,grantGuestDraw} from './guest-state.js?v=20261109';
 /* ITM — IDOL : THE MOMENT | Standalone, fan-made 3D prototype
    3D library is loaded from a pinned public ESM CDN; there is no build step.
    Offline demo cards are mock identities and stored only in localStorage.
@@ -167,12 +168,23 @@ const PACK_DESIGN_WIDTH=1024,PACK_DESIGN_HEIGHT=1538;
 function readDemoInventory(){try{localStorage.removeItem('itm-test-pack-inventory-v1')}catch{}return {}}
 function writeDemoInventory(){/* Retired demo cards. */}
 
-const state = {phase:'ready',cards:[],revealed:new Set(),pullBadges:[],inventory:readLocal(),demoInventory:readDemoInventory(),remoteDemoInventory:{},liveInventory:readLiveInventory(),remoteLiveInventory:{},supabase:null,user:null,accountName:null,studioAdmin:false,accountMode:'login',entryRequired:false,playerId:null,hasRecovery:false,authError:null,backendReady:false,accountBusy:false,issuedRecovery:null,profile:null,walletBalance:0,walletReady:false,mailItems:[],mailBusy:false,three:false,audio:true,busy:false};
+const state = {phase:'ready',cards:[],revealed:new Set(),pullBadges:[],inventory:readLocal(),demoInventory:readDemoInventory(),remoteDemoInventory:{},liveInventory:readLiveInventory(),remoteLiveInventory:{},supabase:null,user:null,accountName:null,studioAdmin:false,accountMode:'login',entryRequired:false,playerId:null,hasRecovery:false,authError:null,backendReady:false,accountBusy:false,issuedRecovery:null,profile:null,guestMode:false,guestAccountEntry:false,guestData:null,walletBalance:0,walletReady:false,mailItems:[],mailBusy:false,three:false,audio:true,busy:false};
 const ENTRY_KEY='itm-entry-choice-v1';
 const ACCOUNT_PATTERN=/^[a-z][a-z0-9_]{3,19}$/;
 const accountEmail=name=>'itm.'+name+'@accounts.itm.example';
 const accountNameOf=user=>{const m=String(user?.email||'').match(/^itm\.([a-z][a-z0-9_]{3,19})@accounts\.itm\.example$/);return m?m[1]:null;};
 const isNamedAccount=()=>!!(state.accountName&&state.playerId);
+const isGuest=()=>state.guestMode&&!isNamedAccount();
+function persistGuest(){if(state.guestData&&!writeGuestSave(state.guestData))toast('게스트 기록을 저장할 수 없습니다. 브라우저 저장소를 확인해 주세요.')}
+function activateGuest(){
+  state.guestMode=true;state.guestAccountEntry=false;
+  state.user=null;state.accountName=null;state.playerId=null;state.studioAdmin=false;
+  state.guestData=readGuestSave();
+  persistGuest();
+  state.walletBalance=state.guestData.balance;state.walletReady=true;
+  state.mailItems=[...state.guestData.mail];updateCounts();updateLogin();
+  void playerSystems.afterGuest();
+}
 const visibleInventory=()=>isNamedAccount()?{...state.remoteLiveInventory}:{...state.liveInventory};
 function saveEntryChoice(value){try{localStorage.setItem(ENTRY_KEY,value)}catch{}}
 function guestChosen(){try{return localStorage.getItem(ENTRY_KEY)==='guest'}catch{return false}}
@@ -184,11 +196,12 @@ function renderWalletStatus(){
   $('walletBalance').textContent=amount;
   $('profileWalletBalance').textContent=amount;
   $('profileWalletNote').textContent=admin?'관리자 계정 · 뽑기 시 M이 차감되지 않습니다.':'카드팩 개봉에 사용하는 재화입니다.';
-  $('drawOne').textContent='1회 뽑기 · '+(admin?'무료':'100 M');
-  $('drawFive').textContent='5회 뽑기 · '+(admin?'무료':'500 M');
-  $('drawEleven').textContent='10+1회 뽑기 ✦ · '+(admin?'무료':'1,000 M');
+  $('drawOnePrice').textContent=admin?'무료':'100 M';
+  $('drawFivePrice').textContent=admin?'무료':'500 M';
+  $('drawElevenPrice').textContent=admin?'무료':'1,000 M';
 }
 async function refreshWallet(){
+  if(isGuest()){state.walletBalance=Number(state.guestData?.balance||0);state.walletReady=true;renderWalletStatus();return}
   if(!isNamedAccount()||!state.supabase){state.walletBalance=0;state.walletReady=false;renderWalletStatus();return}
   const {data,error}=await state.supabase.rpc('itm_get_wallet');
   if(error){state.walletReady=false;renderWalletStatus();throw error}
@@ -203,8 +216,8 @@ function renderMailbox(){
   const list=$('mailList');list.replaceChildren();
   $('mailAdminPanel').hidden=!(isNamedAccount()&&state.studioAdmin);
   updateMailBadge();
-  if(!isNamedAccount()){
-    const p=document.createElement('p');p.className='itm-mail-empty';p.textContent='우편함은 ITM ID로 로그인하신 뒤 이용할 수 있습니다.';list.append(p);return;
+  if(!isNamedAccount()&&!isGuest()){
+    const p=document.createElement('p');p.className='itm-mail-empty';p.textContent='게스트 플레이 또는 ITM ID 로그인 후 우편함을 이용할 수 있습니다.';list.append(p);return;
   }
   if(!state.mailItems.length){
     const p=document.createElement('p');p.className='itm-mail-empty';p.textContent='아직 도착한 우편이 없습니다.';list.append(p);return;
@@ -226,8 +239,13 @@ function renderMailbox(){
         if(state.mailBusy||mail.claimed_at)return;
         state.mailBusy=true;claim.disabled=true;
         try{
-          const {error}=await state.supabase.rpc('itm_claim_mail',{p_mail_id:mail.id});
-          if(error)throw error;
+          if(isGuest()){
+            if(!grantGuestMail(state.guestData,mail.id))return;
+            persistGuest();
+          }else{
+            const {error}=await state.supabase.rpc('itm_claim_mail',{p_mail_id:mail.id});
+            if(error)throw error;
+          }
           await Promise.all([refreshWallet(),refreshMailbox()]);
           toast('우편 보상을 수령했습니다.');
         }catch(err){toast('보상 수령 실패: '+(err?.message||String(err)));claim.disabled=false}
@@ -237,7 +255,13 @@ function renderMailbox(){
     }
     details.append(body);
     details.addEventListener('toggle',async()=>{
-      if(!details.open||mail.read_at||!isNamedAccount())return;
+      if(!details.open||mail.read_at||(!isNamedAccount()&&!isGuest()))return;
+      if(isGuest()){
+        const local=state.guestData.mail.find(item=>item.id===mail.id);
+        if(local){local.read_at ||=new Date().toISOString();persistGuest()}
+        mail.read_at=local?.read_at||new Date().toISOString();
+        details.classList.remove('unread');updateMailBadge();return;
+      }
       const {error}=await state.supabase.rpc('itm_read_mail',{p_mail_id:mail.id});
       if(!error){mail.read_at=new Date().toISOString();details.classList.remove('unread');updateMailBadge()}
     });
@@ -245,6 +269,10 @@ function renderMailbox(){
   }
 }
 async function refreshMailbox(){
+  if(isGuest()){
+    state.mailItems=[...(state.guestData?.mail||[])].sort((a,b)=>String(b.created_at).localeCompare(String(a.created_at))).slice(0,100);
+    renderMailbox();return;
+  }
   if(!isNamedAccount()||!state.supabase){state.mailItems=[];renderMailbox();return}
   const {data,error}=await state.supabase.from('itm_mailbox')
     .select('id,subject,message,reward_m,read_at,claimed_at,created_at')
@@ -1057,7 +1085,7 @@ async function openPack(count){
   // Cloud inventory draws still require the authenticated backend to be ready.
   if(state.busy||state.phase!=='ready'||state.entryRequired||(isNamedAccount()&&!state.backendReady))return;
   if(!selectedPack())return toast('관리자가 공개한 카드팩이 없습니다.');
-  if(!isNamedAccount())return toast('뽑기에는 M이 필요합니다. ITM ID로 로그인해 주세요.');
+  if(!isNamedAccount()&&!isGuest())return toast('게스트 플레이 또는 ITM ID로 로그인해 주세요.');
   if(state.walletReady&&!state.studioAdmin&&state.walletBalance<priceOf(count))
     return toast('M이 부족합니다. '+priceOf(count).toLocaleString('ko-KR')+' M이 필요합니다.');
   state.busy=true;setDrawButtonsDisabled(true);
@@ -1078,9 +1106,14 @@ async function openPack(count){
       await Promise.all([syncRemote(),refreshWallet()]);
       void playerSystems.afterDraw();
     }else{
+      if(!isGuest())throw Error('게스트 플레이를 선택해 주세요.');
+      if(state.guestData.balance<priceOf(count))throw Error('INSUFFICIENT_M');
       rolled=drawLiveLocal(count,selectedPack());
       for(const card of rolled)state.liveInventory[card.id]=(state.liveInventory[card.id]||0)+1;
-      writeLiveInventory();updateCounts();
+      grantGuestDraw(state.guestData,count,rolled,inventoryBefore,state.liveInventory,LIVE_POOL);
+      writeLiveInventory();persistGuest();updateCounts();
+      await refreshWallet();
+      await playerSystems.afterDraw();
     }
     await Promise.all(rolled.map(async card=>{
       try{await preloadCard(card)}
@@ -1381,18 +1414,20 @@ function updateLogin(){
   const signed=isNamedAccount();
   $('studioOpen').hidden=!(signed&&state.studioAdmin===true);
   $('loginButton').textContent=signed?'✦ '+(state.profile?.nickname||state.accountName):'✦ ITM ID';
-  $('accountEntry').hidden=signed;
-  $('accountProfile').hidden=!signed;
-  $('accountClose').hidden=state.entryRequired&&!signed;
-  $('accountStatus').textContent=signed?'로그인됨 · '+(state.profile?.nickname||state.accountName):'계정 연결 필요';
-  $('accountPlayerId').textContent=signed?'ITM PLAYER · '+state.playerId.slice(0,8).toUpperCase():'';
+  $('accountEntry').hidden=signed||(isGuest()&&!state.guestAccountEntry);
+  $('accountProfile').hidden=!signed&&(!isGuest()||state.guestAccountEntry);
+  $('guestSignIn').hidden=!isGuest();
+  $('accountLogout').hidden=!signed;
+  $('accountClose').hidden=state.entryRequired&&!signed&&!isGuest();
+  $('accountStatus').textContent=signed?'로그인됨 · '+(state.profile?.nickname||state.accountName):isGuest()?'게스트 프로필':'계정 연결 필요';
+  $('accountPlayerId').textContent=signed?'ITM PLAYER · '+state.playerId.slice(0,8).toUpperCase():isGuest()?'LOCAL SAVE · 현재 브라우저 전용':'';
   $('accountRetry').hidden=true;
   $('issueRecoveryCode').disabled=!signed||state.accountBusy;
   $('restoreRecoveryCode').disabled=!signed||state.accountBusy;
   $('accountSubmit').disabled=state.accountBusy;
   $('accountSubmit').textContent=state.accountBusy?'확인 중…':state.accountMode==='signup'?'ITM ID 만들기 →':'내 도감 불러오기 →';
   renderWalletStatus();renderMailbox();
-  $('collectionFooter').textContent=signed?'계정에 저장된 도감입니다. 같은 ITM ID로 어디서나 불러올 수 있습니다.':'게스트 도감은 이 브라우저에만 저장됩니다. 브라우저 데이터를 삭제하거나 시크릿 모드를 종료하면 수집 기록이 사라질 수 있습니다.';
+  $('collectionFooter').textContent=signed?'계정에 저장된 도감입니다. 같은 ITM ID로 어디서나 불러올 수 있습니다.':'게스트 도감·M·프로필·업적은 이 브라우저에만 저장됩니다. 브라우저 데이터를 삭제하거나 시크릿 모드를 종료하면 기록이 사라질 수 있습니다.';
 }
 function setAccountMessage(message){$('accountMessage').textContent=message}
 function setAccountMode(mode){
@@ -1417,14 +1452,13 @@ function accountOpen(required=false){
 }
 function chooseGuest(){
   state.entryRequired=false;saveEntryChoice('guest');
-  state.walletBalance=0;state.walletReady=false;state.mailItems=[];playerSystems.afterLogout();
+  activateGuest();
   closeModal('accountOverlay');
-  updateCounts();updateLogin();
-  toast('게스트 모드 · 수집 기록은 이 브라우저에만 저장됩니다.');
+  toast('게스트 모드 · 카드, 재화, 우편, 업적은 이 브라우저에 저장됩니다.');
 }
 async function activateNamedUser(user){
   if(!user||!accountNameOf(user))throw Error('ITM 계정 정보를 확인할 수 없습니다.');
-  state.user=user;state.accountName=accountNameOf(user);state.playerId=null;state.studioAdmin=false;state.walletReady=false;state.walletBalance=0;state.mailItems=[];
+  state.user=user;state.accountName=accountNameOf(user);state.playerId=null;state.studioAdmin=false;state.guestMode=false;state.guestAccountEntry=false;state.guestData=null;state.walletReady=false;state.walletBalance=0;state.mailItems=[];
   $('studioOpen').hidden=true;
   const {data:playerId,error}=await state.supabase.rpc('ensure_guest_player');
   if(error)throw error;
@@ -1446,7 +1480,8 @@ async function activateNamedUser(user){
 async function initBackend(){
   if(!CONFIG.supabaseUrl||!CONFIG.supabasePublishableKey){
     state.authError='Supabase 설정을 확인해 주세요.';state.backendReady=true;
-    updateLogin();if(!guestChosen())accountOpen(true);return;
+    if(guestChosen())activateGuest();else{updateLogin();accountOpen(true)}
+    return;
   }
   try{
     if(!state.supabase){
@@ -1465,15 +1500,15 @@ async function initBackend(){
       state.accountName=null;state.playerId=null;state.user=null;state.studioAdmin=false;
       state.walletBalance=0;state.walletReady=false;state.mailItems=[];playerSystems.afterLogout();
       updateCounts();updateLogin();
-      if(!guestChosen())accountOpen(true);
+      if(guestChosen())activateGuest();else accountOpen(true);
     }
   }catch(err){
     state.authError=err?.message||String(err);
     state.accountName=null;state.playerId=null;state.user=null;state.studioAdmin=false;
     state.walletBalance=0;state.walletReady=false;state.mailItems=[];playerSystems.afterLogout();
     updateCounts();updateLogin();
-    if(!guestChosen())accountOpen(true);
-    setAccountMessage('서버에 연결하지 못했습니다. 게스트로는 플레이할 수 있습니다. '+state.authError);
+    if(guestChosen())activateGuest();else accountOpen(true);
+    setAccountMessage('서버에 연결하지 못했습니다. 게스트 플레이 기록은 브라우저에 저장됩니다. '+state.authError);
   }finally{state.backendReady=true}
 }
 async function submitAccount(event){
@@ -1517,7 +1552,7 @@ async function logoutAccount(){
   state.accountBusy=true;
   try{if(state.supabase){const {error}=await state.supabase.auth.signOut();if(error)throw error}}
   catch(err){state.accountBusy=false;return setAccountMessage('로그아웃 실패: '+(err?.message||String(err)))}
-  state.accountBusy=false;state.user=null;state.accountName=null;state.playerId=null;state.studioAdmin=false;
+  state.accountBusy=false;state.user=null;state.accountName=null;state.playerId=null;state.studioAdmin=false;state.guestMode=false;state.guestAccountEntry=false;
   state.remoteDemoInventory={};state.remoteLiveInventory={};
   state.walletBalance=0;state.walletReady=false;state.mailItems=[];playerSystems.afterLogout();
   $('studioOpen').hidden=true;
@@ -1597,8 +1632,9 @@ async function init3D(){
   }
 }
 function accountClose(){
-  if(state.entryRequired&&!isNamedAccount())return;
+  if(state.entryRequired&&!isNamedAccount()&&!isGuest())return;
   closeModal('accountOverlay');state.issuedRecovery=null;
+  if(isGuest()){state.guestAccountEntry=false;updateLogin()}
   playerSystems.onAccountClose();
   $('issuedCode').textContent='';$('issuedCodeBox').hidden=true;
 }
@@ -1663,6 +1699,7 @@ function bind(){
   $('accountTabSignup').onclick=()=>setAccountMode('signup');
   $('accountForm').onsubmit=submitAccount;
   $('guestPlay').onclick=chooseGuest;
+  $('guestSignIn').onclick=()=>{state.guestAccountEntry=true;setAccountMode('login');updateLogin()};
   $('accountLogout').onclick=logoutAccount;
   $('issueRecoveryCode').onclick=issueRecovery;$('copyRecoveryCode').onclick=copyRecovery;
   $('restoreRecoveryCode').onclick=restoreRecovery;$('accountRetry').onclick=initBackend;
