@@ -417,6 +417,9 @@ function showRaritySplash(card){
   $('splashGrade').textContent=card.rarity;
   $('splashSeries').textContent=card.group+' · '+card.edition;
   $('splashName').textContent=card.name;
+  // Fit long UR member names inside the mobile viewport without ellipsis or cropping.
+  const memberChars=[...String(card.name||'')].length;
+  splash.style.setProperty('--itm-ur-name-fit',String(Math.min(.24,1/(Math.max(4,memberChars)*.77))));
   const source=card.full_art_url||card.image_url||'./assets/itm-ur-performance.svg';
   $('splashArt').src=source;
   $('splashArt').onerror=()=>{$('splashArt').onerror=null;$('splashArt').src=makeCardArt(card).toDataURL('image/png')};

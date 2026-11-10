@@ -281,3 +281,111 @@ body.itm-concert .pack-choice select{min-height:42px;width:100%;max-width:260px;
 /* No dark UI veil over the bright 3D foil pouch; no white strobe before UR art. */
 body.itm-concert .scene-wrap:after{display:none!important}
 body.itm-concert .ur-screen-transition.playing::after{display:none!important}
+
+/* UR portrait artwork: preserve the entire member photo, not cover-crop it.
+   The blurred copy fills the phone screen; original art stays fully visible above
+   a safe-area-aware, automatically fitted member name. Desktop remains unchanged. */
+@media (orientation: portrait) and (max-width: 760px) {
+  body.itm-concert .rarity-splash.rarity-ur {
+    height:100vh;
+    height:100dvh;
+  }
+  body.itm-concert .rarity-splash.rarity-ur .splash-blur {
+    display:block!important;
+    position:absolute;
+    inset:-12%;
+    opacity:.72;
+    background-position:center center;
+    background-size:cover;
+    filter:blur(30px) brightness(.48) saturate(1.16);
+    transform:scale(1.1);
+    pointer-events:none;
+  }
+  body.itm-concert .rarity-splash.rarity-ur .splash-art-frame {
+    position:absolute;
+    z-index:1;
+    top:max(60px,calc(env(safe-area-inset-top,0px) + 45px));
+    right:0;
+    bottom:clamp(180px,25dvh,280px);
+    left:0;
+    pointer-events:none;
+  }
+  body.itm-concert .rarity-splash.rarity-ur .splash-art-frame .splash-art {
+    position:absolute!important;
+    inset:0!important;
+    width:100%!important;
+    height:100%!important;
+    max-width:100%;
+    object-fit:contain!important;
+    object-position:center center!important;
+    transform-origin:center center;
+    filter:drop-shadow(0 12px 20px #08021188);
+  }
+  body.itm-concert .rarity-splash.rarity-ur .splash-radiance {
+    background:linear-gradient(0deg,#080312ec 0%,#10071fc0 17%,#10071f45 36%,transparent 56%),
+      linear-gradient(90deg,#170b2399 0%,transparent 28%,transparent 75%,#170b2338 100%);
+  }
+  body.itm-concert .rarity-splash.rarity-ur .splash-copy {
+    z-index:5;
+    left:max(18px,env(safe-area-inset-left,0px));
+    right:max(18px,env(safe-area-inset-right,0px));
+    bottom:max(38px,calc(env(safe-area-inset-bottom,0px) + 20px));
+    top:auto;
+    width:auto;
+    max-width:calc(100vw - 36px);
+    transform:none;
+  }
+  body.itm-concert .rarity-splash.rarity-ur .splash-grade {
+    font-size:clamp(66px,19vw,105px)!important;
+    line-height:.89;
+    letter-spacing:-.06em;
+  }
+  body.itm-concert .rarity-splash.rarity-ur .splash-series {
+    margin:8px 0 5px;
+    font-size:clamp(9px,2.4vw,12px);
+    letter-spacing:.16em;
+    overflow-wrap:anywhere;
+  }
+  body.itm-concert .rarity-splash.rarity-ur .splash-name {
+    font-size:clamp(24px,8vw,46px)!important;
+    font-size:min(12vw,calc((100vw - 44px) * var(--itm-ur-name-fit,.08)))!important;
+    line-height:1.04;
+    letter-spacing:-.045em;
+    white-space:nowrap;
+    max-width:100%;
+  }
+  body.itm-concert .rarity-splash.rarity-ur .splash-close {
+    top:max(16px,env(safe-area-inset-top,0px));
+    right:max(16px,env(safe-area-inset-right,0px));
+    width:44px;
+    height:44px;
+  }
+}
+@media (orientation: portrait) and (max-width:760px) and (max-height:560px) {
+  body.itm-concert .rarity-splash.rarity-ur .splash-art-frame {
+    top:max(40px,env(safe-area-inset-top,0px));
+    bottom:155px;
+  }
+  body.itm-concert .rarity-splash.rarity-ur .splash-copy {
+    bottom:max(20px,env(safe-area-inset-bottom,0px));
+  }
+  body.itm-concert .rarity-splash.rarity-ur .splash-grade {
+    font-size:clamp(54px,15vw,82px)!important;
+  }
+}
+/* Compact landscape phones also retain the full UR photograph. */
+@media (orientation: landscape) and (max-width:1180px) and (max-height:620px) {
+  body.itm-concert .rarity-splash.rarity-ur .splash-blur {
+    display:block!important;
+    opacity:.48;
+    filter:blur(28px) brightness(.46);
+  }
+  body.itm-concert .rarity-splash.rarity-ur .splash-art {
+    object-fit:contain!important;
+    object-position:center center!important;
+  }
+  body.itm-concert .rarity-splash.rarity-ur .splash-name {
+    font-size:min(13vh,calc((42vw - 24px) * var(--itm-ur-name-fit,.08)))!important;
+    white-space:nowrap;
+  }
+}
