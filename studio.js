@@ -4,7 +4,7 @@ const $=id=>document.getElementById(id);
 const CONFIG=window.IDOL_CONFIG||{};
 const BUCKET='itm-card-media';
 const UR_SFX_BUCKET='itm-bgm';
-const UR_SFX_PATH='effects/ur-reveal.mp3';
+// Collection audio is referenced by itm_series.ur_audio_path; no global UR track.
 const VALID_MIME=['image/jpeg','image/png','image/webp'];
 const RARITIES=['N','R','SR','SSR','UR'];
 const DEFAULT_PACK_ODDS=Object.freeze({N:55,R:28,SR:12,SSR:4,UR:1});
@@ -36,7 +36,7 @@ function setPackOdds(odds=DEFAULT_PACK_ODDS){
   syncPackOddsValidation();
 }
 const state={
-  client:null,admin:false,logged:false,groups:[],members:[],cards:[],series:[],packs:[],bgmTracks:[],bgmBusy:false,urSfxBusy:false,urSfxExists:false,urSfxPreview:null,urSfxTimer:0,editingId:null,
+  client:null,admin:false,logged:false,groups:[],members:[],cards:[],series:[],packs:[],bgmTracks:[],bgmBusy:false,urSfxBusy:false,urSfxPreview:null,urSfxTimer:0,editingId:null,
   photoFile:null,fullArtFile:null,groupLogoFile:null,packFile:null,packImagePath:null,
   photoImage:null,groupImage:null,groupEditorImage:null,
   imagePath:null,fullArtPath:null,
@@ -69,10 +69,13 @@ function accessControls(){
   $('saveMember').disabled=!allowed||!$('groupPicker').value;
   $('savePack').disabled=!allowed;
   $('bgmFiles').disabled=!allowed||state.bgmBusy;
-  $('urSfxFile').disabled=!allowed||state.urSfxBusy;
-  $('urSfxUpload').disabled=!allowed||state.urSfxBusy;
-  $('urSfxPreview').disabled=!allowed||state.urSfxBusy||!state.urSfxExists;
-  $('urSfxDelete').disabled=!allowed||state.urSfxBusy||!state.urSfxExists;
+  const urSelected=state.series.find(item=>item.id===$('urSfxSeries').value&&item.group_slug===$('urSfxGroup').value);
+  $('urSfxGroup').disabled=!allowed||state.urSfxBusy;
+  $('urSfxSeries').disabled=!allowed||state.urSfxBusy||!$('urSfxGroup').value;
+  $('urSfxFile').disabled=!allowed||state.urSfxBusy||!urSelected;
+  $('urSfxUpload').disabled=!allowed||state.urSfxBusy||!urSelected;
+  $('urSfxPreview').disabled=!allowed||state.urSfxBusy||!urSelected?.ur_audio_path;
+  $('urSfxDelete').disabled=!allowed||state.urSfxBusy||!urSelected?.ur_audio_path;
   $('urSfxRefresh').disabled=!allowed||state.urSfxBusy;
   $('deletePack').disabled=!allowed||!$('packPicker').value;
   refreshDeleteControls();
@@ -578,7 +581,7 @@ async function loadCatalog(){
     state.client.from('itm_groups').select('slug,name,logo_path').order('name'),
     state.client.from('itm_catalog').select('*').order('created_at',{ascending:false}),
     state.admin?state.client.from('itm_members').select('id,group_slug,name').order('name'):Promise.resolve({data:[]}),
-    state.client.from('itm_series').select('id,group_slug,name').order('name'),
+    state.client.from('itm_series').select('id,group_slug,name,ur_audio_path').order('name'),
     state.client.from('itm_packs').select('*').order('created_at',{ascending:false})
   ]);
   if(groupError)throw groupError;
@@ -590,7 +593,7 @@ async function loadCatalog(){
   const selectedSeriesId=$('seriesPicker').value;
   refreshSelectors();refreshCardMembers();refreshMembers($('memberPicker').value);
   refreshManagedSeries(selectedSeriesId);
-  refreshSeriesOptions();refreshPackEditor();refreshLibraryFilterOptions();renderLibrary();await syncLogo();
+  refreshSeriesOptions();refreshPackEditor();refreshLibraryFilterOptions();renderLibrary();refreshUrSfxPickers();await syncLogo();
 }
 function libraryMemberName(card){
   return state.members.find(member=>member.id===card.member_id)?.name||card.display_name||'';
@@ -791,7 +794,7 @@ async function refreshAccess(){
       if(permission.error)throw permission.error;
       state.admin=!!permission.data;
     }
-    accessControls();await Promise.all([loadCatalog(),loadBgmCatalog(),loadUrSfxStatus()]);await studioExtras.load();
+    accessControls();await Promise.all([loadCatalog(),loadBgmCatalog()]);await studioExtras.load();
   }catch(err){setAuthState('오류');toast('스튜디오 연결 오류: '+(err?.message||err))}
 }
 async function signIn(event){
@@ -811,58 +814,80 @@ async function signOut(){
   await refreshAccess();
 }
 
-// A single shared UR effect is stored separately from playlist tracks.
+// UR splash tracks are scoped to the unique group + collection pair.
+function selectedUrSfxSeries(){
+  return state.series.find(item=>item.id===$('urSfxSeries').value&&item.group_slug===$('urSfxGroup').value)||null;
+}
 function stopUrSfxPreview(){
   clearTimeout(state.urSfxTimer);state.urSfxTimer=0;
   const player=state.urSfxPreview;state.urSfxPreview=null;
   if(player){player.pause();player.removeAttribute('src');player.load();}
 }
-async function loadUrSfxStatus(){
-  if(!state.client||!state.admin){
-    stopUrSfxPreview();state.urSfxExists=false;
-    $('urSfxStatus').textContent='관리자 로그인 후 등록 상태를 확인할 수 있습니다.';
-    accessControls();return;
-  }
-  const {data,error}=await state.client.storage.from(UR_SFX_BUCKET).list('effects',{limit:100,search:'ur-reveal.mp3'});
-  if(error){
-    state.urSfxExists=false;
-    $('urSfxStatus').textContent='음원 등록 상태 확인 실패: '+error.message;
-  }else{
-    state.urSfxExists=!!data?.some(file=>file.name==='ur-reveal.mp3');
-    $('urSfxStatus').textContent=state.urSfxExists
-      ?'UR 전용 MP3 등록됨 · 개봉 연출에서 최대 5초 재생'
-      :'등록된 UR 음원이 없습니다. 기존 합성 효과음이 재생됩니다.';
-  }
+function refreshUrSfxPickers(){
+  const groupPicker=$('urSfxGroup'),seriesPicker=$('urSfxSeries');
+  const oldGroup=groupPicker.value,oldSeries=seriesPicker.value;
+  const groupIds=new Set(state.series.map(series=>series.group_slug));
+  const groups=state.groups.filter(group=>groupIds.has(group.slug));
+  groupPicker.replaceChildren(new Option('그룹 선택',''),...groups.map(group=>new Option(group.name,group.slug)));
+  groupPicker.value=groups.some(group=>group.slug===oldGroup)?oldGroup:'';
+  const series=state.series.filter(item=>item.group_slug===groupPicker.value)
+    .sort((a,b)=>a.name.localeCompare(b.name,'ko'));
+  seriesPicker.replaceChildren(new Option('컬렉션 선택',''),...series.map(item=>new Option(item.name,item.id)));
+  seriesPicker.value=series.some(item=>item.id===oldSeries)?oldSeries:'';
+  renderUrSfxStatus();
+}
+function onUrSfxGroupChange(){
+  $('urSfxSeries').value='';
+  refreshUrSfxPickers();
+  $('urSfxFile').value='';
+  stopUrSfxPreview();
+}
+function renderUrSfxStatus(){
+  const series=selectedUrSfxSeries();
+  $('urSfxStatus').textContent=!state.admin?'관리자 로그인 후 컬렉션 음원을 설정할 수 있습니다.':
+    !series?'그룹과 컬렉션을 선택해 주세요.':
+    series.ur_audio_path
+      ?'['+series.name+'] UR 전용 MP3 등록됨 · 전체화면 등장 시 최대 5초 재생'
+      :'['+series.name+'] 아직 UR 음원이 없습니다. 기존 유성 효과음은 유지됩니다.';
   accessControls();
 }
 async function withUrSfxBusy(fn){
-  if(!state.admin||state.urSfxBusy||state.saving)return toast('UR 음원 관리는 관리자만 가능합니다.');
+  if(!state.admin||state.urSfxBusy||state.saving||!selectedUrSfxSeries())return toast('UR 음원을 등록할 컬렉션을 선택해 주세요.');
   state.urSfxBusy=true;accessControls();stopUrSfxPreview();
-  try{await fn();await loadUrSfxStatus()}
-  catch(err){toast('UR 음원 관리 실패: '+(err?.message||err));await loadUrSfxStatus()}
+  try{await fn();await loadCatalog();}
+  catch(err){toast('컬렉션 UR 음원 관리 실패: '+(err?.message||err));await loadCatalog().catch(()=>{})}
   finally{state.urSfxBusy=false;accessControls()}
 }
 async function uploadUrSfx(){
-  const file=$('urSfxFile').files?.[0];
+  const series=selectedUrSfxSeries(),file=$('urSfxFile').files?.[0];
+  if(!series)return toast('컬렉션을 먼저 선택해 주세요.');
   if(!file)return toast('등록할 MP3 파일을 선택해 주세요.');
-  if(!/\.mp3$/i.test(file.name)||!['audio/mpeg','audio/mp3',''].includes(file.type)||file.size<=0||file.size>15*1024*1024){
+  if(!/\\.mp3$/i.test(file.name)||!['audio/mpeg','audio/mp3',''].includes(file.type)||file.size<=0||file.size>15*1024*1024){
     return toast('UR 음원은 15MB 이하의 MP3 파일만 등록할 수 있습니다.');
   }
   await withUrSfxBusy(async()=>{
-    const {error}=await state.client.storage.from(UR_SFX_BUCKET).upload(UR_SFX_PATH,file,{
-      contentType:'audio/mpeg',cacheControl:'0',upsert:true
+    const path='effects/collections/'+series.id+'/'+crypto.randomUUID()+'.mp3';
+    const {error:uploadError}=await state.client.storage.from(UR_SFX_BUCKET).upload(path,file,{
+      contentType:'audio/mpeg',cacheControl:'3600',upsert:false
     });
-    if(error)throw error;
+    if(uploadError)throw uploadError;
+    const {data,error}=await state.client.from('itm_series').update({ur_audio_path:path})
+      .eq('id',series.id).eq('group_slug',series.group_slug).select('id,ur_audio_path').single();
+    if(error||!data){await state.client.storage.from(UR_SFX_BUCKET).remove([path]);throw error||Error('관리자 권한을 확인해 주세요.');}
+    if(series.ur_audio_path){
+      const {error:cleanupError}=await state.client.storage.from(UR_SFX_BUCKET).remove([series.ur_audio_path]);
+      if(cleanupError)console.warn('Old UR audio cleanup failed',cleanupError.message);
+    }
     $('urSfxFile').value='';
-    toast('UR 전용 음원을 등록했습니다. 다음 UR 등장부터 최대 5초간 재생됩니다.');
+    toast('['+series.name+'] 컬렉션의 UR 등장 음원을 저장했습니다.');
   });
 }
 async function previewUrSfx(){
-  if(!state.urSfxExists||state.urSfxBusy)return;
+  const series=selectedUrSfxSeries();
+  if(!series?.ur_audio_path||state.urSfxBusy)return;
   stopUrSfxPreview();
-  const publicUrl=state.client.storage.from(UR_SFX_BUCKET).getPublicUrl(UR_SFX_PATH).data.publicUrl;
-  const player=new Audio(publicUrl+'?preview='+Date.now());
-  player.preload='auto';player.volume=.5;state.urSfxPreview=player;
+  const url=state.client.storage.from(UR_SFX_BUCKET).getPublicUrl(series.ur_audio_path).data.publicUrl;
+  const player=new Audio(url);player.preload='auto';player.volume=.5;state.urSfxPreview=player;
   player.addEventListener('ended',()=>{if(state.urSfxPreview===player)stopUrSfxPreview()},{once:true});
   try{
     await player.play();
@@ -873,13 +898,18 @@ async function previewUrSfx(){
   }
 }
 async function deleteUrSfx(){
-  if(!state.urSfxExists||!confirm('등록된 UR 전용 음원을 삭제하고 기본 효과음으로 되돌릴까요?'))return;
+  const series=selectedUrSfxSeries();
+  if(!series?.ur_audio_path||!confirm('['+series.name+'] 컬렉션의 UR 음원을 삭제할까요?'))return;
   await withUrSfxBusy(async()=>{
-    const {error}=await state.client.storage.from(UR_SFX_BUCKET).remove([UR_SFX_PATH]);
-    if(error)throw error;
-    toast('UR 음원을 삭제했습니다. 기본 효과음이 적용됩니다.');
+    const {data,error}=await state.client.from('itm_series').update({ur_audio_path:null})
+      .eq('id',series.id).eq('group_slug',series.group_slug).select('id').single();
+    if(error||!data)throw error||Error('관리자 권한을 확인해 주세요.');
+    const {error:cleanupError}=await state.client.storage.from(UR_SFX_BUCKET).remove([series.ur_audio_path]);
+    if(cleanupError)console.warn('UR audio file cleanup failed',cleanupError.message);
+    toast('['+series.name+'] 컬렉션의 UR 음원을 삭제했습니다.');
   });
 }
+
 async function loadBgmCatalog(){
   if(!state.client)return;
   const {data,error}=await state.client.from('itm_bgm_tracks')
@@ -988,7 +1018,9 @@ function bind(){
   $('urSfxUpload').onclick=uploadUrSfx;
   $('urSfxPreview').onclick=previewUrSfx;
   $('urSfxDelete').onclick=deleteUrSfx;
-  $('urSfxRefresh').onclick=loadUrSfxStatus;
+  $('urSfxRefresh').onclick=()=>loadCatalog().catch(err=>toast('음원 목록 갱신 실패: '+err.message));
+  $('urSfxGroup').onchange=onUrSfxGroupChange;
+  $('urSfxSeries').onchange=()=>{$('urSfxFile').value='';stopUrSfxPreview();renderUrSfxStatus();};
   $('bgmRefresh').onclick=()=>loadBgmCatalog();
   $('studioLogout').onclick=signOut;
   $('groupForm').onsubmit=saveGroup;
