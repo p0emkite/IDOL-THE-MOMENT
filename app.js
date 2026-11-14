@@ -1,6 +1,6 @@
 import {mountAudioPanel} from './audio-manager.js?v=studio-managed-20261107';
 import {createURRevealPayoff} from './ur-reveal.js?v=20261108-ssr';
-import {createURCinematic} from './ur-cinematic.js?v=20261108-v3';
+import {createURCinematic} from './ur-cinematic.js?v=ur-mp3-20261114';
 import {createRarityRevealAccents} from './rarity-accents.js?v=20261108-v3';
 import {createOpeningEffects} from './opening-effects.js';
 import {renderITMCard} from './card-frame.js?v=ur-photo-window-20261105';
@@ -1501,6 +1501,11 @@ async function initBackend(){
       const mod=await import('https://esm.sh/@supabase/supabase-js@2.57.0');
       state.supabase=mod.createClient(CONFIG.supabaseUrl,CONFIG.supabasePublishableKey);
     }
+    // The UR effect is a separate public MP3, not part of the BGM playlist.
+    // A per-page revision prevents old audio from persisting after admin replacement.
+    const urAudioUrl=state.supabase.storage.from('itm-bgm')
+      .getPublicUrl('effects/ur-reveal.mp3').data.publicUrl;
+    urCinematic?.setCustomAudioUrl(urAudioUrl+'?v='+Date.now());
     void soundManager?.setBackend(state.supabase,false);
     try{await loadPublishedCatalog()}catch(e){console.warn('Card catalog unavailable; demo remains active',e)}
     const {data,error}=await state.supabase.auth.getSession();
