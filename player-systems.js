@@ -1,7 +1,8 @@
 /* ITM player profile, collections, missions and celebrations.
  * Registered users use the server. Guest data is local to this browser only. */
-import {syncGuestAchievements,awardGuestAnniversaries,guestFrameKey,writeGuestSave} from './guest-state.js?v=20261109';
-export function createPlayerSystems({state,$,toast,refreshWallet,refreshMailbox,visibleInventory,byId,makeCardArt,assetUrl}){
+import {syncGuestAchievements,awardGuestAnniversaries,guestFrameKey,writeGuestSave} from './guest-state.js?v=journey-20261115';
+import {createJourney} from './journey.js?v=20261115-v1';
+export function createPlayerSystems({state,$,toast,refreshWallet,refreshMailbox,visibleInventory,byId,makeCardArt,assetUrl,getPacks,onFreeDraw}){
   const RATINGS=['N','R','SR','SSR','UR'];
   const REWARDS={N:100,R:300,SR:500,SSR:1000,UR:3000,ALL:0};
   const names={N:'NORMAL',R:'RARE',SR:'SUPER RARE',SSR:'SPECIAL SUPER RARE',UR:'ULTRA RARE',ALL:'100% 완성'};
@@ -10,6 +11,10 @@ export function createPlayerSystems({state,$,toast,refreshWallet,refreshMailbox,
   let lastObservedLevel=null,queuedLevelUp=null,levelTimer=null;
   const guest=()=>state.guestMode&&!state.playerId;
   const persistGuest=()=>{if(state.guestData&&!writeGuestSave(state.guestData))toast('브라우저 저장소가 차단되어 있습니다.')};
+  const journey=createJourney({state,toast,refreshWallet,visibleInventory,byId,
+    saveGuest:persistGuest,getPacks,onFreeDraw,
+    onRefreshProfile:()=>{renderProfile();if($('taskOverlay').classList.contains('active'))renderTasks();}
+  });
   function showLevelUp(level){
     if(!level||!$('levelUpOverlay'))return;
     clearTimeout(levelTimer);
@@ -262,16 +267,20 @@ export function createPlayerSystems({state,$,toast,refreshWallet,refreshMailbox,
     $('taskTabWeekly').classList.toggle('selected',activeTab==='weekly');
     $('taskTabAchievements').classList.toggle('selected',activeTab==='achievements');
     const content=$('taskContent');content.replaceChildren();
+    if(!state.playerId&&!guest()){content.textContent='게스트 플레이 또는 ITM ID 로그인 후 미션을 확인할 수 있습니다.';return}
     if(activeTab!=='achievements'){
-      const empty=document.createElement('div');empty.className='itm-mission-empty';
-      const heading=document.createElement('h3');heading.textContent=activeTab==='daily'?'DAILY MISSIONS':'WEEKLY MISSIONS';
-      const p=document.createElement('p');p.textContent='미션 콘텐츠 준비 중 · 추후 아이돌 미니게임과 연동됩니다.';
-      const badge=document.createElement('small');badge.textContent='보상 및 진행 조건은 아직 설정되지 않았습니다.';
-      empty.append(heading,p,badge);content.append(empty);return;
+      journey.renderMissions(content,activeTab);
+      return;
     }
-    if(!state.playerId&&!guest()){content.textContent='게스트 플레이 또는 ITM ID 로그인 후 업적을 확인할 수 있습니다.';return}
+    journey.renderAchievements(content);
     const groups=collectionGroups();
-    if(!groups.length){content.textContent='공개된 컬렉션이 없습니다.';return}
+    if(!groups.length)return;
+    const collectionSection=document.createElement('details');
+    collectionSection.className='itm-journey-achievement-group';
+    const collectionSummary=document.createElement('summary');
+    const label=document.createElement('strong');label.textContent='기존 컬렉션 완성 업적';
+    const note=document.createElement('small');note.textContent=groups.length+'개 컬렉션 · 등급별 완성 보상';
+    collectionSummary.append(label,note);collectionSection.append(collectionSummary);
     for(const group of groups){
       const details=document.createElement('details');details.className='itm-achievement-collection';
       const summary=document.createElement('summary');
@@ -290,8 +299,9 @@ export function createPlayerSystems({state,$,toast,refreshWallet,refreshMailbox,
         const status=document.createElement('small');status.textContent=claimed?'✓ 달성 완료':have===pool.length?'보상 반영 중':'미달성';
         item.append(title,reward,status);details.append(item);
       }
-      content.append(details);
+      collectionSection.append(details);
     }
+    content.append(collectionSection);
   }
   async function checkAnniversaries(){
     if(!client())return;
@@ -338,6 +348,8 @@ export function createPlayerSystems({state,$,toast,refreshWallet,refreshMailbox,
       const {error}=await client().rpc('itm_sync_collection_rewards');
       if(error)throw error;
       await Promise.all([updateProfile(),updateAchievements(),refreshWallet()]);
+      await journey.init();
+      await updateProfile();await updateAchievements();
       lastObservedLevel=initial;trackLevel(state.profile?.level);
       await checkAnniversaries();loaded=true;
     }catch(err){console.warn('ITM profile/rewards sync',err);toast('프로필 동기화 오류: '+err.message)}
@@ -350,14 +362,17 @@ export function createPlayerSystems({state,$,toast,refreshWallet,refreshMailbox,
       syncGuestAchievements(state.guestData,visibleInventory(),[...byId.values()]);
       persistGuest();await updateProfile();
       await Promise.all([updateAchievements(),refreshWallet(),refreshMailbox()]);
+      await journey.init();
+      await updateProfile();await updateAchievements();
       lastObservedLevel=initial;trackLevel(state.profile?.level);
       if(client())await checkAnniversaries();
       loaded=true;
     }catch(err){console.warn('Guest profile sync',err);toast('게스트 프로필 확인 실패: '+err.message)}
   }
-  async function afterDraw(){
+  async function afterDraw({drawn=[]}={}){
     if(!state.playerId&&!guest())return;
     try{
+      await journey.afterDraw(drawn);
       await Promise.all([updateProfile(),updateAchievements(),refreshWallet()]);
       trackLevel(state.profile?.level,{defer:true});
       renderTasks();
@@ -365,6 +380,7 @@ export function createPlayerSystems({state,$,toast,refreshWallet,refreshMailbox,
   }
   function afterLogout(){
     state.profile=null;frames=[];ownedFrames=new Set();claims=new Set();celebrations=[];loaded=false;pendingMailReward=false;
+    journey.reset();
     lastObservedLevel=null;queuedLevelUp=null;
     clearTimeout(levelTimer);$('levelUpOverlay').hidden=true;
     renderProfile();renderTasks();
@@ -415,5 +431,8 @@ export function createPlayerSystems({state,$,toast,refreshWallet,refreshMailbox,
   }
   bind();
   return {afterLogin,afterGuest,afterDraw,afterLogout,flushLevelUp,renderProfile,renderTasks,
+    onInteraction:kind=>journey.interaction(kind),
+    consumeGuestTicket:size=>journey.consumeGuestTicket(size),
+    refreshJourney:()=>journey.refresh(),
     onIntroClosed(){introClosed=true;showNextCelebration()},onAccountClose:showNextCelebration};
 }
