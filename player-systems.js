@@ -414,7 +414,7 @@ export function createPlayerSystems({state,$,toast,refreshWallet,refreshMailbox,
     const endPointer=e=>{if(cropPointer?.id===e.pointerId)cropPointer=null};
     stage.addEventListener('pointerup',endPointer);stage.addEventListener('pointercancel',endPointer);
     $('birthdayForm').onsubmit=saveBirthday;
-    $('taskOpen').onclick=()=>{activeTab='daily';renderTasks();$('taskOverlay').classList.add('active');$('taskOverlay').setAttribute('aria-hidden','false')};
+    $('taskOpen').onclick=()=>{activeTab='daily';renderTasks();$('taskOverlay').classList.add('active');$('taskOverlay').setAttribute('aria-hidden','false');void journey.refresh({checkin:true})};
     $('taskClose').onclick=()=>{$('taskOverlay').classList.remove('active');$('taskOverlay').setAttribute('aria-hidden','true')};
     $('taskOverlay').addEventListener('click',e=>{if(e.target===$('taskOverlay'))$('taskClose').click()});
     for(const [key,id] of [['daily','taskTabDaily'],['weekly','taskTabWeekly'],['achievements','taskTabAchievements']]){
