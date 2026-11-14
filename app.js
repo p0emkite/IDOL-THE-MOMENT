@@ -1409,25 +1409,39 @@ function renderCollection(groupChanged=false){
     }
     return shelf;
   };
-  // Group, collection, and member accordions are now siblings, not nested levels.
-  // Render card thumbnails lazily only when a section is expanded.
+  // Progressive archive: group → collection → member → card thumbnails.
+  // Only group rows exist initially; expand each level to construct its children.
+  // This keeps large archives fast and hides unrelated collections until requested.
   const fragment=document.createDocumentFragment();
-  const section=(name,items,level)=>{
+  const section=(name,items,level,buildChildren)=>{
     const details=heading(name,items,level);
     let hydrated=false;
     details.addEventListener('toggle',()=>{
-      if(details.open&&!hydrated){hydrated=true;details.append(gridFor(items))}
+      if(!details.open||hydrated)return;
+      hydrated=true;
+      if(level==='level-member'){
+        details.append(gridFor(items));
+        return;
+      }
+      const children=document.createElement('div');
+      children.className='collection-accordion-children';
+      buildChildren(children);
+      details.append(children);
     });
     return details;
   };
   for(const [,g] of groups){
-    fragment.append(section(g.name,g.cards,'level-group'));
-    for(const [seriesName,collection] of g.series){
-      fragment.append(section(seriesName,collection.cards,'level-series'));
-      for(const [memberName,memberCards] of collection.members){
-        fragment.append(section(memberName,memberCards,'level-member'));
+    const groupSection=section(g.name,g.cards,'level-group',groupChildren=>{
+      for(const [seriesName,collection] of g.series){
+        const seriesSection=section(seriesName,collection.cards,'level-series',seriesChildren=>{
+          for(const [memberName,memberCards] of collection.members){
+            seriesChildren.append(section(memberName,memberCards,'level-member'));
+          }
+        });
+        groupChildren.append(seriesSection);
       }
-    }
+    });
+    fragment.append(groupSection);
   }
   grid.append(fragment);
 }
