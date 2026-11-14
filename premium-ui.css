@@ -389,3 +389,16 @@ body.itm-concert .ur-screen-transition.playing::after{display:none!important}
     white-space:nowrap;
   }
 }
+
+/* UR name + grade italic overhang: preserve the complete rightmost glyph ink
+   in the animated background-clip:text gradient. Without an end gutter, the
+   italic R / final member-name letter gets cut at the text paint boundary. */
+body.itm-concert .rarity-splash.rarity-ur .splash-grade,
+body.itm-concert .rarity-splash.rarity-ur .splash-name {
+  display:block;
+  width:max-content;
+  max-width:100%;
+  box-sizing:border-box;
+  padding-inline-end:.22em;
+  overflow:visible;
+}
