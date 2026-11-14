@@ -49,3 +49,8 @@
  .itm-journey-mission{padding:12px 10px}
  .itm-journey-mission-reward strong{font-size:11px}
 }
+
+/* Permanent achievements unlock optional profile display titles. */
+.itm-journey-selected-title{display:inline-block;font-size:10px;font-weight:850;letter-spacing:.14em;color:#ffe5af;text-shadow:0 0 12px #ffc28b60;margin:0 0 7px}
+.itm-journey-title-label{display:block;font-size:12px;color:#eddbf4;margin:10px 0 8px}
+.itm-journey-title-select{display:block;width:100%;border-radius:9px;border:1px solid #d8b1e062;background:#180d25;color:#f7ebff;padding:11px 12px;margin-bottom:10px}
