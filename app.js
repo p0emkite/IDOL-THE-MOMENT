@@ -1226,7 +1226,8 @@ function revealIndex(i,silent=false,skipURLead=false){
     if(card.rarity==='UR')concertStage?.burst('UR');
     stageBurst(card);
   }
-  $('stageHint').textContent=(tier?.label||card.rarity)+' · '+card.group+' '+card.name+' 발견!';
+  // The revealed card itself communicates grade and identity; omit the redundant 발견! line.
+  $('stageHint').textContent='';
   updateStageProgress();
   if(!state.three)renderFallbackCards();
   if(state.revealed.size===state.cards.length){
