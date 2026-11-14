@@ -1,6 +1,6 @@
 import {mountAudioPanel} from './audio-manager.js?v=studio-managed-20261107';
 import {createURRevealPayoff} from './ur-reveal.js?v=20261108-ssr';
-import {createURCinematic} from './ur-cinematic.js?v=collection-splash-20261114';
+import {createURCinematic} from './ur-cinematic.js?v=ur-seven-seconds-20261114';
 import {createRarityRevealAccents} from './rarity-accents.js?v=20261108-v3';
 import {createOpeningEffects} from './opening-effects.js';
 import {renderITMCard} from './card-frame.js?v=ur-photo-window-20261105';
