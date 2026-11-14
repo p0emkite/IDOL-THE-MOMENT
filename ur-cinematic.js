@@ -2,12 +2,55 @@
 export function createURCinematic({getSfxGain,getAudioContext,setBgmDucking}){
   const timers=new Set();
   let layer=null,completed=false,flip=null,previousFocus=null;
+  let customAudio=null,customAudioTimer=0,customAudioSerial=0;
+  function stopCustomAudio(){
+    customAudioSerial++;
+    clearTimeout(customAudioTimer);customAudioTimer=0;
+    if(customAudio){
+      customAudio.pause();
+      try{customAudio.currentTime=0}catch{}
+    }
+  }
+  // The admin-uploaded effect is optional. Preload as soon as the backend is ready,
+  // but keep the original synthesized fanfare as a fallback for missing/broken files.
+  function setCustomAudioUrl(url){
+    stopCustomAudio();
+    customAudio=null;
+    if(!url)return;
+    customAudio=new Audio(url);
+    customAudio.preload='auto';
+    customAudio.load();
+  }
+  function playCustomSound(){
+    const gain=Math.max(0,Math.min(1,getSfxGain?.()??0));
+    if(!customAudio||customAudio.error||gain<.001)return false;
+    stopCustomAudio();
+    const player=customAudio,serial=customAudioSerial;
+    player.volume=gain;
+    try{
+      const request=player.play();
+      Promise.resolve(request).then(()=>{
+        if(customAudioSerial!==serial)return;
+        // Count five seconds of actual playback, not initial buffering.
+        customAudioTimer=setTimeout(()=>{if(customAudioSerial===serial)stopCustomAudio()},5000);
+      }).catch(err=>{
+        if(customAudioSerial!==serial)return;
+        stopCustomAudio();
+        if(layer&&err?.name!=='AbortError')sound();
+      });
+      return true;
+    }catch(err){
+      console.warn('Custom UR audio unavailable; using default SFX',err);
+      return false;
+    }
+  }
   const reduced=()=>window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const later=(fn,ms)=>{const id=setTimeout(()=>{timers.delete(id);fn()},ms);timers.add(id)};
   function clearTimers(){for(const id of timers)clearTimeout(id);timers.clear()}
   function end({reveal=false,restoreAudio=true}={}){
     if(reveal&&!completed){completed=true;flip?.()}
     clearTimers();
+    stopCustomAudio();
     layer?.remove();layer=null;flip=null;
     if(restoreAudio)setBgmDucking?.(1);
     if(previousFocus?.isConnected)previousFocus.focus({preventScroll:true});
@@ -137,7 +180,7 @@ export function createURCinematic({getSfxGain,getAudioContext,setBgmDucking}){
     });
     document.body.append(el);layer=el;
     setBgmDucking?.(.12);
-    sound();
+    if(!playCustomSound())sound();
     void el.offsetWidth;el.classList.add('playing');
     el.querySelector('.itm-ur-cinema-skip').focus({preventScroll:true});
     const quick=reduced();
@@ -152,5 +195,5 @@ export function createURCinematic({getSfxGain,getAudioContext,setBgmDucking}){
     },quick?100:3920);
   }
   function cancel(){end()}
-  return {start,cancel};
+  return {start,cancel,setCustomAudioUrl};
 }
