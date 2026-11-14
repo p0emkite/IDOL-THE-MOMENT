@@ -34,6 +34,9 @@ const RULES=[
 ].map(([key,cadence,category,title,description,target,reward_m,reward_xp,sort_order])=>({
  key,cadence,category,title,description,target,reward_m,reward_xp,sort_order
 }));
+const TITLE_LABELS={first_ur:'✦ FIRST UR',unique_30:'✧ MOMENT COLLECTOR',
+ pulls_200:'✧ MEMORY KEEPER',unique_50:'✦ ARCHIVE MASTER',
+ visits_30:'✦ LOYAL FAN',tasks_200:'✦ THE MOMENT MASTER'};
 const DAY_KEYS=['day_visit','day_archive','day_draw','day_view'];
 const WEEK_KEYS=['week_visit3','week_draw10','week_archive3','week_daily12'];
 const cash=n=>Number(n||0).toLocaleString('ko-KR')+' M';
@@ -68,6 +71,17 @@ const safeJourney=data=>{
 };
 export function createJourney({state,toast,visibleInventory,byId,refreshWallet,saveGuest,getPacks,onFreeDraw,onRefreshProfile}){
  let snapshot=null,updating=false,ready=false,mode=null,packSelection='';
+ let configuredRules=RULES;
+ async function loadGuestRules(){
+   if(!state.supabase)return;
+   try{
+     const {data,error}=await state.supabase.from('itm_journey_rules')
+       .select('key,cadence,category,title,description,target,reward_m,reward_xp,sort_order')
+       .eq('active',true).order('sort_order');
+     if(error)throw error;
+     if(data?.length)configuredRules=data;
+   }catch(err){console.warn('Guest mission rules fallback in use',err)}
+ }
  const guest=()=>!!state.guestMode;
  const account=()=>!!state.playerId&&!guest();
  function guestProgress(key,today,week){
@@ -100,7 +114,7 @@ export function createJourney({state,toast,visibleInventory,byId,refreshWallet,s
  function grantGuest(){
    if(!guest()||!state.guestData)return;
    const j=safeJourney(state.guestData),today=dateKST(),week=weekOf(today);
-   for(const rule of RULES){
+   for(const rule of configuredRules){
      if(guestProgress(rule.key,today,week)<rule.target)continue;
      if(rule.cadence==='achievement'){
        if(j.achievements.includes(rule.key))continue;
@@ -119,7 +133,7 @@ export function createJourney({state,toast,visibleInventory,byId,refreshWallet,s
  }
  function guestSnapshot(){
    const today=dateKST(),week=weekOf(today),j=safeJourney(state.guestData);
-   const byCadence=cadence=>RULES.filter(x=>x.cadence===cadence).map(rule=>{
+   const byCadence=cadence=>configuredRules.filter(x=>x.cadence===cadence).map(rule=>{
      const claimed=rule.cadence==='achievement'?j.achievements.includes(rule.key):
        j.claims.some(x=>x.key===rule.key&&x.period===(cadence==='daily'?today:week));
      return {...rule,claimed,progress:clamp(guestProgress(rule.key,today,week),rule.target)};
@@ -170,6 +184,7 @@ export function createJourney({state,toast,visibleInventory,byId,refreshWallet,s
  async function init(){
    if(!account()&&!guest())return;
    mode=guest()?'guest':'account';
+   if(guest())await loadGuestRules();
    await refresh({checkin:true});
  }
  function reset(){snapshot=null;ready=false;mode=null;}
@@ -214,7 +229,7 @@ export function createJourney({state,toast,visibleInventory,byId,refreshWallet,s
      desc=node('small','',item.description);
    main.append(title,desc);
    const reward=node('div','itm-journey-mission-reward');
-   reward.append(node('strong','',cash(item.reward_m)+(item.reward_xp?' · '+item.reward_xp+' XP':'')),
+   reward.append(node('strong','',cash(item.reward_m)+(item.reward_xp?' · '+item.reward_xp+' XP':'')+(TITLE_LABELS[item.key]?' · 칭호':'')),
      node('small','',item.claimed?'✓ 완료':item.progress+' / '+item.target));
    row.append(main,reward);
    const track=node('div','itm-journey-track');
