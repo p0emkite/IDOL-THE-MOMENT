@@ -857,7 +857,7 @@ function renderUrSfxStatus(){
   $('urSfxStatus').textContent=!state.admin?'관리자 로그인 후 컬렉션 음원을 설정할 수 있습니다.':
     !series?'그룹과 컬렉션을 선택해 주세요.':
     series.ur_audio_path
-      ?'['+series.name+'] UR 전용 MP3 등록됨 · 전체화면 등장 시 최대 5초 재생'
+      ?'['+series.name+'] UR 전용 MP3 등록됨 · 전체화면 등장 시 최대 7초 재생'
       :'['+series.name+'] 아직 UR 음원이 없습니다. 기존 유성 효과음은 유지됩니다.';
   accessControls();
 }
@@ -901,7 +901,7 @@ async function previewUrSfx(){
   player.addEventListener('ended',()=>{if(state.urSfxPreview===player)stopUrSfxPreview()},{once:true});
   try{
     await player.play();
-    if(state.urSfxPreview===player)state.urSfxTimer=setTimeout(stopUrSfxPreview,5000);
+    if(state.urSfxPreview===player)state.urSfxTimer=setTimeout(stopUrSfxPreview,7000);
   }catch(err){
     if(state.urSfxPreview===player)stopUrSfxPreview();
     toast('미리듣기 실패: '+(err?.message||err));
