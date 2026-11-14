@@ -872,7 +872,7 @@ async function uploadUrSfx(){
   const series=selectedUrSfxSeries(),file=$('urSfxFile').files?.[0];
   if(!series)return toast('컬렉션을 먼저 선택해 주세요.');
   if(!file)return toast('등록할 MP3 파일을 선택해 주세요.');
-  if(!/\\.mp3$/i.test(file.name)||!['audio/mpeg','audio/mp3',''].includes(file.type)||file.size<=0||file.size>15*1024*1024){
+  if(!/\.mp3$/i.test(file.name)||!['audio/mpeg','audio/mp3',''].includes(file.type)||file.size<=0||file.size>15*1024*1024){
     return toast('UR 음원은 15MB 이하의 MP3 파일만 등록할 수 있습니다.');
   }
   await withUrSfxBusy(async()=>{
