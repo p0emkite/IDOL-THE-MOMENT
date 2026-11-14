@@ -187,6 +187,64 @@ async function check(name,device){
       throw Error('Guest paid pack / inventory / XP regression');
 
   }
+  if(name==='mobile'){
+    await page.locator('#taskOpen').click();
+    await page.locator('#taskContent .itm-journey-ticket').first().waitFor({state:'attached',timeout:15000});
+    report.checks.mobileJourney=await page.evaluate(()=>{
+      const dialog=document.querySelector('#taskOverlay .itm-progress-modal');
+      const ticket=document.querySelector('.itm-journey-ticket-grid');
+      const inner=document.getElementById('taskContent');
+      return {dialogFits:dialog.getBoundingClientRect().right<=innerWidth+2,
+        contentFits:inner.scrollWidth<=inner.clientWidth+3,
+        ticketVisible:!!ticket&&ticket.getBoundingClientRect().width>0};
+    });
+    await page.screenshot({path:'qa/mobile-missions.png',fullPage:false});
+    report.screenshots.push('qa/mobile-missions.png');
+    if(!report.checks.mobileJourney.dialogFits||!report.checks.mobileJourney.contentFits||
+      !report.checks.mobileJourney.ticketVisible)throw Error('Mobile mission layout overflow');
+    await page.locator('#taskClose').click();
+  }
+  await context.close();
+}
+
+async function checkFreeTicket(){
+  // Independent guest session: verify daily ticket and a real no-M-charge pack.
+  const context=await browser.newContext({viewport:{width:1280,height:800},deviceScaleFactor:1});
+  const page=await context.newPage();
+  page.on('pageerror',err=>report.consoleErrors.push('free-ticket: '+err.message));
+  await page.goto(root,{waitUntil:'domcontentloaded',timeout:30000});
+  await page.locator('#accountOverlay.active').waitFor({state:'visible',timeout:35000});
+  await page.evaluate(()=>document.getElementById('concertIntroSkip')?.click());
+  await page.locator('#guestPlay').click({force:true,timeout:15000});
+  await page.locator('#accountOverlay.active').waitFor({state:'hidden',timeout:15000});
+  await page.locator('#taskOpen').click();
+  const ticket=page.locator('.itm-journey-ticket').first();
+  await ticket.waitFor({state:'visible',timeout:25000});
+  const before=await page.evaluate(()=>{
+    const save=JSON.parse(localStorage.getItem('itm-guest-save-v2'));
+    const cards=JSON.parse(localStorage.getItem('itm-live-card-inventory-v1')||'{}');
+    return {balance:save.balance,tickets:Number(save.journey?.tickets?.['1']||0),
+      count:Object.values(cards).reduce((n,v)=>n+Number(v||0),0)};
+  });
+  await page.screenshot({path:'qa/desktop-free-ticket.png',fullPage:false});
+  report.screenshots.push('qa/desktop-free-ticket.png');
+  if(before.tickets!==1)throw Error('Initial free single-card ticket was not awarded');
+  await ticket.locator('button').click();
+  await page.waitForFunction(count=>{
+    const cards=JSON.parse(localStorage.getItem('itm-live-card-inventory-v1')||'{}');
+    return Object.values(cards).reduce((n,v)=>n+Number(v||0),0)>count;
+  },before.count,{timeout:30000,polling:250});
+  const after=await page.evaluate(()=>{
+    const save=JSON.parse(localStorage.getItem('itm-guest-save-v2'));
+    const cards=JSON.parse(localStorage.getItem('itm-live-card-inventory-v1')||'{}');
+    return {balance:save.balance,tickets:Number(save.journey?.tickets?.['1']||0),
+      count:Object.values(cards).reduce((n,v)=>n+Number(v||0),0),
+      drawTracked:save.journey?.events?.some(x=>x.kind==='draw')};
+  });
+  report.checks.freeTicket={before,after};
+  if(after.tickets!==0||after.count!==before.count+1||
+     after.balance<before.balance||!after.drawTracked)
+    throw Error('Free ticket pack did not grant a card without spending M');
   await context.close();
 }
 
@@ -305,6 +363,7 @@ try{
  await checkStudio();
  await checkFrameTemplates();
  await check('desktop',{width:1680,height:940});
+ await checkFreeTicket();
  await check('mobile',{width:390,height:844});
  await check('landscape',{width:844,height:390});
 }finally{
@@ -333,3 +392,4 @@ if(report.checks.desktop?.soundDefault?.enabled!==true||
  report.checks.desktop?.soundDefault?.guestUploadHidden!==true)process.exitCode=1;
 if(!report.checks.desktopGuestInbox?.visible||!report.checks.landscapeGuestInbox?.visible)process.exitCode=1;
 if(!report.checks.guestDraw?.ownedCount||!report.checks.desktopProfileMissionUI?.cropVisible)process.exitCode=1;
+if(report.checks.freeTicket?.after?.tickets!==0||!report.checks.freeTicket?.after?.drawTracked)process.exitCode=1;
