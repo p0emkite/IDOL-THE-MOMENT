@@ -4,8 +4,8 @@ import {createURCinematic} from './ur-cinematic.js?v=ur-seven-seconds-20261114';
 import {createRarityRevealAccents} from './rarity-accents.js?v=20261108-v3';
 import {createOpeningEffects} from './opening-effects.js';
 import {renderITMCard} from './card-frame.js?v=ur-photo-window-20261105';
-import {createPlayerSystems} from './player-systems.js?v=journey-20261115';
-import {readGuestSave,writeGuestSave,grantGuestMail,grantGuestDraw} from './guest-state.js?v=journey-20261115';
+import {createPlayerSystems} from './player-systems.js?v=journey-final-20261115-v2';
+import {readGuestSave,writeGuestSave,grantGuestMail,grantGuestDraw} from './guest-state.js?v=journey-final-20261115-v2';
 /* ITM — IDOL : THE MOMENT | Standalone, fan-made 3D prototype
    3D library is loaded from a pinned public ESM CDN; there is no build step.
    Offline demo cards are mock identities and stored only in localStorage.
