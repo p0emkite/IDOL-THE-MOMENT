@@ -40,7 +40,7 @@ const state={
   photoFile:null,fullArtFile:null,groupLogoFile:null,packFile:null,packImagePath:null,
   photoImage:null,groupImage:null,groupEditorImage:null,
   imagePath:null,fullArtPath:null,
-  currentGroup:null,renderQueued:false,saving:false,previewCanvas:null,
+  currentGroup:null,renderQueued:false,saving:false,journeyRulesBusy:false,previewCanvas:null,
   pictureCache:new Map()
 };
 let toastTimer=null;
@@ -831,7 +831,7 @@ async function loadJourneyRules(){
     const reward=number('보상 M',rule.reward_m,100000);
     const xp=number('경험치',rule.reward_xp,100000);
     const activeLabel=document.createElement('label');activeLabel.className='journey-rule-active';
-    const active=document.createElement('input');active.type='checkbox';active.checked=rule.active;
+    const active=document.createElement('input');active.type='checkbox';active.checked=rule.active;active.disabled=!state.admin;
     activeLabel.append(active,document.createTextNode('사용'));fields.append(activeLabel);
     const save=document.createElement('button');save.type='button';save.className='soft-btn';
     save.textContent='저장';save.disabled=!state.admin;
