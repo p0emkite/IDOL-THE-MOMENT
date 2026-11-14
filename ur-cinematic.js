@@ -50,7 +50,7 @@ export function createURCinematic({getSfxGain,getAudioContext,setBgmDucking}){
       source.connect(amp).connect(ctx.destination);
       source.onended=()=>{if(customSource===source){customSource=null;source.disconnect();amp.disconnect()}};
       customSource=source;
-      source.start(ctx.currentTime,0,Math.min(5,buffer.duration));
+      source.start(ctx.currentTime,0,Math.min(7,buffer.duration));
       return true;
     }catch(err){console.warn('UR collection audio playback failed',err);return false}
   }
