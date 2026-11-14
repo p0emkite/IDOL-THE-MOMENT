@@ -36,7 +36,7 @@ function setPackOdds(odds=DEFAULT_PACK_ODDS){
   syncPackOddsValidation();
 }
 const state={
-  client:null,admin:false,logged:false,groups:[],members:[],cards:[],series:[],packs:[],bgmTracks:[],bgmBusy:false,urSfxBusy:false,urSfxPreview:null,urSfxTimer:0,editingId:null,
+  client:null,admin:false,logged:false,groups:[],members:[],cards:[],series:[],packs:[],bgmTracks:[],bgmBusy:false,urSfxBusy:false,journeyRulesBusy:false,urSfxPreview:null,urSfxTimer:0,editingId:null,
   photoFile:null,fullArtFile:null,groupLogoFile:null,packFile:null,packImagePath:null,
   photoImage:null,groupImage:null,groupEditorImage:null,
   imagePath:null,fullArtPath:null,
@@ -77,6 +77,7 @@ function accessControls(){
   $('urSfxPreview').disabled=!allowed||state.urSfxBusy||!urSelected?.ur_audio_path;
   $('urSfxDelete').disabled=!allowed||state.urSfxBusy||!urSelected?.ur_audio_path;
   $('urSfxRefresh').disabled=!allowed||state.urSfxBusy;
+  $('journeyRulesRefresh').disabled=!allowed||state.journeyRulesBusy;
   $('deletePack').disabled=!allowed||!$('packPicker').value;
   refreshDeleteControls();
   studioExtras.permission();
@@ -792,6 +793,67 @@ function bindDrag(){
     updateCropLabels();queuePreview();
   },{passive:false});
 }
+async function loadJourneyRules(){
+  const list=$('journeyRulesEditor');list.replaceChildren();
+  if(!state.client||!state.admin){
+    $('journeyRulesStatus').textContent='관리자 로그인 후 미션·업적 규칙을 설정할 수 있습니다.';
+    return;
+  }
+  const {data,error}=await state.client.from('itm_journey_rules')
+    .select('key,cadence,category,title,description,target,reward_m,reward_xp,sort_order,active')
+    .order('cadence').order('sort_order');
+  if(error){
+    $('journeyRulesStatus').textContent='규칙을 불러오지 못했습니다: '+error.message;
+    return;
+  }
+  $('journeyRulesStatus').textContent=(data||[]).length+'개 규칙 · 수정한 항목에서 저장을 눌러 적용하세요.';
+  const groupLabels={achievement:'영구 업적',daily:'일일 미션',weekly:'주간 미션'};
+  let lastCadence=null;
+  for(const rule of data||[]){
+    if(rule.cadence!==lastCadence){
+      lastCadence=rule.cadence;
+      const heading=document.createElement('h3');heading.className='journey-rule-heading';
+      heading.textContent=groupLabels[rule.cadence]||rule.cadence;list.append(heading);
+    }
+    const row=document.createElement('div');row.className='journey-rule-row';
+    const info=document.createElement('div');info.className='journey-rule-info';
+    const title=document.createElement('strong');title.textContent=rule.title;
+    const desc=document.createElement('small');desc.textContent=rule.description+' · '+rule.key;
+    info.append(title,desc);row.append(info);
+    const fields=document.createElement('div');fields.className='journey-rule-fields';
+    const number=(name,value,max)=>{
+      const label=document.createElement('label');label.textContent=name;
+      const input=document.createElement('input');input.type='number';input.value=String(value);
+      input.min=name==='목표'?'1':'0';input.max=String(max);input.step='1';input.disabled=!state.admin;
+      label.append(input);fields.append(label);return input;
+    };
+    const target=number('목표',rule.target,10000);
+    const reward=number('보상 M',rule.reward_m,100000);
+    const xp=number('경험치',rule.reward_xp,100000);
+    const activeLabel=document.createElement('label');activeLabel.className='journey-rule-active';
+    const active=document.createElement('input');active.type='checkbox';active.checked=rule.active;
+    activeLabel.append(active,document.createTextNode('사용'));fields.append(activeLabel);
+    const save=document.createElement('button');save.type='button';save.className='soft-btn';
+    save.textContent='저장';save.disabled=!state.admin;
+    save.onclick=async()=>{
+      if(!state.admin||state.journeyRulesBusy)return;
+      const t=Number(target.value),m=Number(reward.value),x=Number(xp.value);
+      if(![t,m,x].every(Number.isSafeInteger)||t<1||t>10000||m<0||m>100000||x<0||x>100000)
+        return toast('목표, 보상 M 및 경험치 값을 확인해 주세요.');
+      state.journeyRulesBusy=true;save.disabled=true;accessControls();
+      try{
+        const {error}=await state.client.rpc('itm_admin_update_journey_rule',{
+          p_key:rule.key,p_target:t,p_reward_m:m,p_reward_xp:x,p_active:active.checked
+        });
+        if(error)throw error;
+        toast('['+rule.title+'] 규칙을 저장했습니다.');
+        await loadJourneyRules();
+      }catch(err){toast('규칙 저장 실패: '+err.message)}
+      finally{state.journeyRulesBusy=false;accessControls();}
+    };
+    fields.append(save);row.append(fields);list.append(row);
+  }
+}
 async function refreshAccess(){
   try{
     const {data,error}=await state.client.auth.getSession();
@@ -804,7 +866,7 @@ async function refreshAccess(){
       if(permission.error)throw permission.error;
       state.admin=!!permission.data;
     }
-    accessControls();await Promise.all([loadCatalog(),loadBgmCatalog()]);await studioExtras.load();
+    accessControls();await Promise.all([loadCatalog(),loadBgmCatalog(),loadJourneyRules()]);await studioExtras.load();
   }catch(err){setAuthState('오류');toast('스튜디오 연결 오류: '+(err?.message||err))}
 }
 async function signIn(event){
@@ -1032,6 +1094,7 @@ function bind(){
   $('urSfxGroup').onchange=onUrSfxGroupChange;
   $('urSfxSeries').onchange=()=>{$('urSfxFile').value='';stopUrSfxPreview();renderUrSfxStatus();};
   $('bgmRefresh').onclick=()=>loadBgmCatalog();
+  $('journeyRulesRefresh').onclick=()=>loadJourneyRules();
   $('studioLogout').onclick=signOut;
   $('groupForm').onsubmit=saveGroup;
   $('deleteGroup').onclick=deleteGroup;
