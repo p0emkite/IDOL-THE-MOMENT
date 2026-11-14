@@ -15,7 +15,8 @@ export function freshGuestSave(){
     }],
     profile:{nickname:'GUEST',avatar_card_id:null,avatar_zoom:1,avatar_x:0,avatar_y:0,
       selected_frame_id:null,birthday_month:null,birthday_day:null,experience:0,level:1},
-    claims:[],unlockedFrames:[],awards:[]
+    claims:[],unlockedFrames:[],awards:[],
+    journey:{checkins:[],events:[],claims:[],achievements:[],tickets:{1:0,3:0,5:0,11:0}}
   };
 }
 export function readGuestSave(){
@@ -30,7 +31,14 @@ export function readGuestSave(){
       profile:{...freshGuestSave().profile,...(input.profile&&typeof input.profile==='object'?input.profile:{})},
       claims:Array.isArray(input.claims)?input.claims.filter(v=>typeof v==='string'):[],
       unlockedFrames:Array.isArray(input.unlockedFrames)?input.unlockedFrames.filter(v=>typeof v==='string'):[],
-      awards:Array.isArray(input.awards)?input.awards.filter(v=>typeof v==='string'):[]
+      awards:Array.isArray(input.awards)?input.awards.filter(v=>typeof v==='string'):[],
+      journey:input.journey&&typeof input.journey==='object'?{
+        checkins:Array.isArray(input.journey.checkins)?input.journey.checkins:[],
+        events:Array.isArray(input.journey.events)?input.journey.events:[],
+        claims:Array.isArray(input.journey.claims)?input.journey.claims:[],
+        achievements:Array.isArray(input.journey.achievements)?input.journey.achievements:[],
+        tickets:{1:0,3:0,5:0,11:0,...(input.journey.tickets||{})}
+      }:freshGuestSave().journey
     };
   }catch(err){console.warn('Guest save could not be read',err);return freshGuestSave()}
 }
@@ -46,8 +54,8 @@ export function grantGuestMail(save,mailId){
   save.balance+=Math.max(0,Number(mail.reward_m)||0);
   return true;
 }
-export function grantGuestDraw(save,count,cards,before,after,catalog){
-  const price=count===11?1000:count*100;
+export function grantGuestDraw(save,count,cards,before,after,catalog,{freeTicket=false}={}){
+  const price=freeTicket?0:count===11?1000:count*100;
   if(save.balance<price)throw Error('INSUFFICIENT_M');
   save.balance-=price;
   const known=new Set(Object.entries(before).filter(([,v])=>Number(v)>0).map(([id])=>id));
