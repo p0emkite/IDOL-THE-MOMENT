@@ -14,7 +14,7 @@ export function freshGuestSave(){
       reward_m:5000,created_at:new Date().toISOString(),read_at:null,claimed_at:null
     }],
     profile:{nickname:'GUEST',avatar_card_id:null,avatar_zoom:1,avatar_x:0,avatar_y:0,
-      selected_frame_id:null,birthday_month:null,birthday_day:null,experience:0,level:1},
+      selected_frame_id:null,selected_title_key:null,birthday_month:null,birthday_day:null,experience:0,level:1},
     claims:[],unlockedFrames:[],awards:[],
     journey:{checkins:[],events:[],claims:[],achievements:[],tickets:{1:0,3:0,5:0,11:0}}
   };
