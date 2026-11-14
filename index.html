@@ -232,6 +232,7 @@
               </div>
               <div class="itm-player-heading">
                 <h3 id="profileDisplayName">ITM PLAYER</h3>
+                <span id="profileJourneyTitle" class="itm-journey-selected-title" hidden></span>
                 <p id="profileAccountId">ITM ID · @PLAYER</p>
                 <div class="itm-xp-track"><div class="itm-xp-fill" id="profileXpBar"></div></div>
                 <small id="profileExperience">0 XP</small>
@@ -259,6 +260,12 @@
                 </div>
               </form>
             </div>
+            <details class="itm-profile-details">
+              <summary>업적으로 획득한 칭호 설정</summary>
+              <label class="itm-journey-title-label" for="profileJourneyTitleSelect">프로필 칭호</label>
+              <select id="profileJourneyTitleSelect" class="itm-journey-title-select"><option value="">칭호 없음</option></select>
+              <small class="itm-journey-note">달성한 특별 업적의 칭호만 선택할 수 있습니다.</small>
+            </details>
             <details class="itm-profile-details">
               <summary>수집한 카드로 프로필 사진 변경</summary>
               <div id="profileCardChoices" class="itm-profile-card-grid"></div>
