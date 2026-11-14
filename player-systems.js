@@ -1,7 +1,7 @@
 /* ITM player profile, collections, missions and celebrations.
  * Registered users use the server. Guest data is local to this browser only. */
 import {syncGuestAchievements,awardGuestAnniversaries,guestFrameKey,writeGuestSave} from './guest-state.js?v=journey-20261115';
-import {createJourney} from './journey.js?v=20261115-v1';
+import {createJourney} from './journey.js?v=20261115-final-v2';
 export function createPlayerSystems({state,$,toast,refreshWallet,refreshMailbox,visibleInventory,byId,makeCardArt,assetUrl,getPacks,onFreeDraw}){
   const RATINGS=['N','R','SR','SSR','UR'];
   const REWARDS={N:100,R:300,SR:500,SSR:1000,UR:3000,ALL:0};
