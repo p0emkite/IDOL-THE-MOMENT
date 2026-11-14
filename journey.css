@@ -1,0 +1,51 @@
+/* ITM JOURNEY — mission, attendance, ticket and achievement UI. */
+.itm-journey-section-head,.itm-journey-progress-header{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:8px 0 13px}
+.itm-journey-section-head h3,.itm-journey-progress-header h3,.itm-journey-tickets h3{font-size:15px;color:#f9e6ff;margin:0;letter-spacing:.01em}
+.itm-journey-section-head small,.itm-journey-progress-header span{font-size:11px;color:#c6a6db;text-align:right}
+.itm-journey-days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:7px;margin-bottom:10px}
+.itm-journey-day{padding:12px 3px 10px;display:flex;flex-direction:column;gap:5px;align-items:center;justify-content:center;text-align:center;border-radius:11px;border:1px solid #cfa1f437;background:linear-gradient(135deg,#3e2552a1,#1a1028);min-width:0}
+.itm-journey-day strong{font-size:11px;color:#f1c6ee}
+.itm-journey-day span{font-weight:900;font-size:clamp(12px,1.5vw,17px);color:#fff5d7;white-space:nowrap}
+.itm-journey-day small{font-size:10px;color:#dcc5e9;white-space:nowrap}
+.itm-journey-day.is-current{border-color:#ffb4e5;box-shadow:0 0 0 1px #d7b0ff7f,inset 0 0 24px #ffa2df24;background:linear-gradient(150deg,#643a77,#271432)}
+.itm-journey-note{font-size:11px;line-height:1.6;color:#bcaacb;margin:9px 0 16px}
+.itm-journey-tickets{margin:18px 0 25px;padding:16px;border:1px solid #ffcae54c;border-radius:15px;background:linear-gradient(120deg,#4c2b584a,#22152e66)}
+.itm-journey-pack-label{display:flex;align-items:center;gap:12px;font-size:11px;color:#dfc8eb;margin:13px 0}
+.itm-journey-pack{flex:1;min-width:0;border-radius:9px;border:1px solid #cfb5e060;background:#180d25;color:#f7ebff;min-height:39px;padding:7px 10px}
+.itm-journey-ticket-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.itm-journey-ticket{display:flex;flex-direction:column;gap:6px;align-items:center;text-align:center;padding:13px 6px 9px;min-width:0;border:1px solid #bc95d947;border-radius:10px;background:#190f29c9}
+.itm-journey-ticket b{color:#ffe0b6;font-size:16px}
+.itm-journey-ticket small{font-size:11px;color:#dbbee8}
+.itm-journey-ticket button{cursor:pointer;color:#301b38;background:linear-gradient(110deg,#ffb2e0,#ddc0ff);border:0;border-radius:8px;padding:8px 7px;font-weight:900;font-size:11px;min-width:0;width:100%;margin-top:3px}
+.itm-journey-ticket button:disabled{opacity:.35;cursor:not-allowed}
+.itm-journey-overall{height:8px;border-radius:100px;background:#302039;overflow:hidden}
+.itm-journey-overall>div{height:100%;background:linear-gradient(90deg,#d78cff,#ffaee2,#ffe5a2);border-radius:inherit;transition:width .28s}
+.itm-journey-mission{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 12px;padding:14px 14px 13px;margin:8px 0;border-radius:12px;background:#ffffff0a;border:1px solid #dab2ee28;align-items:center}
+.itm-journey-mission.done{background:#8cdbad09;border-color:#9beabb36}
+.itm-journey-mission-main{min-width:0;display:flex;flex-direction:column;gap:4px}
+.itm-journey-mission-main strong{font-size:13px;color:#f8e9ff}
+.itm-journey-mission-main small{font-size:11px;color:#bbaaca;line-height:1.4}
+.itm-journey-mission-reward{display:flex;flex-direction:column;gap:4px;align-items:flex-end;text-align:right}
+.itm-journey-mission-reward strong{color:#ffe0a6;font-size:12px;white-space:nowrap}
+.itm-journey-mission-reward small{font-size:11px;color:#ceb4e2}
+.itm-journey-mission.done .itm-journey-mission-reward small{color:#9ee2b1}
+.itm-journey-track{grid-column:1/-1;height:4px;overflow:hidden;border-radius:12px;background:#6c518052}
+.itm-journey-track-fill{height:100%;border-radius:inherit;background:linear-gradient(90deg,#bb84f1,#ffc6e2);transition:width .3s}
+.itm-journey-achievement-group{border:1px solid #c8a4d44f;border-radius:13px;margin:10px 0;padding:0 11px 9px;background:#ffffff07}
+.itm-journey-achievement-group>summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:17px 8px;color:#f8dfff}
+.itm-journey-achievement-group>summary::-webkit-details-marker{display:none}
+.itm-journey-achievement-group>summary:before{content:'▸';margin-right:1px;color:#d5a0f2}
+.itm-journey-achievement-group[open]>summary:before{content:'▾'}
+.itm-journey-achievement-group>summary>strong{flex:1;font-size:14px}
+.itm-journey-achievement-group>summary>small{font-size:11px;color:#c5acce}
+.itm-journey-achievement-group>.itm-journey-note{margin:0 5px 9px}
+.itm-journey-achievement-group>.itm-achievement-collection{margin:8px 0}
+@media(max-width:700px){
+ .itm-journey-days{grid-template-columns:repeat(4,minmax(0,1fr))}
+ .itm-journey-ticket-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .itm-journey-day span{font-size:14px}
+ .itm-journey-pack-label{display:block}
+ .itm-journey-pack{display:block;width:100%;margin-top:6px}
+ .itm-journey-mission{padding:12px 10px}
+ .itm-journey-mission-reward strong{font-size:11px}
+}
