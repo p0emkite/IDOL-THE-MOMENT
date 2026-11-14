@@ -154,3 +154,8 @@ input[type=range]{width:100%;accent-color:#e5a2e9;margin:0 0 15px}.range-control
 .bgm-track>label input{font-size:13px;width:100%;min-width:0}
 .bgm-track-actions{grid-column:2;display:flex;flex-wrap:wrap;gap:6px}
 .bgm-track-actions .soft-btn{padding:8px 12px;font-size:11px}
+.ur-sfx-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:12px 0 0}
+.ur-sfx-actions .action{flex:0 0 auto}
+#urSfxStatus{margin:12px 0 0}
+@media(max-width:550px){.ur-sfx-actions .action{width:100%}.ur-sfx-actions .soft-btn{flex:1}}
+
