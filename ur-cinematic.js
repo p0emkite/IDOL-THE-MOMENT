@@ -2,48 +2,59 @@
 export function createURCinematic({getSfxGain,getAudioContext,setBgmDucking}){
   const timers=new Set();
   let layer=null,completed=false,flip=null,previousFocus=null;
-  let customAudio=null,customAudioTimer=0,customAudioSerial=0;
+  let customSource=null,customAudioSerial=0,customUrl=null;
+  const bufferCache=new Map();
   function stopCustomAudio(){
     customAudioSerial++;
-    clearTimeout(customAudioTimer);customAudioTimer=0;
-    if(customAudio){
-      customAudio.pause();
-      try{customAudio.currentTime=0}catch{}
-    }
+    if(customSource){try{customSource.stop()}catch{}customSource.disconnect();customSource=null}
   }
-  // The admin-uploaded effect is optional. Preload as soon as the backend is ready,
-  // but keep the original synthesized fanfare as a fallback for missing/broken files.
+  // Called synchronously from the actual UR-card click: unlock WebAudio on iOS
+  // and begin fetching the selected collection's clip during the blackout.
   function setCustomAudioUrl(url){
     stopCustomAudio();
-    customAudio=null;
-    if(!url)return;
-    customAudio=new Audio(url);
-    customAudio.preload='auto';
-    customAudio.load();
-  }
-  function playCustomSound(){
-    const gain=Math.max(0,Math.min(1,getSfxGain?.()??0));
-    if(!customAudio||customAudio.error||gain<.001)return false;
-    stopCustomAudio();
-    const player=customAudio,serial=customAudioSerial;
-    player.volume=gain;
+    customUrl=url||null;
+    if(!customUrl)return;
     try{
-      const request=player.play();
-      Promise.resolve(request).then(()=>{
-        if(customAudioSerial!==serial)return;
-        // Count five seconds of actual playback, not initial buffering.
-        customAudioTimer=setTimeout(()=>{if(customAudioSerial===serial)stopCustomAudio()},5000);
-      }).catch(err=>{
-        if(customAudioSerial!==serial)return;
-        stopCustomAudio();
-        if(layer&&err?.name!=='AbortError')sound();
-      });
-      return true;
-    }catch(err){
-      console.warn('Custom UR audio unavailable; using default SFX',err);
-      return false;
-    }
+      const ctx=getAudioContext?.();
+      if(!ctx)return;
+      void ctx.resume().catch(()=>{});
+      if(!bufferCache.has(customUrl)){
+        const requestedUrl=customUrl;
+        const task=fetch(requestedUrl).then(response=>{
+          if(!response.ok)throw Error('UR MP3 HTTP '+response.status);
+          return response.arrayBuffer();
+        }).then(bytes=>ctx.decodeAudioData(bytes));
+        bufferCache.set(requestedUrl,task);
+        // Allow a retry if the request fails.
+        void task.catch(err=>{bufferCache.delete(requestedUrl);console.warn('UR collection audio preload failed',err)});
+      }
+      if(bufferCache.size>12)bufferCache.delete(bufferCache.keys().next().value);
+    }catch(err){console.warn('UR collection audio setup unavailable',err)}
   }
+  // Triggered only when the full-screen UR artwork actually appears, NOT
+  // when the later meteor card flip/impact begins.
+  async function playCustomSound(){
+    if(!customUrl)return false;
+    const gain=Math.max(0,Math.min(1,getSfxGain?.()??0));
+    if(gain<.001)return false;
+    stopCustomAudio();
+    const url=customUrl,serial=customAudioSerial;
+    try{
+      const ctx=getAudioContext?.(),buffer=await bufferCache.get(url);
+      if(!ctx||!buffer||serial!==customAudioSerial||url!==customUrl)return false;
+      if(ctx.state!=='running')await ctx.resume();
+      if(serial!==customAudioSerial||url!==customUrl)return false;
+      const source=ctx.createBufferSource(),amp=ctx.createGain();
+      source.buffer=buffer;
+      amp.gain.value=gain*.8;
+      source.connect(amp).connect(ctx.destination);
+      source.onended=()=>{if(customSource===source){customSource=null;source.disconnect();amp.disconnect()}};
+      customSource=source;
+      source.start(ctx.currentTime,0,Math.min(5,buffer.duration));
+      return true;
+    }catch(err){console.warn('UR collection audio playback failed',err);return false}
+  }
+  function stopCustomSound(){stopCustomAudio()}
   const reduced=()=>window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const later=(fn,ms)=>{const id=setTimeout(()=>{timers.delete(id);fn()},ms);timers.add(id)};
   function clearTimers(){for(const id of timers)clearTimeout(id);timers.clear()}
@@ -180,7 +191,8 @@ export function createURCinematic({getSfxGain,getAudioContext,setBgmDucking}){
     });
     document.body.append(el);layer=el;
     setBgmDucking?.(.12);
-    if(!playCustomSound())sound();
+    // Keep only the original meteor impact effects here; custom music plays on the prior full-screen splash.
+    sound();
     void el.offsetWidth;el.classList.add('playing');
     el.querySelector('.itm-ur-cinema-skip').focus({preventScroll:true});
     const quick=reduced();
@@ -195,5 +207,5 @@ export function createURCinematic({getSfxGain,getAudioContext,setBgmDucking}){
     },quick?100:3920);
   }
   function cancel(){end()}
-  return {start,cancel,setCustomAudioUrl};
+  return {start,cancel,setCustomAudioUrl,playCustomSound,stopCustomSound};
 }
