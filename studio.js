@@ -438,11 +438,17 @@ async function deleteGroup(){
     toast('그룹 삭제 불가: 카드 '+cardCount+'장, 멤버 '+memberCount+'명, 연결된 팩 '+packCount+'개를 먼저 정리해 주세요.');
     return;
   }
-  const seriesCount=state.series.filter(s=>s.group_slug===slug).length;
+  const groupSeries=state.series.filter(s=>s.group_slug===slug);
+  const seriesCount=groupSeries.length;
   if(!confirm('그룹 ['+group.name+']을 삭제할까요? 해당 그룹의 미사용 컬렉션 '+seriesCount+'개도 함께 삭제됩니다. 이 작업은 되돌릴 수 없습니다.'))return;
   state.saving=true;accessControls();
   try{
     await removeStoredRow('itm_groups','slug',slug);
+    const clips=groupSeries.map(item=>item.ur_audio_path).filter(Boolean);
+    if(clips.length){
+      const {error}=await state.client.storage.from(UR_SFX_BUCKET).remove(clips);
+      if(error)console.warn('Deleted group UR sound cleanup failed',error.message);
+    }
     await loadCatalog();newGroup();
     toast('그룹과 미사용 컬렉션을 삭제했습니다. 기존 업로드 이미지 원본은 보존됩니다.');
   }catch(err){toast(deleteFailure('그룹',err))}
@@ -479,6 +485,10 @@ async function deleteSeriesById(id){
   state.saving=true;accessControls();
   try{
     await removeStoredRow('itm_series','id',id);
+    if(series.ur_audio_path){
+      const {error}=await state.client.storage.from(UR_SFX_BUCKET).remove([series.ur_audio_path]);
+      if(error)console.warn('Deleted collection UR sound cleanup failed',error.message);
+    }
     const activeCard=state.cards.find(card=>card.id===state.editingId);
     if($('cardGroup').value===groupSlug&&$('cardEdition').value.trim()===name&&
        !(activeCard&&activeCard.group_slug===groupSlug&&activeCard.edition===name)){
