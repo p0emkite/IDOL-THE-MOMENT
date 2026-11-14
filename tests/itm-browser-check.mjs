@@ -58,9 +58,12 @@ async function check(name,device){
       welcome:document.getElementById('mailList').textContent.includes('환영합니다'),
       adminHidden:document.getElementById('mailAdminPanel').hidden
     }));
+    const welcomeBefore=await page.evaluate(()=>JSON.parse(localStorage.getItem('itm-guest-save-v2')).balance);
     await page.locator('#mailList summary').first().click();
     await page.locator('#mailList .itm-mail-claim').first().click();
-    await page.waitForFunction(()=>document.getElementById('walletBalance').textContent.includes('5,000 M'),null,{timeout:20000});
+    // Attendance + daily mission credits precede the historical 5,000 M welcome mail.
+    await page.waitForFunction(before=>JSON.parse(localStorage.getItem('itm-guest-save-v2')).balance>=before+5000,
+      welcomeBefore,{timeout:20000,polling:250});
     await page.locator('#mailClose').click();
     report.checks[name+'GuestInbox']={...inbox,balance:await page.locator('#walletBalance').textContent()};
     if(!inbox.visible||!inbox.welcome||!inbox.adminHidden)
@@ -68,6 +71,12 @@ async function check(name,device){
   }
   if(name==='desktop'){
     await page.locator('#taskOpen').click();
+    await page.locator('#taskContent .itm-journey-day').first().waitFor({state:'attached',timeout:20000});
+    const daily=await page.locator('#taskContent').textContent();
+    const dayTickets=await page.evaluate(()=>{
+      const save=JSON.parse(localStorage.getItem('itm-guest-save-v2'));
+      return {checkins:save.journey?.checkins?.length||0,freeOne:Number(save.journey?.tickets?.['1']||0)};
+    });
     const open=await page.locator('#taskOverlay').evaluate(el=>el.classList.contains('active'));
     await page.locator('#taskTabWeekly').click();
     const weekly=await page.locator('#taskContent').textContent();
@@ -82,9 +91,10 @@ async function check(name,device){
       switchAllowed:!document.getElementById('guestSignIn').hidden,
       circular:getComputedStyle(document.getElementById('profileAvatar')).borderRadius==='50%',
       cropExists:!!document.getElementById('avatarCropViewport'),
-      levelUpExists:!!document.getElementById('levelUpOverlay')
+      levelUpExists:!!document.getElementById('levelUpOverlay'),
+      titlePickerExists:!!document.getElementById('profileJourneyTitleSelect')
     }));
-    await page.locator('.itm-profile-details summary').first().click();
+    await page.locator('details:has(#profileCardChoices) > summary').click();
     await page.locator('#profileCardChoices button').first().click();
     const cropVisible=await page.locator('#avatarCropOverlay').evaluate(el=>!el.hidden);
     await page.evaluate(()=>{const el=document.getElementById('avatarCropZoom');el.value='1.35';el.dispatchEvent(new Event('input',{bubbles:true}))});
@@ -98,29 +108,45 @@ async function check(name,device){
       accountIdSeparate:document.getElementById('accountUsername')!==document.getElementById('accountNickname')
     }));
     await page.locator('#accountClose').click();
-    report.checks.desktopProfileMissionUI={open,weeklyPlaceholder:weekly.includes('준비 중'),
-      guestAchievementVisible:achievements.includes('IVE'),guestProfile,cropVisible,cropZoom,signup};
-    if(!open||!weekly.includes('준비 중')||!achievements.includes('IVE')||
+    report.checks.desktopProfileMissionUI={open,dailyActive:daily.includes('오늘의 방문'),
+      weeklyActive:weekly.includes('꾸준한 방문자'),
+      achievementActive:achievements.includes('수집 여정')&&achievements.includes('기존 컬렉션 완성 업적'),
+      dayTickets,guestProfile,cropVisible,cropZoom,signup};
+    if(!open||!report.checks.desktopProfileMissionUI.dailyActive||
+       !report.checks.desktopProfileMissionUI.weeklyActive||
+       !report.checks.desktopProfileMissionUI.achievementActive||
+       dayTickets.checkins!==1||dayTickets.freeOne!==1||
        !guestProfile.profileVisible||!guestProfile.nicknameHidden||!guestProfile.switchAllowed||
        !guestProfile.circular||!guestProfile.cropExists||!guestProfile.levelUpExists||
-       !cropVisible||cropZoom!=='135%'||
+       !guestProfile.titlePickerExists||!cropVisible||cropZoom!=='135%'||
        !signup.nicknameVisible||!signup.nicknameRequired||!signup.accountIdSeparate)
-      throw Error('Guest profile/mission/crop regression');
+      throw Error('Guest missions/free tickets/profile regression');
 
-    // Root-level archive sections: group / collection / member are siblings.
+    // Progressive archive: group only at first; series and members appear on demand.
     await page.locator('#collectionOpen').click();
-    await page.locator('#collectionGrid > details.collection-accordion').first().waitFor({state:'attached',timeout:25000});
-    report.checks.flatArchive=await page.evaluate(()=>{
-      const root=document.getElementById('collectionGrid');
-      const sections=[...root.querySelectorAll(':scope > details.collection-accordion')];
-      const nested=root.querySelectorAll('details.collection-accordion details.collection-accordion').length;
-      return {sections:sections.length,nested,
-        classes:sections.map(x=>[...x.classList].find(c=>c.startsWith('level-')))};
-    });
+    const groupRow=page.locator('#collectionGrid > details.collection-accordion.level-group').first();
+    await groupRow.waitFor({state:'attached',timeout:25000});
+    const collapsed=await page.locator('#collectionGrid').evaluate(el=>({
+      groupCount:el.querySelectorAll(':scope > details.level-group').length,
+      rootSeries:el.querySelectorAll(':scope > details.level-series').length,
+      rootMembers:el.querySelectorAll(':scope > details.level-member').length
+    }));
+    await groupRow.locator(':scope > summary').click();
+    const seriesRow=groupRow.locator('.collection-accordion-children > details.level-series').first();
+    await seriesRow.waitFor({state:'attached',timeout:12000});
+    await seriesRow.locator(':scope > summary').click();
+    const memberRow=seriesRow.locator('.collection-accordion-children > details.level-member').first();
+    await memberRow.waitFor({state:'attached',timeout:12000});
+    await memberRow.locator(':scope > summary').click();
+    const cardShelf=memberRow.locator('.collection-card-shelf');
+    await cardShelf.waitFor({state:'attached',timeout:12000});
+    report.checks.nestedArchive={...collapsed,seriesCount:await groupRow.locator('details.level-series').count(),
+      memberCount:await seriesRow.locator('details.level-member').count(),
+      cardCount:await cardShelf.locator('button, img').count()};
     await page.locator('#collectionClose').click();
-    if(report.checks.flatArchive.sections<3||report.checks.flatArchive.nested!==0||
-       !['level-group','level-series','level-member'].every(c=>report.checks.flatArchive.classes.includes(c)))
-       throw Error('Archive sections must be siblings at the same level');
+    if(collapsed.groupCount<1||collapsed.rootSeries||collapsed.rootMembers||
+       report.checks.nestedArchive.seriesCount<1||report.checks.nestedArchive.memberCount<1)
+       throw Error('Collection archive must progressively reveal group → collection → members');
 
     report.checks.pullButtonFit=await page.evaluate(()=>['drawOne','drawFive','drawEleven'].map(id=>{
       const button=document.getElementById(id),name=button.querySelector('.itm-draw-name'),
@@ -132,27 +158,34 @@ async function check(name,device){
     }));
     if(report.checks.pullButtonFit.some(b=>!b.fit))throw Error('Draw button labels overflow');
 
-    // Test a real guest pull, including local M debit and on-device inventory.
-    await page.locator('#drawOne').click({timeout:12000});
-    await page.waitForFunction(()=>{
-      const raw=localStorage.getItem('itm-guest-save-v2');
-      const save=raw&&JSON.parse(raw);
+    // Paid guest pack: a real inventory increment, mission progress and XP,
+    // without assuming old fixed wallet balances after attendance and rewards.
+    const beforeDraw=await page.evaluate(()=>{
+      const save=JSON.parse(localStorage.getItem('itm-guest-save-v2'));
       const inventory=JSON.parse(localStorage.getItem('itm-live-card-inventory-v1')||'{}');
-      return save&&save.balance>=4900&&save.balance<5000&&
-        Object.values(inventory).some(n=>Number(n)>0);
-    },null,{timeout:30000,polling:250});
+      return {balance:save.balance,cardCount:Object.values(inventory).reduce((n,v)=>n+Number(v||0),0)};
+    });
+    await page.locator('#drawOne').click({timeout:12000});
+    await page.waitForFunction(before=>{
+      const raw=localStorage.getItem('itm-guest-save-v2');
+      const inventory=JSON.parse(localStorage.getItem('itm-live-card-inventory-v1')||'{}');
+      const count=Object.values(inventory).reduce((n,v)=>n+Number(v||0),0);
+      return raw&&count>before;
+    },beforeDraw.cardCount,{timeout:30000,polling:250});
     report.checks.guestDraw=await page.evaluate(()=>{
       const save=JSON.parse(localStorage.getItem('itm-guest-save-v2'));
       const cards=JSON.parse(localStorage.getItem('itm-live-card-inventory-v1')||'{}');
       return {balance:save.balance,experience:save.profile.experience,
         ownedCount:Object.values(cards).reduce((n,v)=>n+Number(v||0),0),
+        drawTracked:save.journey?.events?.some(x=>x.kind==='draw'),
         prices:['drawOne','drawFive','drawEleven'].map(id=>document.getElementById(id).textContent),
         twoLines:document.getElementById('drawOne').children.length===2};
     });
-    if(report.checks.guestDraw.balance<4900||
-       !report.checks.guestDraw.experience||!report.checks.guestDraw.ownedCount||
+    if(beforeDraw.balance<100||report.checks.guestDraw.ownedCount<=beforeDraw.cardCount||
+       !report.checks.guestDraw.experience||!report.checks.guestDraw.drawTracked||
        !report.checks.guestDraw.twoLines)
-      throw Error('Guest pull did not deduct M and grant card + XP');
+      throw Error('Guest paid pack / inventory / XP regression');
+
   }
   await context.close();
 }
