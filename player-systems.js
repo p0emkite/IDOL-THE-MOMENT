@@ -5,6 +5,9 @@ import {createJourney} from './journey.js?v=20261115-v1';
 export function createPlayerSystems({state,$,toast,refreshWallet,refreshMailbox,visibleInventory,byId,makeCardArt,assetUrl,getPacks,onFreeDraw}){
   const RATINGS=['N','R','SR','SSR','UR'];
   const REWARDS={N:100,R:300,SR:500,SSR:1000,UR:3000,ALL:0};
+  const JOURNEY_TITLES={first_ur:'✦ FIRST UR',unique_30:'✧ MOMENT COLLECTOR',
+    pulls_200:'✧ MEMORY KEEPER',unique_50:'✦ ARCHIVE MASTER',
+    visits_30:'✦ LOYAL FAN',tasks_200:'✦ THE MOMENT MASTER'};
   const names={N:'NORMAL',R:'RARE',SR:'SUPER RARE',SSR:'SPECIAL SUPER RARE',UR:'ULTRA RARE',ALL:'100% 완성'};
   let frames=[],ownedFrames=new Set(),claims=new Set(),events=[],loaded=false;
   let celebrations=[],celebrating=false,introClosed=false,profileBusy=false,activeTab='daily',pendingMailReward=false;
@@ -115,7 +118,11 @@ export function createPlayerSystems({state,$,toast,refreshWallet,refreshMailbox,
     $('profileAccountId').textContent=local?'LOCAL PLAYER · 브라우저 저장':'ITM ID · @'+(state.accountName||'');
     $('accountStatus').textContent=signed?'✦ '+(profile?.nickname||state.accountName):local?'✦ GUEST PROFILE':'계정 연결 필요';
     $('loginButton').textContent=signed?'✦ '+(profile?.nickname||state.accountName):local?'✦ GUEST':'✦ ITM ID';
-    if((!signed&&!local)||!profile)return;
+    if((!signed&&!local)||!profile){
+      $('profileJourneyTitle').hidden=true;
+      return;
+    }
+    renderJourneyTitleOptions();
     $('nicknameInput').value=profile.nickname;
     $('nicknameCost').textContent=Number(profile.next_rename_cost)===0?
       '다음 닉네임 변경 무료 (최초 1회)':'다음 닉네임 변경 비용 · '+money(profile.next_rename_cost);
@@ -126,6 +133,38 @@ export function createPlayerSystems({state,$,toast,refreshWallet,refreshMailbox,
       '등록된 생일: '+String(profile.birthday_month).padStart(2,'0')+'.'+String(profile.birthday_day).padStart(2,'0')+' (변경 불가)':'';
     decorateAvatar();
     renderAvatarChoices();renderFrameChoices();
+  }
+  function renderJourneyTitleOptions(){
+    const select=$('profileJourneyTitleSelect');
+    const claimed=new Set((journey.currentSnapshot()?.achievements||[])
+      .filter(item=>item.claimed).map(item=>item.key));
+    const unlocked=Object.entries(JOURNEY_TITLES).filter(([key])=>claimed.has(key));
+    select.replaceChildren(new Option('칭호 없음',''),
+      ...unlocked.map(([key,label])=>new Option(label,key)));
+    const key=state.profile?.selected_title_key||'';
+    select.value=unlocked.some(([id])=>id===key)?key:'';
+    $('profileJourneyTitle').hidden=!select.value;
+    $('profileJourneyTitle').textContent=JOURNEY_TITLES[select.value]||'';
+  }
+  async function selectJourneyTitle(){
+    if(profileBusy||(!guest()&&!state.playerId))return;
+    const key=$('profileJourneyTitleSelect').value||null;
+    const claimed=new Set((journey.currentSnapshot()?.achievements||[])
+      .filter(item=>item.claimed).map(item=>item.key));
+    if(key&&!claimed.has(key))return toast('먼저 해당 업적을 달성해야 칭호를 사용할 수 있습니다.');
+    profileBusy=true;$('profileJourneyTitleSelect').disabled=true;
+    try{
+      if(guest()){
+        state.guestData.profile.selected_title_key=key;
+        state.profile=state.guestData.profile;persistGuest();
+      }else{
+        const {error}=await client().rpc('itm_select_journey_title',{p_key:key});
+        if(error)throw error;
+        state.profile.selected_title_key=key;
+      }
+      renderProfile();toast(key?'프로필 칭호를 설정했습니다.':'프로필 칭호를 해제했습니다.');
+    }catch(err){toast('칭호 변경 실패: '+err.message);renderProfile()}
+    finally{profileBusy=false;$('profileJourneyTitleSelect').disabled=false}
   }
   function renderAvatarChoices(){
     const list=$('profileCardChoices');list.replaceChildren();
@@ -387,6 +426,7 @@ export function createPlayerSystems({state,$,toast,refreshWallet,refreshMailbox,
   }
   function bind(){
     $('nicknameForm').onsubmit=changeNickname;
+    $('profileJourneyTitleSelect').onchange=selectJourneyTitle;
     $('avatarCropClose').onclick=closeAvatarCrop;
     $('avatarCropCancel').onclick=closeAvatarCrop;
     $('avatarCropSave').onclick=saveAvatarCrop;
