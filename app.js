@@ -4,8 +4,8 @@ import {createURCinematic} from './ur-cinematic.js?v=ur-seven-seconds-20261114';
 import {createRarityRevealAccents} from './rarity-accents.js?v=20261108-v3';
 import {createOpeningEffects} from './opening-effects.js';
 import {renderITMCard} from './card-frame.js?v=ur-photo-window-20261105';
-import {createPlayerSystems} from './player-systems.js?v=guest-crop-level-20261109';
-import {readGuestSave,writeGuestSave,grantGuestMail,grantGuestDraw} from './guest-state.js?v=20261109';
+import {createPlayerSystems} from './player-systems.js?v=journey-20261115';
+import {readGuestSave,writeGuestSave,grantGuestMail,grantGuestDraw} from './guest-state.js?v=journey-20261115';
 /* ITM — IDOL : THE MOMENT | Standalone, fan-made 3D prototype
    3D library is loaded from a pinned public ESM CDN; there is no build step.
    Offline demo cards are mock identities and stored only in localStorage.
@@ -1103,14 +1103,17 @@ function stageBurst(card){
   banner.textContent=card.rarity==='SSR'?'SPECIAL SUPER RARE':card.rarity==='SR'?'SUPER RARE':'RARE';
   banner.className='stage-rarity-banner '+klass+' active';
 }
-async function openPack(count){
+async function openPack(count,{freeTicket=false,packId=null}={}){
   // Guest draws are local: never block the pack while Supabase initialises.
   // Cloud inventory draws still require the authenticated backend to be ready.
   if(state.busy||state.phase!=='ready'||state.entryRequired||(isNamedAccount()&&!state.backendReady))return;
-  if(!selectedPack())return toast('관리자가 공개한 카드팩이 없습니다.');
+  const pack=packId?AVAILABLE_PACKS.find(item=>item.id===packId):selectedPack();
+  if(!pack)return toast('관리자가 공개한 카드팩을 선택해 주세요.');
   if(!isNamedAccount()&&!isGuest())return toast('게스트 플레이 또는 ITM ID로 로그인해 주세요.');
-  if(state.walletReady&&!state.studioAdmin&&state.walletBalance<priceOf(count))
+  if(freeTicket&&!([1,3,5,11].includes(count)))return toast('무료 개봉권 종류를 확인해 주세요.');
+  if(!freeTicket&&state.walletReady&&!state.studioAdmin&&state.walletBalance<priceOf(count))
     return toast('M이 부족합니다. '+priceOf(count).toLocaleString('ko-KR')+' M이 필요합니다.');
+  if(packId&&$('packPicker'))$('packPicker').value=packId;
   state.busy=true;setDrawButtonsDisabled(true);
   const inventoryBefore=visibleInventory();
   let rolled=[];
@@ -1118,25 +1121,26 @@ async function openPack(count){
     if(state.supabase)await loadPublishedCatalog().catch(err=>console.warn('카드 목록 갱신 실패',err));
     if(isNamedAccount()){
       await refreshWallet();
-      if(!state.studioAdmin&&state.walletBalance<priceOf(count))
+      if(!freeTicket&&!state.studioAdmin&&state.walletBalance<priceOf(count))
         throw Error('INSUFFICIENT_M');
-      const {data,error}=await state.supabase.rpc('itm_open_managed_pack',{
-        p_count:count,p_pack_id:selectedPack().id
+      const {data,error}=await state.supabase.rpc(freeTicket?'itm_open_ticket_pack':'itm_open_managed_pack',{
+        p_count:count,p_pack_id:pack.id
       });
       if(error)throw error;
       rolled=(data||[]).map(x=>byId.get(String(x.id))).filter(Boolean);
       if(rolled.length!==count)throw Error('서버 카드 결과를 확인할 수 없습니다.');
       await Promise.all([syncRemote(),refreshWallet()]);
-      void playerSystems.afterDraw();
+      void playerSystems.afterDraw({drawn:rolled});
     }else{
       if(!isGuest())throw Error('게스트 플레이를 선택해 주세요.');
-      if(state.guestData.balance<priceOf(count))throw Error('INSUFFICIENT_M');
-      rolled=drawLiveLocal(count,selectedPack());
+      if(!freeTicket&&state.guestData.balance<priceOf(count))throw Error('INSUFFICIENT_M');
+      rolled=drawLiveLocal(count,pack);
+      if(freeTicket&&!playerSystems.consumeGuestTicket(count))throw Error('FREE_TICKET_MISSING');
       for(const card of rolled)state.liveInventory[card.id]=(state.liveInventory[card.id]||0)+1;
-      grantGuestDraw(state.guestData,count,rolled,inventoryBefore,state.liveInventory,LIVE_POOL);
+      grantGuestDraw(state.guestData,count,rolled,inventoryBefore,state.liveInventory,LIVE_POOL,{freeTicket});
       writeLiveInventory();persistGuest();updateCounts();
       await refreshWallet();
-      await playerSystems.afterDraw();
+      await playerSystems.afterDraw({drawn:rolled});
     }
     await Promise.all(rolled.map(async card=>{
       try{await preloadCard(card)}
@@ -1145,8 +1149,9 @@ async function openPack(count){
   }catch(err){
     state.busy=false;setDrawButtonsDisabled(false);
     const message=String(err?.message||err);
-    toast(message.includes('INSUFFICIENT_M')?'M이 부족합니다. 우편함에서 보상을 확인해 주세요.':'카드팩 개봉 실패: '+message);
-    if(isNamedAccount())void refreshWallet().catch(console.warn);return;
+    toast(message.includes('INSUFFICIENT_M')?'M이 부족합니다. 우편함에서 보상을 확인해 주세요.':
+      message.includes('FREE_TICKET_MISSING')?'무료 개봉권이 부족합니다.':'카드팩 개봉 실패: '+message);
+    if(isNamedAccount())void refreshWallet().catch(console.warn);return false;
   }
   const seenThisPull=new Map();
   state.pullBadges=rolled.map(card=>{
@@ -1315,6 +1320,7 @@ function openCardFocus(card){
   $('cardFocusCaption').textContent=card.rarity+' · '+card.group+' · '+card.name+' · 한 번 더 터치하면 닫힙니다';
   $('cardFocusOverlay').hidden=false;
   $('cardFocusClose').focus({preventScroll:true});
+  void playerSystems.onInteraction('view');
 }
 function closeCardFocus(){
   if($('cardFocusOverlay').hidden)return;
@@ -1729,6 +1735,7 @@ function bind(){
     if(state.supabase)await loadPublishedCatalog().catch(err=>console.warn('카드 목록 갱신 실패',err));
     if(isNamedAccount())await syncRemote();
     renderCollection();openModal('collectionOverlay');
+    void playerSystems.onInteraction('archive');
   };
   $('collectionClose').onclick=()=>closeModal('collectionOverlay');
   $('walletOpen').onclick=$('mailOpen').onclick=()=>{openModal('mailOverlay');void refreshMailbox().catch(err=>toast('우편함 불러오기 실패: '+err.message))};
@@ -1775,7 +1782,14 @@ function bind(){
   });
 }
 const playerSystems=createPlayerSystems({
-  state,$,toast,refreshWallet,refreshMailbox,visibleInventory,byId,makeCardArt,assetUrl
+  state,$,toast,refreshWallet,refreshMailbox,visibleInventory,byId,makeCardArt,assetUrl,
+  getPacks:()=>AVAILABLE_PACKS,
+  onFreeDraw:async(count,packId)=>{
+    if(state.busy||state.phase!=='ready')return toast('현재 개봉 연출이 끝난 뒤 이용해 주세요.');
+    $('taskOverlay').classList.remove('active');
+    $('taskOverlay').setAttribute('aria-hidden','true');
+    return openPack(count,{freeTicket:true,packId});
+  }
 });
 bind();
 const stageReady=init3D();
