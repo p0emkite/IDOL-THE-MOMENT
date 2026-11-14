@@ -11,7 +11,9 @@
 .itm-ur-meteor-trail::before{content:"";position:absolute;right:0;top:50%;width:35px;aspect-ratio:1;border-radius:50%;transform:translateY(-50%);background:#fff;box-shadow:0 0 26px 14px #f5baff,0 0 85px 35px #91f3ff}
 /* Showcase the original card artwork rather than its transparent 1024x1492 export margins.
    The source artwork is 290x478 units inside a 512x746 canvas. Keep the official frame untouched. */
-.itm-ur-cinema-card{z-index:5;position:relative;width:min(445px,56vw,57vh);aspect-ratio:290/478;transform-style:preserve-3d;filter:drop-shadow(0 0 13px #dfb7ff8c);animation:itmURMeteorLand 1.5s cubic-bezier(.13,.75,.18,1) both;will-change:transform}
+/* Correct for the original foil's protruding top star: center the visible card body,
+   not the transparent image bounds. The independent translate survives the meteor animation. */
+.itm-ur-cinema-card{z-index:5;position:relative;width:min(445px,56vw,57vh);aspect-ratio:290/478;translate:0 -3%;transform-style:preserve-3d;filter:drop-shadow(-1px -1px 1px #94eaffaa) drop-shadow(1px 1px 1px #ffb6edaa) drop-shadow(0 0 9px #be9eff5c);animation:itmURMeteorLand 1.5s cubic-bezier(.13,.75,.18,1) both;will-change:transform}
 .itm-ur-cinema-inner{position:absolute;inset:0;transform-style:preserve-3d;animation:itmURGrandFlip 2.42s cubic-bezier(.17,.68,.18,1) both}
 .itm-ur-cinema-face{position:absolute;inset:0;border-radius:3.2% / 2.2%;overflow:hidden;backface-visibility:hidden;-webkit-backface-visibility:hidden;background:transparent;box-shadow:none}
 .itm-ur-cinema-face img{display:block;width:100%;height:100%;object-fit:fill}
@@ -20,14 +22,9 @@
 /* Crop only the transparent export margins. No photo/frame pixels are repainted or changed. */
 .itm-ur-cinema-face.front img{position:absolute;width:115.6051%;height:102.1918%;left:-9.5267%;top:-1.0959%;max-width:none;object-fit:fill}
 .itm-ur-cinema-face.back img{object-fit:cover}
-/* One delicate iridescent rim only; remove the old lavender inset panel. */
-.itm-ur-cinema-face.front::before{
-  content:"";position:absolute;inset:0;z-index:4;pointer-events:none;border-radius:inherit;
-  padding:1.5px;background:linear-gradient(135deg,#7ee9ff 0%,#c6a1ff 25%,#ffaee8 50%,#ffe8a5 73%,#8ceaff 100%);
-  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
-  -webkit-mask-composite:xor;mask-composite:exclude;
-  opacity:.92
-}
+/* No synthetic rectangular rim above the foil's star. The two directional
+   alpha-aware drop-shadows on .itm-ur-cinema-card add only a very thin prism glow. */
+.itm-ur-cinema-face.front::before{content:none;display:none}
 .itm-ur-cinema-foil{position:absolute;inset:-20% -130%;z-index:3;pointer-events:none;background:linear-gradient(110deg,transparent 40%,#fff7 47%,#aef5ffbb 49%,#fff9 50%,#ffbdfa71 53%,transparent 60%);mix-blend-mode:screen;transform:translateX(-50%);animation:itmURGloss 3.1s 1.7s ease-in-out infinite}
 .itm-ur-cinema-impact{z-index:6;background:radial-gradient(ellipse at center,#fff 0%,#fffdf4ff 13%,#fff9f9cc 23%,#f9a2ff76 41%,#a3f8ff33 62%,transparent 80%);opacity:0;animation:itmURCollision 2.5s ease-out both}
 .itm-ur-cinema-rings{z-index:4;display:grid;place-items:center}
@@ -104,7 +101,7 @@ body.itm-concert .ur-screen-transition.playing::after{
 
 /* Keep the grand UR card visible after the impact until the user closes it. */
 .itm-ur-cinema.ready{cursor:pointer}
-.itm-ur-cinema.ready .itm-ur-cinema-card{filter:drop-shadow(0 0 15px #d7afff91)}
+.itm-ur-cinema.ready .itm-ur-cinema-card{filter:drop-shadow(-1px -1px 1px #94eaffaa) drop-shadow(1px 1px 1px #ffb6edaa) drop-shadow(0 0 9px #be9eff5c)}
 .itm-ur-cinema-ready-hint{position:absolute;z-index:10;bottom:max(7px,env(safe-area-inset-bottom));left:12px;right:12px;text-align:center;font-size:clamp(10px,1.05vw,13px);font-weight:700;letter-spacing:.08em;text-shadow:0 0 16px #000,0 2px 8px #000;opacity:0;pointer-events:none;transition:opacity .45s ease-out}
 .itm-ur-cinema.ready .itm-ur-cinema-ready-hint{opacity:1}
 .itm-ur-cinema.ready .itm-ur-cinema-skip{background:#25123aca}
