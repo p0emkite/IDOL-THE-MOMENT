@@ -1,6 +1,6 @@
 import {mountAudioPanel} from './audio-manager.js?v=studio-managed-20261107';
 import {createURRevealPayoff} from './ur-reveal.js?v=20261108-ssr';
-import {createURCinematic} from './ur-cinematic.js?v=ur-mp3-20261114';
+import {createURCinematic} from './ur-cinematic.js?v=collection-splash-20261114';
 import {createRarityRevealAccents} from './rarity-accents.js?v=20261108-v3';
 import {createOpeningEffects} from './opening-effects.js';
 import {renderITMCard} from './card-frame.js?v=ur-photo-window-20261105';
@@ -53,6 +53,8 @@ const POOL=[];
 const byId = new Map(POOL.map(c=>[c.id,c]));
 const LIVE_POOL=[];
 const AVAILABLE_PACKS=[];
+const UR_AUDIO_BY_COLLECTION=new Map();
+const collectionAudioKey=(group,edition)=>JSON.stringify([group,edition]);
 let LIVE_READY=false;
 const loadedArtwork=new Map();
 const artworkPromises=new Map();
@@ -111,12 +113,19 @@ function drawLiveLocal(count,packRule=null){
 }
 async function loadPublishedCatalog(){
   if(!state.supabase)return false;
-  const [groupsResult,cardsResult,packsResult]=await Promise.all([
+  const [groupsResult,cardsResult,packsResult,seriesResult]=await Promise.all([
     state.supabase.from('itm_groups').select('slug,name,logo_path'),
     state.supabase.from('itm_catalog').select('id,group_slug,display_name,edition,rarity,photo_path,full_art_path,photo_scale,photo_x,photo_y,logo_scale,ur_name_color,status').eq('status','published'),
-    state.supabase.from('itm_packs').select('id,name,image_path,group_slugs,series_filters,rarity_odds,active').eq('active',true).order('created_at')
+    state.supabase.from('itm_packs').select('id,name,image_path,group_slugs,series_filters,rarity_odds,active').eq('active',true).order('created_at'),
+    state.supabase.from('itm_series').select('group_slug,name,ur_audio_path')
   ]);
-  if(groupsResult.error||cardsResult.error||packsResult.error)throw(groupsResult.error||cardsResult.error||packsResult.error);
+  if(groupsResult.error||cardsResult.error||packsResult.error||seriesResult.error)throw(
+    groupsResult.error||cardsResult.error||packsResult.error||seriesResult.error
+  );
+  UR_AUDIO_BY_COLLECTION.clear();
+  for(const series of seriesResult.data||[]){
+    if(series.ur_audio_path)UR_AUDIO_BY_COLLECTION.set(collectionAudioKey(series.group_slug,series.name),series.ur_audio_path);
+  }
   const previous=$('packPicker')?.value||'';
   AVAILABLE_PACKS.splice(0,AVAILABLE_PACKS.length,...(packsResult.data||[]));
   const picker=$('packPicker');
@@ -385,6 +394,7 @@ function hoverRaritySound(card){
   chime({SR:784,SSR:988,UR:1175}[card.rarity],.053);
 }
 function closeRaritySplash({complete=true}={}){
+  urCinematic?.stopCustomSound();
   clearTimeout(splashTimer);clearTimeout(urCoverTimer);
   splashTimer=null;urCoverTimer=null;
   $('raritySplash').hidden=true;
@@ -439,6 +449,11 @@ function showRaritySplash(card){
     fragment.append(p);
   }
   fireworks.append(fragment);
+  // Start the collection's clip with the first rendered full-screen UR artwork
+  // after the blackout/flash. Do not restart it for the later meteor sequence.
+  requestAnimationFrame(()=>{
+    if(!splash.hidden&&state.phase==='reveal')void urCinematic?.playCustomSound();
+  });
   $('splashClose').focus({preventScroll:true});
 }
 function queueRaritySplash(card){
@@ -469,6 +484,11 @@ function beginURCinematic(index,all=false){
   // including the full-screen artwork; the cinematic owns final restoration.
   urBgmLocked=true;
   soundManager?.setBgmDucking(.12);
+  const clipPath=UR_AUDIO_BY_COLLECTION.get(collectionAudioKey(card.group_slug,card.edition));
+  const clipUrl=clipPath?state.supabase.storage.from('itm-bgm').getPublicUrl(clipPath).data.publicUrl:null;
+  // Preparing during the real card click unlocks WebAudio on mobile and loads
+  // the MP3 in the blackout before the full-screen card artwork appears.
+  urCinematic?.setCustomAudioUrl(clipUrl);
   queueRaritySplash(card);
 }
 function beginSSRImpact(index,all=false){
@@ -1501,11 +1521,6 @@ async function initBackend(){
       const mod=await import('https://esm.sh/@supabase/supabase-js@2.57.0');
       state.supabase=mod.createClient(CONFIG.supabaseUrl,CONFIG.supabasePublishableKey);
     }
-    // The UR effect is a separate public MP3, not part of the BGM playlist.
-    // A per-page revision prevents old audio from persisting after admin replacement.
-    const urAudioUrl=state.supabase.storage.from('itm-bgm')
-      .getPublicUrl('effects/ur-reveal.mp3').data.publicUrl;
-    urCinematic?.setCustomAudioUrl(urAudioUrl+'?v='+Date.now());
     void soundManager?.setBackend(state.supabase,false);
     try{await loadPublishedCatalog()}catch(e){console.warn('Card catalog unavailable; demo remains active',e)}
     const {data,error}=await state.supabase.auth.getSession();
